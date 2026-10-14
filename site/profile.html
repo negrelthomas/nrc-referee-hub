@@ -219,6 +219,11 @@ async function loadTraining() {
   $("#train-levels tbody").innerHTML = ["level_1", "level_2", "level_3"].filter(l => byLevel[l]).map(l => { const v = byLevel[l]; const pct = Math.round(v.c / v.n * 100); return `<tr><td>${NRC.levelLabel(l).replace(" (National)", "")}</td><td>${v.n}</td><td>${pillFor(pct)}</td></tr>`; }).join("") || '<tr><td colspan="3">No answers yet.</td></tr>';
   $("#train-sessions").innerHTML = A.slice(0, 15).map(s => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">${NRC.fmtDate(s.created_at)} &middot; ${s.mode} &middot; ${s.rule_number ? "Rule " + s.rule_number : "all rules"}${s.difficulty ? ", " + NRC.levelLabel(s.difficulty).replace(" (National)", "") : ""} &middot; <strong>${s.correct}/${s.total}</strong></div>`).join("") || "No sessions yet.";
 }
+window.respond = async function (id, status) {
+  const { error } = await NRC.sb.from("assignment_requests").update({ status, responded_at: new Date().toISOString() }).eq("id", id);
+  if (error) { NRC.notice($("#msg"), "Could not record your answer: " + NRC.esc(error.message), "error"); return; }
+  loadAssignments(); loadHome();
+};
 async function loadGames() {
   const { data } = await NRC.sb.from("games").select("game_date,home_team,away_team,category,referee_1,referee_2,tournaments(name)").or(`referee_1.eq.${ref.id},referee_2.eq.${ref.id}`).order("game_date", { ascending: false });
   const ids = [...new Set((data || []).flatMap(g => [g.referee_1, g.referee_2]).filter(x => x && x !== ref.id))];
@@ -235,8 +240,9 @@ async function loadEvals() {
     ${e.strengths ? `<p><strong>Strengths.</strong> ${NRC.esc(e.strengths)}</p>` : ""}${e.points_to_improve ? `<p><strong>Points to improve.</strong> ${NRC.esc(e.points_to_improve)}</p>` : ""}${e.notes ? `<p class="small muted">${NRC.esc(e.notes)}</p>` : ""}</div>`).join("") || '<div class="card">No evaluation shared with you yet.</div>';
 }
 async function loadAssignments() {
-  const { data } = await NRC.sb.from("assignment_requests").select("status,tournaments(name,start_date,end_date,venue_city,venue_state)").eq("referee_id", ref.id).order("created_at", { ascending: false });
-  $("#asg tbody").innerHTML = (data || []).map(a => `<tr><td>${NRC.esc(a.tournaments.name)}</td><td>${NRC.fmtDate(a.tournaments.start_date)} to ${NRC.fmtDate(a.tournaments.end_date)}</td><td>${NRC.esc([a.tournaments.venue_city, a.tournaments.venue_state].filter(Boolean).join(", "))}</td><td><span class="pill">${NRC.esc(a.status.replace("_", " "))}</span></td></tr>`).join("") || '<tr><td colspan="4">No assignment requests yet.</td></tr>';
+  const { data } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,sanction,start_date,end_date,venue_city,venue_state)").eq("referee_id", ref.id).order("created_at", { ascending: false });
+  const STATUS = { sent: "amber", accepted: "green", declined: "red", confirmed: "green" };
+  $("#asg tbody").innerHTML = (data || []).filter(a => a.status !== "draft").map(a => `<tr><td><strong>${NRC.esc(a.tournaments.name)}</strong>${a.tournaments.sanction ? ' <span class="pill">' + (SANCTION[a.tournaments.sanction] || "") + "</span>" : ""}</td><td>${NRC.fmtDate(a.tournaments.start_date)} to ${NRC.fmtDate(a.tournaments.end_date)}</td><td>${NRC.esc([a.tournaments.venue_city, a.tournaments.venue_state].filter(Boolean).join(", "))}</td><td>${a.status === "sent" ? `<button class="btn sm" onclick="respond('${a.id}','accepted')">Accept</button> <button class="btn sm ghost" onclick="respond('${a.id}','declined')">Decline</button>` : `<span class="pill ${STATUS[a.status] || ""}">${NRC.esc(a.status.replace("_", " "))}</span>`}</td></tr>`).join("") || '<tr><td colspan="4">No invitation yet. The NRC invites referees by email; invitations also appear here.</td></tr>';
 }
 document.addEventListener("DOMContentLoaded", load);
 </script>

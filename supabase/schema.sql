@@ -328,6 +328,20 @@ values ('sport80_import', 'Import the Sport80 referee membership export',
         current_date, 30)
 on conflict (key) do nothing;
 
+create table if not exists public.email_log (
+  id uuid primary key default gen_random_uuid(),
+  request_id uuid references public.assignment_requests(id) on delete set null,
+  to_email text not null,
+  subject text,
+  kind text, -- invite | reminder | confirm
+  sent boolean not null default false,
+  error text,
+  created_at timestamptz not null default now()
+);
+alter table public.email_log enable row level security;
+drop policy if exists email_admin on public.email_log;
+create policy email_admin on public.email_log for all using (public.is_admin()) with check (public.is_admin());
+
 create table if not exists public.import_log (
   id uuid primary key default gen_random_uuid(),
   kind text not null, -- sport80 | ihf_catalogue | clubs
@@ -434,6 +448,10 @@ create policy tournaments_admin_del on public.tournaments for delete using (publ
 drop policy if exists req_own on public.assignment_requests;
 create policy req_own on public.assignment_requests for select
   using (public.is_admin() or referee_id in (select id from public.referees where user_id = auth.uid()));
+drop policy if exists req_own_update on public.assignment_requests;
+create policy req_own_update on public.assignment_requests for update
+  using (referee_id in (select id from public.referees where user_id = auth.uid()))
+  with check (referee_id in (select id from public.referees where user_id = auth.uid()));
 drop policy if exists req_admin on public.assignment_requests;
 create policy req_admin on public.assignment_requests for all using (public.is_admin()) with check (public.is_admin());
 

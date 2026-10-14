@@ -146,17 +146,47 @@
   </form>
 </div></dialog>
 
-<!-- Tournament assignments -->
-<dialog id="dlg-tour"><div class="body">
-  <h3 id="dlg-tour-title">Tournament</h3>
-  <form id="form-tour">
-    <div class="row"><div><label>Sanction</label><select name="sanction"><option value="club">Club</option><option value="regional">Regional</option><option value="usath">USATH</option><option value="international">International</option></select></div><div><label>Region</label><input name="region"></div></div>
-    <p style="margin-top:10px"><button class="btn sm" type="submit">Save</button></p>
+<!-- Tournament staffing -->
+<dialog id="dlg-tour" style="max-width:960px"><div class="body">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
+    <div><h3 id="dlg-tour-title" style="margin:0">Tournament</h3><div class="small muted" id="dlg-tour-sub"></div></div>
+    <button class="btn ghost sm" type="button" onclick="document.getElementById('dlg-tour').close()">Close</button>
+  </div>
+  <form id="form-tour" class="row" style="grid-template-columns:1fr 1fr auto;align-items:end;gap:8px;margin-top:10px">
+    <div><label>Sanction</label><select name="sanction"><option value="club">Club</option><option value="regional">Regional</option><option value="usath">USATH</option><option value="international">International</option></select></div>
+    <div><label>Region</label><input name="region"></div>
+    <div><button class="btn sm secondary" type="submit">Save</button></div>
   </form>
-  <h3 style="margin-top:14px">Referees who officiated</h3>
-  <div class="table-wrap"><table id="tour-asg"><thead><tr><th>Referee</th><th>Role</th><th>Games</th><th></th></tr></thead><tbody></tbody></table></div>
-  <div class="row" style="margin-top:10px"><div><label>Add referee</label><select id="asg-ref"></select></div><div><label>Games officiated</label><input id="asg-games" type="number" min="0"></div></div>
-  <p style="margin-top:10px"><button class="btn sm" type="button" onclick="addAssignment()">Add</button> <button class="btn ghost sm" type="button" onclick="document.getElementById('dlg-tour').close()">Close</button></p>
+
+  <div class="tabs" style="margin-top:14px">
+    <button data-ttab="invites" class="active">Invitations</button>
+    <button data-ttab="candidates">Find referees</button>
+    <button data-ttab="officiated">Officiated and games</button>
+  </div>
+
+  <div id="ttab-invites">
+    <div id="inv-summary" class="chips"></div>
+    <div class="table-wrap"><table id="inv"><thead><tr><th></th><th>Referee</th><th>Status</th><th>Sent</th><th>Answer</th><th>Note</th></tr></thead><tbody></tbody></table></div>
+    <div class="toolbar" style="margin-top:10px">
+      <button class="btn sm" type="button" onclick="sendSelected('invite')">Send invitations to selected</button>
+      <button class="btn sm secondary" type="button" onclick="sendSelected('reminder')">Send reminder</button>
+      <button class="btn sm yellow" type="button" onclick="sendSelected('confirm')">Confirm selected (accepted only)</button>
+      <button class="btn sm ghost" type="button" onclick="removeSelected()">Remove draft</button>
+    </div>
+    <p class="small muted">Invite sets status to sent and emails the referee with accept and decline links. Confirm emails the final selection and creates the assignment. Emails require RESEND_API_KEY on Netlify; without it the rows are recorded and marked not sent.</p>
+  </div>
+
+  <div id="ttab-candidates" class="hidden">
+    <div class="toolbar"><input id="cand-q" placeholder="Search name, club, airport"><select id="cand-level"><option value="">All levels</option><option value="level_1">Level 1 and above</option><option value="level_2">Level 2 and above</option><option value="level_3">Level 3 and above</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-avail" checked style="width:auto"> hide unavailable</label></div>
+    <div class="table-wrap"><table id="cand"><thead><tr><th></th><th>Referee</th><th>Level</th><th>Club</th><th>Airport</th><th>Availability</th><th>Season</th><th>Pair</th></tr></thead><tbody></tbody></table></div>
+    <p style="margin-top:10px"><button class="btn sm" type="button" onclick="addCandidates()">Add selected as draft invitations</button> <span class="small muted">Then send from the Invitations tab.</span></p>
+  </div>
+
+  <div id="ttab-officiated" class="hidden">
+    <div class="table-wrap"><table id="tour-asg"><thead><tr><th>Referee</th><th>Role</th><th>Games</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row" style="margin-top:10px"><div><label>Add referee</label><select id="asg-ref"></select></div><div><label>Games officiated</label><input id="asg-games" type="number" min="0"></div></div>
+    <p style="margin-top:10px"><button class="btn sm" type="button" onclick="addAssignment()">Add</button></p>
+  </div>
 </div></dialog>
 
 <!-- Club editor -->

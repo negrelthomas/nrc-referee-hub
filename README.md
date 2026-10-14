@@ -26,7 +26,8 @@ supabase/
   seed_questions.sql       115 questions from the CalCup deck (76 flashcards, 39 timed)
   seed_questions_ihf.sql   430 questions, IHF Catalogue of Rules Questions, edition 1 July 2025
   seed_demo.sql            optional demo: Halina Lehto, Azadeh Ahmadi, Zeke McClintock with tournament history, evaluations, pair
-netlify.toml
+netlify/functions/        send-invitations.mjs (invite, reminder, confirm emails), respond.mjs (accept or decline from the email link)
+netlify.toml, package.json
 ```
 
 ## Setup (one time, about 20 minutes)
@@ -56,9 +57,15 @@ Photo, club, home city and state, home airport and usual departure airport, cert
 
 Domain and DNS, Netlify site ownership, Supabase project ownership (Organization > transfer), auth email sender (custom SMTP on handballusa.org), `CONTACT_EMAIL` in config.js, GitHub repo transfer.
 
-## Phase 2 (assignments) and phase 3 (evaluations at scale)
+## Assignments (phase 2)
 
-The tables for assignment requests, assignments, games and evaluations exist and are already used by the admin referee editor (log game, add evaluation). Phase 2 adds: select referees or pairs for a tournament, send invitations by email with accept and decline links (Netlify Function plus Resend), response tracking and reminders. Phase 3 adds: observer accounts, season reports, exports.
+Admin > Tournament requests > Open. Three tabs: Find referees (level filter, local airport first, blocked dates from the referees' availability, season games, established partner), Invitations (draft, send, remind, confirm), Officiated and games (what feeds each referee's history). Referees answer from the email links (respond.html, token based, no sign in) or from their home page. Confirming creates the assignment and emails the confirmation with what the organizer covers.
+
+Email needs four environment variables on Netlify (Site configuration > Environment variables): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Supabase > Project settings > API, service role, server only), `RESEND_API_KEY` (resend.com, free tier), `MAIL_FROM` (a verified sender on Resend, e.g. `NRC Referee Hub <thomas@calheat.com>` until USATH's domain is verified), `SITE_URL` (the Netlify URL). Without these the admin can still track invitations; the send buttons record the attempt as not sent. Every email is logged in `email_log`.
+
+## Phase 3 (evaluations at scale)
+
+Observer accounts, season reports, exports, organizer accounts with their own request list.
 
 ## Local preview
 

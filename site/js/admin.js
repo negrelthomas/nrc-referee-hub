@@ -185,25 +185,80 @@
     $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td><span class="pill">${SANCTION[t.sanction] || ""}</span>${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="openTour('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="9">No requests yet.</td></tr>';
   }
   window.setTourStatus = async function (id, status) { await sb().from("tournaments").update({ status }).eq("id", id); };
-  let currentTour = null;
+  let currentTour = null, pairsCache = [], availCache = [];
+  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "officiated"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab)); });
   window.openTour = async function (id) {
     currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour");
-    $("#dlg-tour-title").textContent = currentTour.name; f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || "";
+    $("#dlg-tour-title").textContent = currentTour.name;
+    $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs needed.`;
+    f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || "";
     $("#asg-ref").innerHTML = refs.filter(r => r.active).map(r => `<option value="${r.id}">${NRC.esc(r.first_name + " " + r.last_name)}</option>`).join("");
-    await renderTourAsg(); $("#dlg-tour").showModal();
+    const [{ data: pr }, { data: av }] = await Promise.all([sb().from("pairs").select("*"), sb().from("availability_blocks").select("*").lte("start_date", currentTour.end_date).gte("end_date", currentTour.start_date)]);
+    pairsCache = pr || []; availCache = av || [];
+    await Promise.all([renderInvites(), renderCandidates(), renderTourAsg()]);
+    $("#dlg-tour").showModal();
   };
+  const refName = id => { const r = refs.find(x => x.id === id); return r ? r.first_name + " " + r.last_name : "?"; };
+  const partnerOf = id => { const p = pairsCache.find(p => (p.referee_a === id || p.referee_b === id) && (!p.valid_until || p.valid_until >= today())); return p ? (p.referee_a === id ? p.referee_b : p.referee_a) : null; };
+  const unavailable = id => availCache.find(b => b.referee_id === id);
+
+  // Invitations
+  let invites = [];
+  async function renderInvites() {
+    const { data } = await sb().from("assignment_requests").select("*").eq("tournament_id", currentTour.id).order("created_at");
+    invites = data || [];
+    const c = s => invites.filter(i => i.status === s).length;
+    $("#inv-summary").innerHTML = [["draft", "Draft"], ["sent", "Waiting"], ["accepted", "Accepted"], ["declined", "Declined"], ["confirmed", "Confirmed"]].map(([k, l]) => `<span class="chip ${c(k) ? "on" : ""}">${l}: ${c(k)}</span>`).join("") + `<span class="chip">Needed: ${currentTour.pairs_needed * 2} referees</span>`;
+    const STATUS = { draft: "", sent: "amber", accepted: "green", declined: "red", confirmed: "green", no_response: "red", cancelled: "" };
+    $("#inv tbody").innerHTML = invites.map(i => `<tr><td><input type="checkbox" class="inv-sel" value="${i.id}" style="width:auto"></td><td><strong>${NRC.esc(refName(i.referee_id))}</strong>${unavailable(i.referee_id) ? ' <span class="pill red">blocked dates</span>' : ""}</td><td><span class="pill ${STATUS[i.status] || ""}">${i.status.replace("_", " ")}</span>${i.reminder_count ? ` <span class="small muted">${i.reminder_count} reminder${i.reminder_count > 1 ? "s" : ""}</span>` : ""}</td><td class="small">${i.sent_at ? NRC.fmtDate(i.sent_at) : ""}</td><td class="small">${i.responded_at ? NRC.fmtDate(i.responded_at) : ""}</td><td class="small">${NRC.esc(i.response_note || "")}</td></tr>`).join("") || '<tr><td colspan="6">No invitations yet. Use Find referees to add candidates.</td></tr>';
+  }
+  const selectedInv = () => NRC.$$(".inv-sel:checked").map(x => x.value);
+  window.sendSelected = async function (kind) {
+    let ids = selectedInv(); if (!ids.length) { alert("Select referees first."); return; }
+    if (kind === "confirm") { ids = ids.filter(id => invites.find(i => i.id === id && i.status === "accepted")); if (!ids.length) { alert("Only accepted invitations can be confirmed."); return; } }
+    if (kind === "invite") ids = ids.filter(id => ["draft", "sent"].includes((invites.find(i => i.id === id) || {}).status));
+    const { data: sess } = await sb().auth.getSession();
+    const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, request_ids: ids, kind }) });
+    const d = await res.json();
+    if (!res.ok) { alert("Failed: " + (d.error || res.status)); return; }
+    if (kind === "confirm") { for (const id of ids) { const i = invites.find(x => x.id === id); await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: i.referee_id, role: "referee" }, { onConflict: "tournament_id,referee_id" }); } if (currentTour.status === "submitted" || currentTour.status === "reviewing") await sb().from("tournaments").update({ status: "staffed" }).eq("id", currentTour.id); }
+    const failed = d.results.filter(r => !r.sent);
+    alert(`${d.results.length - failed.length} email${d.results.length - failed.length === 1 ? "" : "s"} sent.` + (failed.length ? ` ${failed.length} not sent: ` + failed.map(f => f.email + " (" + (f.error || "").slice(0, 80) + ")").join("; ") : ""));
+    renderInvites(); renderTourAsg();
+  };
+  window.removeSelected = async function () { const ids = selectedInv().filter(id => (invites.find(i => i.id === id) || {}).status === "draft"); if (ids.length) await sb().from("assignment_requests").delete().in("id", ids); renderInvites(); };
+
+  // Candidates
+  function renderCandidates() {
+    const q = $("#cand-q").value.toLowerCase(), lvl = $("#cand-level").value, hide = $("#cand-avail").checked;
+    const order = ["candidate", "level_1", "level_2", "level_3", "nachc", "ihf"];
+    const invited = new Set(invites.map(i => i.referee_id));
+    const club = id => (clubs.find(c => c.id === id) || {}).name || "";
+    const yr = new Date().getFullYear();
+    $("#cand tbody").innerHTML = refs.filter(r => r.active && !invited.has(r.id) && (!lvl || order.indexOf(r.cert_level) >= order.indexOf(lvl)) && (!hide || !unavailable(r.id)) && (!q || [r.first_name, r.last_name, club(r.club_id), r.home_airport_iata, r.home_city].join(" ").toLowerCase().includes(q)))
+      .sort((a, b) => (a.home_airport_iata === currentTour.nearest_airport_iata ? -1 : 0) - (b.home_airport_iata === currentTour.nearest_airport_iata ? -1 : 0) || order.indexOf(b.cert_level) - order.indexOf(a.cert_level))
+      .map(r => { const u = unavailable(r.id); const p = partnerOf(r.id); return `<tr><td><input type="checkbox" class="cand-sel" value="${r.id}" style="width:auto"></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level)}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.home_airport_iata && r.home_airport_iata === currentTour.nearest_airport_iata ? ' <span class="pill green">local</span>' : ""}</td><td>${u ? `<span class="pill red">blocked ${NRC.fmtDate(u.start_date)}</span>` : '<span class="pill green">open</span>'}</td><td class="small">${r._games} games ${yr}</td><td class="small">${p ? "with " + NRC.esc(refName(p)) : ""}</td></tr>`; }).join("") || '<tr><td colspan="8">No referee matches.</td></tr>';
+  }
+  ["#cand-q", "#cand-level", "#cand-avail"].forEach(sel => $(sel).addEventListener("input", renderCandidates));
+  window.addCandidates = async function () {
+    const ids = NRC.$$(".cand-sel:checked").map(x => x.value); if (!ids.length) { alert("Select referees first."); return; }
+    const rows = ids.map(id => ({ tournament_id: currentTour.id, referee_id: id, status: "draft" }));
+    const { error } = await sb().from("assignment_requests").insert(rows); if (error) { alert(error.message); return; }
+    await renderInvites(); renderCandidates(); NRC.$$("#dlg-tour .tabs button")[0].click();
+  };
+
+  // Officiated
   async function renderTourAsg() {
     const { data } = await sb().from("assignments").select("*").eq("tournament_id", currentTour.id);
-    const name = id => { const r = refs.find(x => x.id === id); return r ? r.first_name + " " + r.last_name : "?"; };
-    $("#tour-asg tbody").innerHTML = (data || []).map(a => `<tr><td>${NRC.esc(name(a.referee_id))}</td><td>${NRC.esc(a.role)}</td><td><input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" style="width:80px" onchange="setAsgGames('${a.id}',this.value)"></td><td><button class="btn sm ghost" onclick="delAssignment('${a.id}')">Remove</button></td></tr>`).join("") || '<tr><td colspan="4">Nobody recorded yet.</td></tr>';
+    $("#tour-asg tbody").innerHTML = (data || []).map(a => `<tr><td>${NRC.esc(refName(a.referee_id))}</td><td>${NRC.esc(a.role)}</td><td><input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" style="width:80px" onchange="setAsgGames('${a.id}',this.value)"></td><td><button class="btn sm ghost" onclick="delAssignment('${a.id}')">Remove</button></td></tr>`).join("") || '<tr><td colspan="4">Nobody recorded yet. Confirmed invitations land here automatically.</td></tr>';
   }
   window.setAsgGames = async function (id, v) { await sb().from("assignments").update({ games_officiated: v === "" ? null : parseInt(v, 10) }).eq("id", id); };
   window.addAssignment = async function () {
-    const g = $("#asg-games").value; const { error } = await sb().from("assignments").insert({ tournament_id: currentTour.id, referee_id: $("#asg-ref").value, role: "referee", games_officiated: g === "" ? null : parseInt(g, 10) });
+    const g = $("#asg-games").value; const { error } = await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: $("#asg-ref").value, role: "referee", games_officiated: g === "" ? null : parseInt(g, 10) }, { onConflict: "tournament_id,referee_id" });
     if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg();
   };
   window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
-  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; await sb().from("tournaments").update({ sanction: f.sanction.value, region: f.region.value || null }).eq("id", currentTour.id); loadAll(); });
+  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; await sb().from("tournaments").update({ sanction: f.sanction.value, region: f.region.value || null }).eq("id", currentTour.id); currentTour.sanction = f.sanction.value; currentTour.region = f.region.value || null; loadAll(); });
 
   // ---------- questions ----------
   function renderQuestions() {
