@@ -36,6 +36,9 @@
         </div>
         <h2>Club coverage</h2>
         <div class="table-wrap"><table id="cov"><thead><tr><th>Club</th><th>City</th><th>Referees</th><th>Certified</th><th>Pair</th><th>Program status</th></tr></thead><tbody></tbody></table></div>
+        <h2>Training: weakest rules across the pool</h2>
+        <p class="small muted">From every signed in referee's quiz answers. A direct input for clinic content.</p>
+        <div class="table-wrap"><table id="pool-rules"><thead><tr><th>Rule</th><th>Answered</th><th>Score</th></tr></thead><tbody></tbody></table></div>
         <h2>Compliance watch</h2>
         <p class="small muted">Referees whose USATH membership, SafeSport or background check is expired or missing.</p>
         <div class="table-wrap"><table id="compl"><thead><tr><th>Referee</th><th>Level</th><th>Membership</th><th>SafeSport</th><th>Background</th></tr></thead><tbody></tbody></table></div>
@@ -57,8 +60,8 @@
       <!-- Tournaments -->
       <div id="pane-tournaments" class="hidden">
         <h1>Tournament requests</h1>
-        <p class="muted small">Submitted by organizers through the public form. Assignment workflow (invitations, responses) arrives in phase 2.</p>
-        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Covers</th><th>Organizer</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <p class="muted small">Submitted by organizers through the public form. Open a tournament to record who officiated and how many games each (this feeds every referee's history). Invitations and responses arrive in phase 2.</p>
+        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Sanction</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Covers</th><th>Organizer</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Questions -->
@@ -138,6 +141,19 @@
     <label>Game sheet image (optional)</label><input type="file" name="sheet" accept="image/*,.pdf">
     <p style="margin-top:14px"><button class="btn" type="submit">Save game</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-game').close()">Cancel</button></p>
   </form>
+</div></dialog>
+
+<!-- Tournament assignments -->
+<dialog id="dlg-tour"><div class="body">
+  <h3 id="dlg-tour-title">Tournament</h3>
+  <form id="form-tour">
+    <div class="row"><div><label>Sanction</label><select name="sanction"><option value="club">Club</option><option value="regional">Regional</option><option value="usath">USATH</option><option value="international">International</option></select></div><div><label>Region</label><input name="region"></div></div>
+    <p style="margin-top:10px"><button class="btn sm" type="submit">Save</button></p>
+  </form>
+  <h3 style="margin-top:14px">Referees who officiated</h3>
+  <div class="table-wrap"><table id="tour-asg"><thead><tr><th>Referee</th><th>Role</th><th>Games</th><th></th></tr></thead><tbody></tbody></table></div>
+  <div class="row" style="margin-top:10px"><div><label>Add referee</label><select id="asg-ref"></select></div><div><label>Games officiated</label><input id="asg-games" type="number" min="0"></div></div>
+  <p style="margin-top:10px"><button class="btn sm" type="button" onclick="addAssignment()">Add</button> <button class="btn ghost sm" type="button" onclick="document.getElementById('dlg-tour').close()">Close</button></p>
 </div></dialog>
 
 <!-- Club editor -->

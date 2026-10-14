@@ -17,17 +17,20 @@
   </div>
   <div id="msg" class="notice hidden" style="margin-top:12px"></div>
 
-  <div class="grid c3" style="margin-top:16px" id="stats">
+  <div class="grid c4" style="margin-top:16px" id="stats">
     <div class="stat"><div class="n" id="st-level">&nbsp;</div><div class="l">Certification</div></div>
+    <div class="stat"><div class="n" id="st-tours">0</div><div class="l">Tournaments officiated</div></div>
     <div class="stat"><div class="n" id="st-games">0</div><div class="l">Games this season</div></div>
     <div class="stat"><div class="n" id="st-evals">0</div><div class="l">Evaluations shared with you</div></div>
   </div>
 
   <div class="tabs" style="margin-top:18px">
     <button data-tab="profile" class="active">Profile</button>
+    <button data-tab="tournaments">Tournaments</button>
     <button data-tab="games">Games</button>
     <button data-tab="evals">Evaluations</button>
     <button data-tab="assignments">Assignments</button>
+    <button data-tab="training">Training</button>
   </div>
 
   <div id="tab-profile" class="card">
@@ -65,9 +68,20 @@
     </form>
   </div>
 
+  <div id="tab-tournaments" class="card hidden">
+    <div class="grid c4" style="margin-bottom:12px" id="tour-stats"></div>
+    <div class="table-wrap"><table id="tours"><thead><tr><th>When</th><th>Tournament</th><th>Sanction</th><th>Where</th><th>Role</th><th>Games</th></tr></thead><tbody></tbody></table></div>
+    <p class="small muted" style="margin-top:8px">Games per tournament come from the organizer's report after the event, or from the game sheets logged by the NRC.</p>
+  </div>
   <div id="tab-games" class="card hidden"><div class="table-wrap"><table id="games"><thead><tr><th>Date</th><th>Tournament</th><th>Game</th><th>Partner</th></tr></thead><tbody></tbody></table></div></div>
   <div id="tab-evals" class="hidden"></div>
   <div id="tab-assignments" class="card hidden"><div class="table-wrap"><table id="asg"><thead><tr><th>Tournament</th><th>Dates</th><th>Venue</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
+  <div id="tab-training" class="hidden">
+    <div class="grid c3" style="margin-bottom:12px" id="train-stats"></div>
+    <div class="card"><h3>Score by rule</h3><p class="small muted">Where to focus: rules below 70% are highlighted. Practice a single rule from the <a href="training.html">training page</a>.</p><div class="table-wrap"><table id="train-rules"><thead><tr><th>Rule</th><th>Answered</th><th>Score</th><th></th></tr></thead><tbody></tbody></table></div></div>
+    <div class="card"><h3>Score by level</h3><div class="table-wrap"><table id="train-levels"><thead><tr><th>Level</th><th>Answered</th><th>Score</th></tr></thead><tbody></tbody></table></div></div>
+    <div class="card"><h3>Recent sessions</h3><div id="train-sessions" class="small"></div></div>
+  </div>
 </section>
 </div>
 <footer id="site-footer"></footer>
@@ -77,7 +91,7 @@
 <script>
 let user, ref;
 const $ = NRC.$;
-NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").forEach(x => x.classList.toggle("active", x === b)); ["profile","games","evals","assignments"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)); });
+NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").forEach(x => x.classList.toggle("active", x === b)); ["profile","tournaments","games","evals","assignments","training"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)); });
 
 async function load() {
   user = await NRC.requireUser(); if (!user) return;
@@ -94,11 +108,10 @@ async function load() {
     const today = new Date().toISOString().slice(0, 10);
     const item = (l, d) => `<div>${l}: ${d ? (d >= today ? '<span class="pill green">valid to ' + NRC.fmtDate(d) + '</span>' : '<span class="pill red">expired ' + NRC.fmtDate(d) + '</span>') : '<span class="pill amber">not on file</span>'}</div>`;
     $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);
-    loadGames(); loadEvals(); loadAssignments();
+    loadTournaments(); loadGames(); loadEvals(); loadAssignments(); loadTraining();
   } else {
-    NRC.notice($("#msg"), "Welcome. Complete your profile so the NRC can reach you and assign you.", "");
-    $("#level-ro").value = "Candidate"; $("#st-level").textContent = "Candidate";
-    $("#compliance").innerHTML = '<span class="muted">Available after your profile is saved.</span>';
+    NRC.notice($("#msg"), "Your account is not linked to a referee record. Write to referee@handballusa.org.", "error");
+    $("#form").classList.add("hidden");
   }
 }
 $("#form").addEventListener("submit", async (e) => {
@@ -108,8 +121,7 @@ $("#form").addEventListener("submit", async (e) => {
   ["home_state","home_airport_iata","departure_airport_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
   row.updated_at = new Date().toISOString();
   let res;
-  if (ref) res = await NRC.sb.from("referees").update(row).eq("id", ref.id).select().single();
-  else res = await NRC.sb.from("referees").insert({ ...row, user_id: user.id, email: user.email }).select().single();
+  res = await NRC.sb.from("referees").update(row).eq("id", ref.id).select().single();
   if (res.error) { NRC.notice($("#msg"), "Save failed: " + NRC.esc(res.error.message), "error"); return; }
   ref = res.data;
   const file = $("#photo-file").files[0];
@@ -123,10 +135,34 @@ $("#form").addEventListener("submit", async (e) => {
   NRC.notice($("#msg"), "Profile saved.", "ok"); window.scrollTo({ top: 0, behavior: "smooth" });
   if (!$("#compliance").textContent.includes("valid")) load();
 });
+const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
+function monthYear(d) { return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }); }
+async function loadTournaments() {
+  const { data } = await NRC.sb.from("referee_tournament_history").select("*").eq("referee_id", ref.id).order("start_date", { ascending: false });
+  const h = data || []; const today = new Date().toISOString().slice(0, 10); const past = h.filter(t => t.end_date < today);
+  $("#st-tours").textContent = past.length;
+  const yr = String(new Date().getFullYear());
+  $("#st-games").textContent = past.filter(t => t.start_date.startsWith(yr)).reduce((a, t) => a + (t.games || 0), 0);
+  const by = k => past.filter(t => t.sanction === k);
+  $("#tour-stats").innerHTML = ["usath", "regional", "club", "international"].map(k => `<div class="stat"><div class="n">${by(k).length}</div><div class="l">${SANCTION[k]} tournaments, ${by(k).reduce((a, t) => a + (t.games || 0), 0)} games</div></div>`).join("");
+  $("#tours tbody").innerHTML = h.map(t => `<tr><td>${monthYear(t.start_date)}</td><td><strong>${NRC.esc(t.name)}</strong>${t.end_date >= today ? ' <span class="pill amber">upcoming</span>' : ""}</td><td><span class="pill ${t.sanction === "usath" || t.sanction === "international" ? "green" : ""}">${SANCTION[t.sanction] || t.sanction}</span>${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(t.role)}</td><td>${t.games != null && t.end_date < today ? t.games : '<span class="muted">pending</span>'}</td></tr>`).join("") || '<tr><td colspan="6">No tournament yet.</td></tr>';
+}
+async function loadTraining() {
+  const { data: att } = await NRC.sb.from("quiz_attempts").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+  const { data: ans } = await NRC.sb.from("quiz_answers").select("correct,quiz_questions(rule_number,difficulty),quiz_attempts!inner(user_id)").eq("quiz_attempts.user_id", user.id);
+  const A = att || [], S = ans || [];
+  const total = S.length, ok = S.filter(a => a.correct).length;
+  const last30 = A.filter(a => Date.now() - new Date(a.created_at) < 30 * 864e5);
+  $("#train-stats").innerHTML = `<div class="stat"><div class="n">${A.length}</div><div class="l">Sessions (${last30.length} in the last 30 days)</div></div><div class="stat"><div class="n">${total}</div><div class="l">Questions answered</div></div><div class="stat ${total && ok / total >= .8 ? "good" : ""}"><div class="n">${total ? Math.round(ok / total * 100) : 0}%</div><div class="l">Overall score</div></div>`;
+  const agg = (key) => { const m = {}; S.forEach(a => { const k = a.quiz_questions ? a.quiz_questions[key] : null; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; }); return m; };
+  const byRule = agg("rule_number"), byLevel = agg("difficulty");
+  const pillFor = pct => `<span class="pill ${pct >= 80 ? "green" : pct >= 70 ? "amber" : "red"}">${pct}%</span>`;
+  $("#train-rules tbody").innerHTML = Object.keys(byRule).map(Number).sort((a, b) => (byRule[a].c / byRule[a].n) - (byRule[b].c / byRule[b].n)).map(r => { const v = byRule[r]; const pct = Math.round(v.c / v.n * 100); return `<tr><td>Rule ${r}: ${NRC.esc(NRC.RULES[r] || "")}</td><td>${v.n}</td><td>${pillFor(pct)}</td><td>${pct < 70 ? '<a class="btn sm ghost" href="training.html">Practice</a>' : ""}</td></tr>`; }).join("") || '<tr><td colspan="4">No answers yet. Start on the training page.</td></tr>';
+  $("#train-levels tbody").innerHTML = ["level_1", "level_2", "level_3"].filter(l => byLevel[l]).map(l => { const v = byLevel[l]; const pct = Math.round(v.c / v.n * 100); return `<tr><td>${NRC.levelLabel(l).replace(" (National)", "")}</td><td>${v.n}</td><td>${pillFor(pct)}</td></tr>`; }).join("") || '<tr><td colspan="3">No answers yet.</td></tr>';
+  $("#train-sessions").innerHTML = A.slice(0, 15).map(s => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">${NRC.fmtDate(s.created_at)} &middot; ${s.mode} &middot; ${s.rule_number ? "Rule " + s.rule_number : "all rules"}${s.difficulty ? ", " + NRC.levelLabel(s.difficulty).replace(" (National)", "") : ""} &middot; <strong>${s.correct}/${s.total}</strong></div>`).join("") || "No sessions yet.";
+}
 async function loadGames() {
   const { data } = await NRC.sb.from("games").select("game_date,home_team,away_team,category,referee_1,referee_2,tournaments(name)").or(`referee_1.eq.${ref.id},referee_2.eq.${ref.id}`).order("game_date", { ascending: false });
-  const yr = new Date().getFullYear();
-  $("#st-games").textContent = (data || []).filter(g => g.game_date.startsWith(String(yr))).length;
   const ids = [...new Set((data || []).flatMap(g => [g.referee_1, g.referee_2]).filter(x => x && x !== ref.id))];
   let names = {};
   if (ids.length) { const { data: d } = await NRC.sb.from("referee_directory").select("id,first_name,last_name").in("id", ids); (d || []).forEach(r => names[r.id] = r.first_name + " " + r.last_name); }

@@ -19,7 +19,7 @@
       <label>Email</label><input type="email" name="email" required autocomplete="email">
       <p style="margin-top:16px"><button class="btn" type="submit" id="btn">Send me a link</button></p>
     </form>
-    <p class="small muted">New referee? The first sign in creates your account; you then complete your profile. Certification levels are set by the NRC.</p>
+    <p class="small muted">Access is by invitation: the NRC adds you to the roster first, then you can sign in with that email. Not on the roster yet? Write to referee@handballusa.org.</p>
   </div>
 </section>
 </div>
@@ -41,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const redirect = location.origin + location.pathname.replace(/login\.html$/, "") + (next || "profile.html");
     const { error } = await NRC.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect } });
     NRC.$("#btn").disabled = false;
-    if (error) NRC.notice(msg, "Could not send the link: " + NRC.esc(error.message), "error");
+    if (error) NRC.notice(msg, /roster/i.test(error.message) ? "This email is not on the NRC referee roster. Write to referee@handballusa.org to be invited." : "Could not send the link: " + NRC.esc(error.message), "error");
     else NRC.notice(msg, "Check your inbox for the sign in link. It is valid for one hour.", "ok");
   });
 });

@@ -1,6 +1,6 @@
 -- NRC Referee Hub: Supabase schema
 -- Run in the Supabase SQL editor, in this order: schema.sql, seed_clubs.sql, seed_questions.sql
--- Then create one admin: update public.profiles set role='admin' where email='negrel.thomas@gmail.com';
+-- Sign in is invitation only: admins add referees (Admin > Referees) before they can sign in. negrel.thomas@gmail.com is pre-invited as admin.
 
 create extension if not exists "pgcrypto";
 
@@ -21,6 +21,10 @@ exception when duplicate_object then null; end $$;
 
 do $$ begin
   create type tournament_status as enum ('submitted','reviewing','staffed','completed','cancelled');
+exception when duplicate_object then null; end $$;
+
+do $$ begin
+  create type sanction_level as enum ('usath','regional','club','international');
 exception when duplicate_object then null; end $$;
 
 do $$ begin
@@ -61,14 +65,31 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now()
 );
 
--- Auto create a profile row when a user signs up (magic link)
+-- Invitation only: a user may sign in only if an admin created a referee record (or an admin profile) with that email first.
+-- The trigger links the new auth user to the referee row and creates the profile.
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
+declare r_id uuid; r_name text; is_admin_invite boolean;
 begin
-  insert into public.profiles (id, email) values (new.id, new.email)
+  select id, first_name || ' ' || last_name into r_id, r_name from public.referees where lower(email) = lower(new.email) limit 1;
+  select exists (select 1 from public.admin_invites where lower(email) = lower(new.email)) into is_admin_invite;
+  if r_id is null and not is_admin_invite then
+    raise exception 'This email is not on the NRC referee roster. Write to referee@handballusa.org to be invited.';
+  end if;
+  insert into public.profiles (id, email, role, full_name)
+    values (new.id, new.email, case when is_admin_invite then 'admin'::user_role else 'referee'::user_role end, r_name)
   on conflict (id) do nothing;
+  if r_id is not null then update public.referees set user_id = new.id where id = r_id and user_id is null; end if;
   return new;
 end $$;
+
+-- Admin invitations (emails allowed to sign in as admin before any referee record exists)
+create table if not exists public.admin_invites (
+  email text primary key,
+  invited_by text,
+  created_at timestamptz not null default now()
+);
+insert into public.admin_invites (email, invited_by) values ('negrel.thomas@gmail.com', 'setup') on conflict do nothing;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -142,6 +163,8 @@ create table if not exists public.certifications (
 create table if not exists public.tournaments (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  sanction sanction_level not null default 'club', -- usath | regional (NORCAL etc.) | club | international
+  region text, -- e.g. NORCAL, SOCAL, Northeast
   organizer_name text not null,
   organizer_email text not null,
   organizer_phone text,
@@ -191,6 +214,7 @@ create table if not exists public.assignments (
   role text not null default 'referee', -- referee | observer | delegate
   confirmed_at timestamptz default now(),
   travel_notes text,
+  games_officiated int, -- reported by the organizer after the tournament (or counted from games table)
   unique (tournament_id, referee_id)
 );
 
@@ -348,8 +372,6 @@ drop policy if exists referees_own_read on public.referees;
 create policy referees_own_read on public.referees for select using (user_id = auth.uid() or public.is_admin());
 drop policy if exists referees_own_update on public.referees;
 create policy referees_own_update on public.referees for update using (user_id = auth.uid()) with check (user_id = auth.uid());
-drop policy if exists referees_own_insert on public.referees;
-create policy referees_own_insert on public.referees for insert with check (user_id = auth.uid());
 drop policy if exists referees_admin on public.referees;
 create policy referees_admin on public.referees for all using (public.is_admin()) with check (public.is_admin());
 
@@ -383,7 +405,9 @@ create policy eval_admin on public.evaluations for all using (public.is_admin())
 drop policy if exists tournaments_insert on public.tournaments;
 create policy tournaments_insert on public.tournaments for insert with check (true);
 drop policy if exists tournaments_read on public.tournaments;
-create policy tournaments_read on public.tournaments for select using (public.is_admin() or organizer_user_id = auth.uid());
+create policy tournaments_read on public.tournaments for select using (public.is_admin() or organizer_user_id = auth.uid()
+  or id in (select tournament_id from public.assignments a join public.referees r on r.id = a.referee_id where r.user_id = auth.uid())
+  or id in (select tournament_id from public.assignment_requests a join public.referees r on r.id = a.referee_id where r.user_id = auth.uid()));
 drop policy if exists tournaments_admin on public.tournaments;
 create policy tournaments_admin on public.tournaments for update using (public.is_admin()) with check (public.is_admin());
 drop policy if exists tournaments_admin_del on public.tournaments;
@@ -424,6 +448,11 @@ create policy qans_own on public.quiz_answers for all
   using (attempt_id in (select id from public.quiz_attempts where user_id = auth.uid()) or public.is_admin())
   with check (attempt_id in (select id from public.quiz_attempts where user_id = auth.uid()));
 
+-- admin invites: admin only
+alter table public.admin_invites enable row level security;
+drop policy if exists invites_admin on public.admin_invites;
+create policy invites_admin on public.admin_invites for all using (public.is_admin()) with check (public.is_admin());
+
 -- admin tasks and import log: admin only
 drop policy if exists tasks_admin on public.admin_tasks;
 create policy tasks_admin on public.admin_tasks for all using (public.is_admin()) with check (public.is_admin());
@@ -460,12 +489,20 @@ create or replace view public.club_coverage as
   group by c.id;
 grant select on public.club_coverage to anon, authenticated;
 
+-- Tournament history per referee: one row per tournament officiated, games from the organizer report or counted from game sheets
+create or replace view public.referee_tournament_history as
+  select a.referee_id, t.id as tournament_id, t.name, t.sanction, t.region, t.start_date, t.end_date,
+         t.venue_city, t.venue_state, a.role,
+         coalesce(a.games_officiated,
+                  (select count(*) from public.games g where g.tournament_id = t.id and (g.referee_1 = a.referee_id or g.referee_2 = a.referee_id)))::int as games
+  from public.assignments a join public.tournaments t on t.id = a.tournament_id;
+grant select on public.referee_tournament_history to authenticated;
+
 create or replace view public.referee_season_stats as
-  select r.id as referee_id,
-         extract(year from g.game_date)::int as season,
-         count(g.id) as games,
-         count(distinct g.tournament_id) as tournaments
-  from public.referees r
-  join public.games g on g.referee_1 = r.id or g.referee_2 = r.id
-  group by r.id, extract(year from g.game_date);
+  select h.referee_id,
+         extract(year from h.start_date)::int as season,
+         sum(h.games)::int as games,
+         count(*)::int as tournaments
+  from public.referee_tournament_history h
+  group by h.referee_id, extract(year from h.start_date);
 grant select on public.referee_season_stats to authenticated;

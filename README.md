@@ -25,19 +25,22 @@ supabase/
   seed_clubs.sql           33 USATH clubs (adult and collegiate), from usateamhandball.org
   seed_questions.sql       115 questions from the CalCup deck (76 flashcards, 39 timed)
   seed_questions_ihf.sql   430 questions, IHF Catalogue of Rules Questions, edition 1 July 2025
+  seed_demo.sql            optional demo: Halina Lehto, Azadeh Ahmadi, Zeke McClintock with tournament history, evaluations, pair
 netlify.toml
 ```
 
 ## Setup (one time, about 20 minutes)
 
-1. Supabase: create a project. In the SQL editor run, in this order: `supabase/schema.sql`, `supabase/seed_clubs.sql`, `supabase/seed_questions.sql`, `supabase/seed_questions_ihf.sql`.
+1. Supabase: create a project. In the SQL editor run, in this order: `supabase/schema.sql`, `supabase/seed_clubs.sql`, `supabase/seed_questions.sql`, `supabase/seed_questions_ihf.sql`, and optionally `supabase/seed_demo.sql` (demo profiles use placeholder emails ending in @demo.nrc; edit them to real emails to let those referees sign in, or delete the rows later).
 2. Supabase > Authentication > URL configuration: set the Site URL to the Netlify URL and add it to the redirect allow list. Email provider: enable magic links (default). Optional: custom SMTP later when the sender moves to USATH.
 3. Copy Project settings > API > Project URL and anon public key into `site/js/config.js`.
 4. Netlify: new site from the GitHub repo, publish directory `site`, no build command. Deploy.
-5. Sign in once on the deployed site with your email, then in the Supabase SQL editor run:
-   `update public.profiles set role='admin' where email='negrel.thomas@gmail.com';`
-   Reload the site: the nav shows Admin.
-6. Admin > Referees > Add referee, or import the NRC roster. Admin > Clubs to correct city, state and airports.
+5. Sign in once on the deployed site with negrel.thomas@gmail.com (pre-invited as admin in schema.sql). The nav shows Admin. To add another admin: `insert into public.admin_invites (email) values ('x@y.org');` before they sign in.
+6. Admin > Referees > Add referee. Sign in is invitation only: a magic link is only sent to emails that exist on the roster (or in admin_invites). Admin > Clubs to correct city, state and airports.
+
+## Referee profile
+
+Photo, club, home city and state, home airport and usual departure airport, certification with history, compliance dates, tournament history (month and year, sanction USATH / regional / club / international, venue, games officiated), game log, evaluations shared by observers, assignment requests, and training results by rule and by level with the weak rules flagged. Games per tournament are recorded by the NRC on the tournament (Admin > Tournament requests > Open), from the organizer's report, or counted from logged game sheets.
 
 ## Roles
 

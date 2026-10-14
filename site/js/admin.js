@@ -4,6 +4,7 @@
   let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], currentRef = null;
   const today = () => new Date().toISOString().slice(0, 10);
   const CRIT = [["score_rules_application", "Rules application"], ["score_game_management", "Game management"], ["score_progressive_punishment", "Progressive punishment"], ["score_positioning", "Positioning"], ["score_pair_cooperation", "Pair cooperation"], ["score_communication", "Communication"]];
+  const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
   const PROG = { none: "Not started", nominated: "Nominated", mentor_assigned: "Mentor assigned", in_training: "In training", observed: "Observed", certified_pair: "Certified pair" };
 
   // ---------- routing ----------
@@ -29,7 +30,7 @@
     const { data: evals } = await sb().from("evaluations").select("referee_id,evaluated_on").order("evaluated_on", { ascending: false });
     const yr = new Date().getFullYear();
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
-    fillSelects(); renderDashboard(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); loadTasks(); loadImportLog();
+    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); loadTasks(); loadImportLog();
   }
   function fillSelects() {
     NRC.$$("select[name=club_id]").forEach(s => { s.innerHTML = '<option value="">No club</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join(""); });
@@ -50,6 +51,12 @@
     const bad = active.filter(r => [r.usath_membership_valid_until, r.safesport_valid_until, r.background_check_valid_until].some(d => !d || d < t));
     const cell = d => !d ? '<span class="pill amber">missing</span>' : d < t ? '<span class="pill red">' + NRC.fmtDate(d) + '</span>' : '<span class="pill green">' + NRC.fmtDate(d) + '</span>';
     $("#compl tbody").innerHTML = bad.map(r => `<tr><td><a href="#" onclick="openRef('${r.id}');return false">${NRC.esc(r.first_name + " " + r.last_name)}</a></td><td>${NRC.levelPill(r.cert_level)}</td><td>${cell(r.usath_membership_valid_until)}</td><td>${cell(r.safesport_valid_until)}</td><td>${cell(r.background_check_valid_until)}</td></tr>`).join("") || '<tr><td colspan="5">Everyone is current.</td></tr>';
+  }
+
+  async function renderPoolRules() {
+    const { data: ans } = await sb().from("quiz_answers").select("correct,quiz_questions(rule_number)");
+    const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; });
+    $("#pool-rules tbody").innerHTML = Object.keys(m).map(Number).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n).slice(0, 8).map(r => { const pct = Math.round(m[r].c / m[r].n * 100); return `<tr><td>Rule ${r}: ${NRC.esc(NRC.RULES[r] || "")}</td><td>${m[r].n}</td><td><span class="pill ${pct >= 80 ? "green" : pct >= 70 ? "amber" : "red"}">${pct}%</span></td></tr>`; }).join("") || '<tr><td colspan="3">No quiz answers yet.</td></tr>';
   }
 
   // ---------- tasks ----------
@@ -93,7 +100,18 @@
     if (currentRef) {
       const { data: ev } = await sb().from("evaluations").select("*").eq("referee_id", currentRef.id).order("evaluated_on", { ascending: false });
       const { data: certs } = await sb().from("certifications").select("*").eq("referee_id", currentRef.id).order("obtained_on", { ascending: false });
-      ex.innerHTML = `<h3 style="margin-top:16px">Certification history</h3>` + ((certs || []).map(c => `<div class="small">${NRC.fmtDate(c.obtained_on)}: ${NRC.levelLabel(c.level)}${c.certified_by ? ", by " + NRC.esc(c.certified_by) : ""}${c.event ? ", " + NRC.esc(c.event) : ""}</div>`).join("") || '<div class="small muted">No history. Saving a level change adds a row.</div>')
+      const { data: hist } = await sb().from("referee_tournament_history").select("*").eq("referee_id", currentRef.id).order("start_date", { ascending: false });
+      let training = "";
+      if (currentRef.user_id) {
+        const { data: ans } = await sb().from("quiz_answers").select("correct,quiz_questions(rule_number),quiz_attempts!inner(user_id)").eq("quiz_attempts.user_id", currentRef.user_id);
+        const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; });
+        const tot = (ans || []).length, ok = (ans || []).filter(a => a.correct).length;
+        const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3 && m[r].c / m[r].n < .7).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n);
+        training = tot ? `${tot} questions answered, ${Math.round(ok / tot * 100)}% correct. ` + (weak.length ? "Weak rules: " + weak.map(r => `Rule ${r} (${Math.round(m[r].c / m[r].n * 100)}%)`).join(", ") + "." : "No rule below 70%.") : "No training activity yet.";
+      } else training = "Has not signed in yet.";
+      ex.innerHTML = `<h3 style="margin-top:16px">Tournaments</h3>` + ((hist || []).map(t => `<div class="small">${new Date(t.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}: ${NRC.esc(t.name)} <span class="pill">${SANCTION[t.sanction] || ""}</span> ${t.games != null ? t.games + " games" : '<span class="muted">games pending</span>'}</div>`).join("") || '<div class="small muted">None recorded. Add from Tournament requests > Open.</div>')
+        + `<h3 style="margin-top:16px">Training</h3><div class="small">${training}</div>`
+        + `<h3 style="margin-top:16px">Certification history</h3>` + ((certs || []).map(c => `<div class="small">${NRC.fmtDate(c.obtained_on)}: ${NRC.levelLabel(c.level)}${c.certified_by ? ", by " + NRC.esc(c.certified_by) : ""}${c.event ? ", " + NRC.esc(c.event) : ""}</div>`).join("") || '<div class="small muted">No history. Saving a level change adds a row.</div>')
         + `<h3 style="margin-top:16px">Evaluations</h3>` + ((ev || []).map(e => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(e.evaluated_on)}</strong>, ${NRC.esc(e.evaluator_name)}: ${CRIT.map(([k]) => e[k] || "-").join(" / ")}${e.points_to_improve ? "<br>Improve: " + NRC.esc(e.points_to_improve) : ""}${e.shared_with_referee ? ' <span class="pill green">shared</span>' : ""}</div>`).join("") || '<div class="small muted">None yet.</div>');
     }
     $("#dlg-ref").showModal();
@@ -108,6 +126,7 @@
     else res = await sb().from("referees").insert(row).select().single();
     if (res.error) { alert("Save failed: " + res.error.message); return; }
     if (!currentRef || currentRef.cert_level !== row.cert_level) await sb().from("certifications").insert({ referee_id: res.data.id, level: row.cert_level, obtained_on: row.cert_date || today(), certified_by: row.cert_by });
+    if (!currentRef) alert("Referee added. " + row.email + " can now sign in on the Sign in page with a magic link; send them the site address.");
     $("#dlg-ref").close(); loadAll();
   });
 
@@ -163,9 +182,28 @@
 
   // ---------- tournaments ----------
   function renderTournaments() {
-    $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td></tr>`).join("") || '<tr><td colspan="7">No requests yet.</td></tr>';
+    $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td><span class="pill">${SANCTION[t.sanction] || ""}</span>${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="openTour('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="9">No requests yet.</td></tr>';
   }
   window.setTourStatus = async function (id, status) { await sb().from("tournaments").update({ status }).eq("id", id); };
+  let currentTour = null;
+  window.openTour = async function (id) {
+    currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour");
+    $("#dlg-tour-title").textContent = currentTour.name; f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || "";
+    $("#asg-ref").innerHTML = refs.filter(r => r.active).map(r => `<option value="${r.id}">${NRC.esc(r.first_name + " " + r.last_name)}</option>`).join("");
+    await renderTourAsg(); $("#dlg-tour").showModal();
+  };
+  async function renderTourAsg() {
+    const { data } = await sb().from("assignments").select("*").eq("tournament_id", currentTour.id);
+    const name = id => { const r = refs.find(x => x.id === id); return r ? r.first_name + " " + r.last_name : "?"; };
+    $("#tour-asg tbody").innerHTML = (data || []).map(a => `<tr><td>${NRC.esc(name(a.referee_id))}</td><td>${NRC.esc(a.role)}</td><td><input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" style="width:80px" onchange="setAsgGames('${a.id}',this.value)"></td><td><button class="btn sm ghost" onclick="delAssignment('${a.id}')">Remove</button></td></tr>`).join("") || '<tr><td colspan="4">Nobody recorded yet.</td></tr>';
+  }
+  window.setAsgGames = async function (id, v) { await sb().from("assignments").update({ games_officiated: v === "" ? null : parseInt(v, 10) }).eq("id", id); };
+  window.addAssignment = async function () {
+    const g = $("#asg-games").value; const { error } = await sb().from("assignments").insert({ tournament_id: currentTour.id, referee_id: $("#asg-ref").value, role: "referee", games_officiated: g === "" ? null : parseInt(g, 10) });
+    if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg();
+  };
+  window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
+  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; await sb().from("tournaments").update({ sanction: f.sanction.value, region: f.region.value || null }).eq("id", currentTour.id); loadAll(); });
 
   // ---------- questions ----------
   function renderQuestions() {
