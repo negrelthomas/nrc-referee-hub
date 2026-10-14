@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My profile | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="profile.html">
+<header id="site-nav"></header>
+<div class="wrap">
+<section>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h1 style="margin:0">My referee profile</h1>
+    <div><a class="btn ghost sm" href="directory.html">Directory</a> <button class="btn ghost sm" onclick="NRC.signOut()">Sign out</button></div>
+  </div>
+  <div id="msg" class="notice hidden" style="margin-top:12px"></div>
+
+  <div class="grid c3" style="margin-top:16px" id="stats">
+    <div class="stat"><div class="n" id="st-level">&nbsp;</div><div class="l">Certification</div></div>
+    <div class="stat"><div class="n" id="st-games">0</div><div class="l">Games this season</div></div>
+    <div class="stat"><div class="n" id="st-evals">0</div><div class="l">Evaluations shared with you</div></div>
+  </div>
+
+  <div class="tabs" style="margin-top:18px">
+    <button data-tab="profile" class="active">Profile</button>
+    <button data-tab="games">Games</button>
+    <button data-tab="evals">Evaluations</button>
+    <button data-tab="assignments">Assignments</button>
+  </div>
+
+  <div id="tab-profile" class="card">
+    <form id="form">
+      <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+        <img id="photo" class="avatar lg" alt="">
+        <div><label style="margin-top:0">Photo</label><input type="file" id="photo-file" accept="image/*"><div class="help">Square headshot, shown to the NRC and in the directory.</div></div>
+      </div>
+      <div class="row">
+        <div><label>First name</label><input name="first_name" required></div>
+        <div><label>Last name</label><input name="last_name" required></div>
+      </div>
+      <div class="row">
+        <div><label>Email</label><input name="email" type="email" readonly style="background:#F0F3F8"></div>
+        <div><label>Phone</label><input name="phone"></div>
+      </div>
+      <div class="row">
+        <div><label>Club</label><select name="club_id"><option value="">No club</option></select></div>
+        <div><label>USATH member ID (Sport80)</label><input name="usath_member_id"></div>
+      </div>
+      <div class="row">
+        <div><label>Home city</label><input name="home_city"></div>
+        <div><label>Home state</label><input name="home_state" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="row">
+        <div><label>Closest airport to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="SFO" style="text-transform:uppercase"></div>
+        <div><label>Usual departure airport, if different</label><input name="departure_airport_iata" maxlength="3" placeholder="OAK" style="text-transform:uppercase"></div>
+      </div>
+      <label>Availability notes</label><textarea name="availability_notes" placeholder="Weekends only, not available in March, can drive within 4 hours..."></textarea>
+      <div class="row">
+        <div><label>Certification level</label><input id="level-ro" readonly style="background:#F0F3F8"><div class="help">Set by the NRC.</div></div>
+        <div><label>Compliance</label><div id="compliance" class="small" style="padding-top:8px"></div></div>
+      </div>
+      <p style="margin-top:16px"><button class="btn" type="submit">Save profile</button></p>
+    </form>
+  </div>
+
+  <div id="tab-games" class="card hidden"><div class="table-wrap"><table id="games"><thead><tr><th>Date</th><th>Tournament</th><th>Game</th><th>Partner</th></tr></thead><tbody></tbody></table></div></div>
+  <div id="tab-evals" class="hidden"></div>
+  <div id="tab-assignments" class="card hidden"><div class="table-wrap"><table id="asg"><thead><tr><th>Tournament</th><th>Dates</th><th>Venue</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+let user, ref;
+const $ = NRC.$;
+NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").forEach(x => x.classList.toggle("active", x === b)); ["profile","games","evals","assignments"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)); });
+
+async function load() {
+  user = await NRC.requireUser(); if (!user) return;
+  const { data: clubs } = await NRC.sb.from("clubs").select("id,name").eq("active", true).order("name");
+  const sel = $("select[name=club_id]"); (clubs || []).forEach(c => { const o = document.createElement("option"); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
+  const { data } = await NRC.sb.from("referees").select("*").eq("user_id", user.id).maybeSingle();
+  ref = data;
+  const f = $("#form");
+  f.email.value = user.email;
+  if (ref) {
+    ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
+    if (ref.photo_url) $("#photo").src = ref.photo_url;
+    $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", "");
+    const today = new Date().toISOString().slice(0, 10);
+    const item = (l, d) => `<div>${l}: ${d ? (d >= today ? '<span class="pill green">valid to ' + NRC.fmtDate(d) + '</span>' : '<span class="pill red">expired ' + NRC.fmtDate(d) + '</span>') : '<span class="pill amber">not on file</span>'}</div>`;
+    $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);
+    loadGames(); loadEvals(); loadAssignments();
+  } else {
+    NRC.notice($("#msg"), "Welcome. Complete your profile so the NRC can reach you and assign you.", "");
+    $("#level-ro").value = "Candidate"; $("#st-level").textContent = "Candidate";
+    $("#compliance").innerHTML = '<span class="muted">Available after your profile is saved.</span>';
+  }
+}
+$("#form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const f = e.target; const row = {};
+  ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => row[k] = f[k].value.trim() || null);
+  ["home_state","home_airport_iata","departure_airport_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
+  row.updated_at = new Date().toISOString();
+  let res;
+  if (ref) res = await NRC.sb.from("referees").update(row).eq("id", ref.id).select().single();
+  else res = await NRC.sb.from("referees").insert({ ...row, user_id: user.id, email: user.email }).select().single();
+  if (res.error) { NRC.notice($("#msg"), "Save failed: " + NRC.esc(res.error.message), "error"); return; }
+  ref = res.data;
+  const file = $("#photo-file").files[0];
+  if (file) {
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+    const path = `${user.id}/photo.${ext}`;
+    const up = await NRC.sb.storage.from("referee-photos").upload(path, file, { upsert: true, contentType: file.type });
+    if (!up.error) { const url = NRC.sb.storage.from("referee-photos").getPublicUrl(path).data.publicUrl + "?v=" + Date.now(); await NRC.sb.from("referees").update({ photo_url: url }).eq("id", ref.id); $("#photo").src = url; }
+    else NRC.notice($("#msg"), "Profile saved, photo upload failed: " + NRC.esc(up.error.message), "error");
+  }
+  NRC.notice($("#msg"), "Profile saved.", "ok"); window.scrollTo({ top: 0, behavior: "smooth" });
+  if (!$("#compliance").textContent.includes("valid")) load();
+});
+async function loadGames() {
+  const { data } = await NRC.sb.from("games").select("game_date,home_team,away_team,category,referee_1,referee_2,tournaments(name)").or(`referee_1.eq.${ref.id},referee_2.eq.${ref.id}`).order("game_date", { ascending: false });
+  const yr = new Date().getFullYear();
+  $("#st-games").textContent = (data || []).filter(g => g.game_date.startsWith(String(yr))).length;
+  const ids = [...new Set((data || []).flatMap(g => [g.referee_1, g.referee_2]).filter(x => x && x !== ref.id))];
+  let names = {};
+  if (ids.length) { const { data: d } = await NRC.sb.from("referee_directory").select("id,first_name,last_name").in("id", ids); (d || []).forEach(r => names[r.id] = r.first_name + " " + r.last_name); }
+  $("#games tbody").innerHTML = (data || []).map(g => `<tr><td>${NRC.fmtDate(g.game_date)}</td><td>${NRC.esc(g.tournaments ? g.tournaments.name : "")}</td><td>${NRC.esc([g.home_team, g.away_team].filter(Boolean).join(" v "))} ${g.category ? '<span class="pill">' + NRC.esc(g.category) + '</span>' : ""}</td><td>${NRC.esc(names[g.referee_1 === ref.id ? g.referee_2 : g.referee_1] || "")}</td></tr>`).join("") || '<tr><td colspan="4">No games logged yet.</td></tr>';
+}
+async function loadEvals() {
+  const { data } = await NRC.sb.from("evaluations").select("*,tournaments(name)").eq("referee_id", ref.id).order("evaluated_on", { ascending: false });
+  $("#st-evals").textContent = (data || []).length;
+  const crit = [["score_rules_application","Rules application"],["score_game_management","Game management"],["score_progressive_punishment","Progressive punishment"],["score_positioning","Positioning"],["score_pair_cooperation","Pair cooperation"],["score_communication","Communication"]];
+  $("#tab-evals").innerHTML = (data || []).map(e => `<div class="card"><div class="small muted">${NRC.fmtDate(e.evaluated_on)} &middot; ${NRC.esc(e.tournaments ? e.tournaments.name : "")} &middot; Observer: ${NRC.esc(e.evaluator_name)}</div>
+    <div class="chips">${crit.map(([k, l]) => e[k] ? `<span class="chip">${l}: <strong>${e[k]}/5</strong></span>` : "").join("")}</div>
+    ${e.strengths ? `<p><strong>Strengths.</strong> ${NRC.esc(e.strengths)}</p>` : ""}${e.points_to_improve ? `<p><strong>Points to improve.</strong> ${NRC.esc(e.points_to_improve)}</p>` : ""}${e.notes ? `<p class="small muted">${NRC.esc(e.notes)}</p>` : ""}</div>`).join("") || '<div class="card">No evaluation shared with you yet.</div>';
+}
+async function loadAssignments() {
+  const { data } = await NRC.sb.from("assignment_requests").select("status,tournaments(name,start_date,end_date,venue_city,venue_state)").eq("referee_id", ref.id).order("created_at", { ascending: false });
+  $("#asg tbody").innerHTML = (data || []).map(a => `<tr><td>${NRC.esc(a.tournaments.name)}</td><td>${NRC.fmtDate(a.tournaments.start_date)} to ${NRC.fmtDate(a.tournaments.end_date)}</td><td>${NRC.esc([a.tournaments.venue_city, a.tournaments.venue_state].filter(Boolean).join(", "))}</td><td><span class="pill">${NRC.esc(a.status.replace("_", " "))}</span></td></tr>`).join("") || '<tr><td colspan="4">No assignment requests yet.</td></tr>';
+}
+document.addEventListener("DOMContentLoaded", load);
+</script>
+</body>
+</html>

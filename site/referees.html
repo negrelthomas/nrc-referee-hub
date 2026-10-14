@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referees and club coverage | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="referees.html">
+<header id="site-nav"></header>
+
+<section class="hero" style="padding:36px 0">
+  <div class="wrap">
+    <p class="kicker">Club coverage</p>
+    <h1>Where the referees are</h1>
+    <p class="sub">Every USATH club, with the number of certified referees attached to it. The goal: one certified pair per club.</p>
+  </div>
+</section>
+
+<div class="wrap">
+<section>
+  <div class="grid c4" style="margin-bottom:16px">
+    <div class="stat"><div class="n" id="st-clubs">&nbsp;</div><div class="l">Active clubs</div></div>
+    <div class="stat good"><div class="n" id="st-with-pair">&nbsp;</div><div class="l">With a certified pair</div></div>
+    <div class="stat"><div class="n" id="st-with-ref">&nbsp;</div><div class="l">With at least one referee</div></div>
+    <div class="stat bad"><div class="n" id="st-none">&nbsp;</div><div class="l">No referee</div></div>
+  </div>
+  <div class="toolbar">
+    <input id="q" placeholder="Search club, city, state">
+    <select id="f-type"><option value="">All club types</option><option value="adult">Adult</option><option value="collegiate_men">Collegiate men</option><option value="collegiate_women">Collegiate women</option><option value="youth">Youth</option></select>
+    <select id="f-cov"><option value="">All coverage</option><option value="none">No referee</option><option value="one">One referee</option><option value="pair">Certified pair</option></select>
+  </div>
+  <div class="table-wrap"><table id="tbl"><thead><tr><th>Club</th><th>Type</th><th>City</th><th>Referees</th><th>Certified</th><th>Pair</th><th>Program</th></tr></thead><tbody></tbody></table></div>
+  <p class="small muted" style="margin-top:10px">Signed in referees can see the <a href="directory.html">referee directory</a> with photos, home base and airport.</p>
+</section>
+</div>
+
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+let rows = [];
+const TYPE = { adult: "Adult", collegiate_men: "Collegiate (M)", collegiate_women: "Collegiate (W)", youth: "Youth" };
+const PROG = { none: "", nominated: "Nominated", mentor_assigned: "Mentor assigned", in_training: "In training", observed: "Observed", certified_pair: "Certified pair" };
+function render() {
+  const q = NRC.$("#q").value.toLowerCase(), t = NRC.$("#f-type").value, c = NRC.$("#f-cov").value;
+  const tb = NRC.$("#tbl tbody"); tb.innerHTML = "";
+  rows.filter(r => (!t || r.club_type === t) && (!c || (c === "none" ? r.referee_count == 0 : c === "one" ? r.referee_count == 1 : r.has_certified_pair))
+    && (!q || [r.name, r.city, r.state].join(" ").toLowerCase().includes(q)))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .forEach(r => {
+      const pill = r.has_certified_pair ? '<span class="pill green">Pair</span>' : r.referee_count == 0 ? '<span class="pill red">None</span>' : '<span class="pill amber">Partial</span>';
+      tb.insertAdjacentHTML("beforeend", `<tr><td><strong>${NRC.esc(r.name)}</strong></td><td>${TYPE[r.club_type] || NRC.esc(r.club_type)}</td><td>${NRC.esc([r.city, r.state].filter(Boolean).join(", "))}</td><td>${r.referee_count}</td><td>${r.certified_count}</td><td>${pill}</td><td>${PROG[r.pair_program_status] || ""}</td></tr>`);
+    });
+}
+document.addEventListener("DOMContentLoaded", async () => {
+  if (!NRC.sb) { NRC.$("#tbl tbody").innerHTML = '<tr><td colspan="7">Database not configured. The club list appears here once Supabase is set up.</td></tr>'; return; }
+  const { data } = await NRC.sb.from("club_coverage").select("*");
+  rows = data || [];
+  NRC.$("#st-clubs").textContent = rows.length;
+  NRC.$("#st-with-pair").textContent = rows.filter(r => r.has_certified_pair).length;
+  NRC.$("#st-with-ref").textContent = rows.filter(r => r.referee_count > 0).length;
+  NRC.$("#st-none").textContent = rows.filter(r => r.referee_count == 0).length;
+  render();
+  ["#q", "#f-type", "#f-cov"].forEach(s => NRC.$(s).addEventListener("input", render));
+});
+</script>
+</body>
+</html>

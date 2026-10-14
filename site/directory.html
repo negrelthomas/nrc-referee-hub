@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Referee directory | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="referees.html">
+<header id="site-nav"></header>
+<div class="wrap">
+<section>
+  <h1>Referee directory</h1>
+  <p class="muted">Active USATH referees. Contact details are held by the NRC.</p>
+  <div class="toolbar"><input id="q" placeholder="Search name, club, city, airport"><select id="f-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select></div>
+  <div class="grid c3" id="list"></div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+let rows = [];
+function render() {
+  const q = NRC.$("#q").value.toLowerCase(), l = NRC.$("#f-level").value;
+  NRC.$("#list").innerHTML = rows.filter(r => (!l || r.cert_level === l) && (!q || [r.first_name, r.last_name, r.club_name, r.home_city, r.home_state, r.home_airport_iata].join(" ").toLowerCase().includes(q)))
+    .map(r => `<div class="card" style="display:flex;gap:14px;align-items:center"><img class="avatar lg" src="${r.photo_url ? NRC.esc(r.photo_url) : 'assets/avatar.svg'}" alt=""><div><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong><br>${NRC.levelPill(r.cert_level)}<div class="small muted" style="margin-top:6px">${NRC.esc(r.club_name || "No club")}<br>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " &middot; " + NRC.esc(r.home_airport_iata) : ""}</div></div></div>`).join("") || '<div class="card">No referee matches.</div>';
+}
+document.addEventListener("DOMContentLoaded", async () => {
+  if (!await NRC.requireUser()) return;
+  const { data } = await NRC.sb.from("referee_directory").select("*").order("last_name");
+  rows = data || []; render();
+  ["#q", "#f-level"].forEach(s => NRC.$(s).addEventListener("input", render));
+});
+</script>
+</body>
+</html>

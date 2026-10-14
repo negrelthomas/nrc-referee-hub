@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Request referees | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="request-referees.html">
+<header id="site-nav"></header>
+
+<section class="hero" style="padding:36px 0">
+  <div class="wrap">
+    <p class="kicker">Tournament organizers</p>
+    <h1>Request referees for your tournament</h1>
+    <p class="sub">One form, once. The NRC uses it to select pairs, brief them on travel and confirm the assignment with you. Submit at least 10 weeks before the event so flights stay affordable.</p>
+  </div>
+</section>
+
+<div class="wrap">
+<section>
+  <div class="card">
+    <div id="msg" class="notice hidden"></div>
+    <form id="req-form">
+      <h3>Event</h3>
+      <div class="row">
+        <div><label>Tournament name</label><input name="name" required></div>
+        <div><label>Expected number of games</label><input name="games_expected" type="number" min="1"></div>
+      </div>
+      <div class="row">
+        <div><label>Start date</label><input name="start_date" type="date" required></div>
+        <div><label>End date</label><input name="end_date" type="date" required></div>
+      </div>
+      <div class="row">
+        <div><label>Referee pairs needed</label><input name="pairs_needed" type="number" min="1" value="2" required></div>
+        <div><label>Earliest acceptable departure on the last day</label><input name="earliest_return_last_day" type="time"><div class="help">Pairs scheduled on the final games cannot leave before this time.</div></div>
+      </div>
+
+      <h3 style="margin-top:22px">Venue</h3>
+      <div class="row">
+        <div><label>Venue name</label><input name="venue_name" required></div>
+        <div><label>Nearest airport (IATA code)</label><input name="nearest_airport_iata" maxlength="3" placeholder="SFO" style="text-transform:uppercase"></div>
+      </div>
+      <label>Street address</label><input name="venue_address">
+      <div class="row">
+        <div><label>City</label><input name="venue_city" required></div>
+        <div><label>State</label><input name="venue_state" maxlength="2" required style="text-transform:uppercase"></div>
+      </div>
+
+      <h3 style="margin-top:22px">What the organizer covers</h3>
+      <div class="row">
+        <div><label>Hotel nights covered per referee</label><input name="hotel_nights_covered" type="number" min="0" value="0"></div>
+        <div><label>Food stipend per day (USD)</label><input name="food_stipend_per_day" type="number" min="0" step="1"></div>
+      </div>
+      <div class="row">
+        <div><label>Flights</label><select name="flights_covered"><option value="true">Covered by the organizer</option><option value="false">Not covered</option></select></div>
+        <div><label>Airport transfers (home airport and destination)</label><select name="airport_transfers_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div>
+      </div>
+      <label>How are airport transfers handled</label><input name="airport_transfer_how" placeholder="Reimbursed rideshare, organizer pickup, rental car...">
+      <label>Transport between hotel and venue</label><input name="hotel_to_venue_transport" placeholder="Shuttle, rental car, walking distance...">
+      <label>Meals provided on site</label><input name="meals_provided" placeholder="Lunch at the venue each day, dinner Saturday...">
+
+      <h3 style="margin-top:22px">Contact</h3>
+      <div class="row">
+        <div><label>Your name</label><input name="organizer_name" required></div>
+        <div><label>Email</label><input name="organizer_email" type="email" required></div>
+      </div>
+      <div class="row">
+        <div><label>Phone</label><input name="organizer_phone"></div>
+        <div><label>Who approves referee expenses</label><input name="budget_owner" placeholder="Name and role"></div>
+      </div>
+      <label>Anything else the NRC should know</label><textarea name="notes" placeholder="Level of play, youth or adult, preferred pairs, constraints..."></textarea>
+      <p style="margin-top:18px"><button class="btn" type="submit">Submit request</button></p>
+      <p class="small muted">The NRC Guidance and Best Practices to Event Organizers (December 2025) is published on the <a href="https://www.usateamhandball.org/refereeing" target="_blank" rel="noopener">USATH Refereeing page</a>.</p>
+    </form>
+  </div>
+</section>
+</div>
+
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.getElementById("req-form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const msg = NRC.$("#msg");
+  if (!NRC.sb) { NRC.notice(msg, "The database is not configured yet. Email your request to referee@handballusa.org.", "error"); return; }
+  const f = new FormData(e.target); const row = {};
+  for (const [k, v] of f.entries()) row[k] = v === "" ? null : v;
+  ["flights_covered", "airport_transfers_covered"].forEach(k => row[k] = row[k] === "true");
+  ["pairs_needed", "games_expected", "hotel_nights_covered"].forEach(k => row[k] = row[k] == null ? null : parseInt(row[k], 10));
+  if (row.food_stipend_per_day != null) row.food_stipend_per_day = parseFloat(row.food_stipend_per_day);
+  if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
+  if (row.venue_state) row.venue_state = row.venue_state.toUpperCase();
+  const u = await NRC.currentUser(); if (u) row.organizer_user_id = u.id;
+  const { error } = await NRC.sb.from("tournaments").insert(row);
+  if (error) { NRC.notice(msg, "Could not submit: " + NRC.esc(error.message), "error"); return; }
+  e.target.reset();
+  NRC.notice(msg, "Request received. The NRC will come back to you by email at the address you gave.", "ok");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+</script>
+</body>
+</html>

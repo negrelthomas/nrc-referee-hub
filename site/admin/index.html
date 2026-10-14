@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="stylesheet" href="../assets/styles.css">
+<base href="../">
+</head>
+<body data-page="admin">
+<header id="site-nav"></header>
+<div class="wrap">
+<section>
+  <div class="admin-layout">
+    <nav class="admin-nav">
+      <a href="#dashboard" class="active">Dashboard</a>
+      <a href="#referees">Referees</a>
+      <a href="#clubs">Clubs</a>
+      <a href="#tournaments">Tournament requests</a>
+      <a href="#questions">Questions</a>
+      <a href="#imports">Imports</a>
+      <a href="#" onclick="NRC.signOut();return false">Sign out</a>
+    </nav>
+    <div id="panes">
+
+      <!-- Dashboard -->
+      <div id="pane-dashboard">
+        <h1>NRC dashboard</h1>
+        <div id="tasks" style="display:grid;gap:8px;margin-bottom:18px"></div>
+        <div class="grid c4" id="kpis">
+          <div class="stat"><div class="n" id="k-refs">&nbsp;</div><div class="l">Active referees</div></div>
+          <div class="stat good"><div class="n" id="k-certified">&nbsp;</div><div class="l">Certified (L1 and above)</div></div>
+          <div class="stat bad"><div class="n" id="k-noclub">&nbsp;</div><div class="l">Clubs with no referee</div></div>
+          <div class="stat"><div class="n" id="k-pairs">&nbsp;</div><div class="l">Clubs with a certified pair</div></div>
+        </div>
+        <h2>Club coverage</h2>
+        <div class="table-wrap"><table id="cov"><thead><tr><th>Club</th><th>City</th><th>Referees</th><th>Certified</th><th>Pair</th><th>Program status</th></tr></thead><tbody></tbody></table></div>
+        <h2>Compliance watch</h2>
+        <p class="small muted">Referees whose USATH membership, SafeSport or background check is expired or missing.</p>
+        <div class="table-wrap"><table id="compl"><thead><tr><th>Referee</th><th>Level</th><th>Membership</th><th>SafeSport</th><th>Background</th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Referees -->
+      <div id="pane-referees" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Referees</h1><button class="btn sm" onclick="openRef(null)">Add referee</button></div>
+        <div class="toolbar" style="margin-top:12px"><input id="r-q" placeholder="Search"><select id="r-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="r-inactive" style="width:auto"> show inactive</label><button class="btn ghost sm" onclick="exportCsv()">Export CSV</button></div>
+        <div class="table-wrap"><table id="refs"><thead><tr><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airport</th><th>Games</th><th>Last eval</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Clubs -->
+      <div id="pane-clubs" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Clubs</h1><button class="btn sm" onclick="openClub(null)">Add club</button></div>
+        <div class="table-wrap" style="margin-top:12px"><table id="clubs"><thead><tr><th>Club</th><th>Type</th><th>City</th><th>Airport</th><th>Pair program</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Tournaments -->
+      <div id="pane-tournaments" class="hidden">
+        <h1>Tournament requests</h1>
+        <p class="muted small">Submitted by organizers through the public form. Assignment workflow (invitations, responses) arrives in phase 2.</p>
+        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Covers</th><th>Organizer</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Questions -->
+      <div id="pane-questions" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Quiz questions</h1><button class="btn sm" onclick="openQ(null)">Add question</button></div>
+        <div class="toolbar" style="margin-top:12px"><input id="q-q" placeholder="Search"><select id="q-rule"><option value="">All rules</option></select><select id="q-diff"><option value="">All levels</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option></select><select id="q-src"><option value="">All sources</option><option value="calcup">CalCup deck</option><option value="ihf_catalogue">IHF catalogue</option></select></div>
+        <div class="table-wrap"><table id="qs"><thead><tr><th>Rule</th><th>Level</th><th>Question</th><th>Type</th><th>Source</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Imports -->
+      <div id="pane-imports" class="hidden">
+        <h1>Imports</h1>
+        <div class="card">
+          <h3>Sport80 membership export</h3>
+          <p class="small">Export the referee membership list from Sport80 as CSV. The importer matches on email (then on first and last name) and updates the membership validity date and member ID. Expected columns, any order, header names flexible: <code>email</code>, <code>first name</code>, <code>last name</code>, <code>member id</code>, <code>expiry</code> or <code>valid until</code>. Unmatched rows are listed for review and nothing is created automatically.</p>
+          <input type="file" id="s80-file" accept=".csv,text/csv">
+          <p style="margin-top:10px"><button class="btn sm" onclick="importSport80()">Run import</button></p>
+          <div id="s80-result" class="small"></div>
+        </div>
+        <div class="card">
+          <h3>IHF Catalogue of Rules Questions</h3>
+          <p class="small">Paste the text of the IHF catalogue (questions file) and, separately, the answers file. The parser recognizes the numbering <code>7.12)</code> with options <code>a)</code> to <code>d)</code>, assigns the rule number from the question number, and marks the correct options from the answers file. Review in the Questions tab afterwards; everything imports as Level 2 by default.</p>
+          <label>Questions text</label><textarea id="ihf-q" style="min-height:140px" placeholder="Rule 1&#10;1.1) What are the measurements of the playing court?&#10;a) 40 x 20 meters&#10;..."></textarea>
+          <label>Answers text</label><textarea id="ihf-a" style="min-height:80px" placeholder="1.1) a&#10;1.2) b&#10;2.1) a, c"></textarea>
+          <label>Edition label</label><input id="ihf-ed" value="IHF 2025">
+          <p style="margin-top:10px"><button class="btn sm" onclick="previewIhf()">Preview</button> <button class="btn sm secondary" onclick="importIhf()" id="ihf-go" disabled>Import</button></p>
+          <div id="ihf-result" class="small"></div>
+        </div>
+        <div class="card"><h3>Import history</h3><div id="imp-log" class="small"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<!-- Referee editor -->
+<dialog id="dlg-ref"><div class="body">
+  <h3 id="dlg-ref-title">Referee</h3>
+  <form id="form-ref">
+    <div class="row"><div><label>First name</label><input name="first_name" required></div><div><label>Last name</label><input name="last_name" required></div></div>
+    <div class="row"><div><label>Email</label><input name="email" type="email" required></div><div><label>Phone</label><input name="phone"></div></div>
+    <div class="row"><div><label>Club</label><select name="club_id"><option value="">No club</option></select></div><div><label>Certification level</label><select name="cert_level"><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3 (National)</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select></div></div>
+    <div class="row"><div><label>Certified on</label><input name="cert_date" type="date"></div><div><label>Certified by</label><input name="cert_by"></div></div>
+    <div class="row"><div><label>Home city</label><input name="home_city"></div><div><label>State</label><input name="home_state" maxlength="2"></div></div>
+    <div class="row"><div><label>Home airport</label><input name="home_airport_iata" maxlength="3"></div><div><label>Departure airport</label><input name="departure_airport_iata" maxlength="3"></div></div>
+    <div class="row"><div><label>USATH member ID</label><input name="usath_member_id"></div><div><label>Membership valid until</label><input name="usath_membership_valid_until" type="date"></div></div>
+    <div class="row"><div><label>SafeSport valid until</label><input name="safesport_valid_until" type="date"></div><div><label>Background check valid until</label><input name="background_check_valid_until" type="date"></div></div>
+    <label>Admin notes (not visible to the referee)</label><textarea name="admin_notes"></textarea>
+    <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
+    <div id="ref-extra"></div>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-ref').close()">Cancel</button><button class="btn ghost" type="button" id="btn-eval" onclick="openEval()">Add evaluation</button><button class="btn ghost" type="button" id="btn-game" onclick="openGame()">Log game</button></p>
+  </form>
+</div></dialog>
+
+<!-- Evaluation editor -->
+<dialog id="dlg-eval"><div class="body">
+  <h3>Evaluation (IHF observer structure)</h3>
+  <form id="form-eval">
+    <div class="row"><div><label>Date</label><input name="evaluated_on" type="date" required></div><div><label>Observer</label><input name="evaluator_name" required></div></div>
+    <label>Tournament</label><select name="tournament_id"><option value="">None</option></select>
+    <div class="row" id="eval-scores"></div>
+    <label>Strengths</label><textarea name="strengths"></textarea>
+    <label>Points to improve</label><textarea name="points_to_improve"></textarea>
+    <label>Notes</label><textarea name="notes"></textarea>
+    <label><input type="checkbox" name="shared_with_referee" style="width:auto"> Share with the referee</label>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save evaluation</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-eval').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<!-- Game logger -->
+<dialog id="dlg-game"><div class="body">
+  <h3>Log a game from the game sheet</h3>
+  <form id="form-game">
+    <div class="row"><div><label>Date</label><input name="game_date" type="date" required></div><div><label>Tournament</label><select name="tournament_id"><option value="">None</option></select></div></div>
+    <div class="row"><div><label>Home team</label><input name="home_team"></div><div><label>Away team</label><input name="away_team"></div></div>
+    <div class="row"><div><label>Category</label><select name="category"><option>Men</option><option>Women</option><option>Youth</option><option>Other</option></select></div><div><label>Partner referee</label><select name="referee_2"><option value="">None</option></select></div></div>
+    <label>Game sheet image (optional)</label><input type="file" name="sheet" accept="image/*,.pdf">
+    <p style="margin-top:14px"><button class="btn" type="submit">Save game</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-game').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<!-- Club editor -->
+<dialog id="dlg-club"><div class="body">
+  <h3>Club</h3>
+  <form id="form-club">
+    <label>Name</label><input name="name" required>
+    <div class="row"><div><label>Type</label><select name="club_type"><option value="adult">Adult</option><option value="collegiate_men">Collegiate men</option><option value="collegiate_women">Collegiate women</option><option value="youth">Youth</option></select></div><div><label>Website</label><input name="website"></div></div>
+    <div class="row"><div><label>City</label><input name="city"></div><div><label>State</label><input name="state" maxlength="2"></div></div>
+    <div class="row"><div><label>Nearest airport</label><input name="nearest_airport_iata" maxlength="3"></div><div><label>Pair program status</label><select name="pair_program_status"><option value="none">Not started</option><option value="nominated">Two members nominated</option><option value="mentor_assigned">Mentor assigned</option><option value="in_training">In training</option><option value="observed">Observed at a tournament</option><option value="certified_pair">Certified pair</option></select></div></div>
+    <label>Program notes</label><textarea name="pair_program_notes"></textarea>
+    <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-club').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<!-- Question editor -->
+<dialog id="dlg-q"><div class="body">
+  <h3>Question</h3>
+  <form id="form-q">
+    <div class="row"><div><label>Rule number</label><select name="rule_number"></select></div><div><label>Level</label><select name="difficulty"><option value="level_1">Level 1</option><option value="level_2" selected>Level 2</option><option value="level_3">Level 3</option></select></div></div>
+    <div class="row"><div><label>Category</label><input name="category" required></div><div><label>Rule reference</label><input name="rule_ref" placeholder="Rule 8:3, 16:1"></div></div>
+    <label>Question</label><textarea name="question" required></textarea>
+    <label>Options (one per line; leave empty for a flashcard)</label><textarea name="options"></textarea>
+    <label>Correct option numbers (1 based, comma separated for several)</label><input name="correct_index" placeholder="2 or 1, 3">
+    <label>Answer or explanation</label><textarea name="answer" required></textarea>
+    <div class="row"><div><label>Source</label><select name="source"><option value="calcup">CalCup deck</option><option value="ihf_catalogue">IHF catalogue</option><option value="nrc">NRC</option></select></div><div><label>Source reference</label><input name="source_ref"></div></div>
+    <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-q').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

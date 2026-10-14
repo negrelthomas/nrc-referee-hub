@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sign in | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="login.html">
+<header id="site-nav"></header>
+<div class="wrap">
+<section style="max-width:480px;margin:0 auto">
+  <div class="card">
+    <h2 style="margin-top:0">Sign in</h2>
+    <p class="muted">No password. Enter your email and we send you a sign in link. Referees and NRC administrators use the same door.</p>
+    <div id="msg" class="notice hidden"></div>
+    <form id="login-form">
+      <label>Email</label><input type="email" name="email" required autocomplete="email">
+      <p style="margin-top:16px"><button class="btn" type="submit" id="btn">Send me a link</button></p>
+    </form>
+    <p class="small muted">New referee? The first sign in creates your account; you then complete your profile. Certification levels are set by the NRC.</p>
+  </div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const next = new URLSearchParams(location.search).get("next");
+  const u = await NRC.currentUser();
+  if (u) { location.href = next || (u.role === "admin" ? "admin/index.html" : "profile.html"); return; }
+  document.getElementById("login-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const msg = NRC.$("#msg");
+    if (!NRC.sb) { NRC.notice(msg, "Supabase is not configured yet.", "error"); return; }
+    const email = e.target.email.value.trim();
+    NRC.$("#btn").disabled = true;
+    const redirect = location.origin + location.pathname.replace(/login\.html$/, "") + (next || "profile.html");
+    const { error } = await NRC.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect } });
+    NRC.$("#btn").disabled = false;
+    if (error) NRC.notice(msg, "Could not send the link: " + NRC.esc(error.message), "error");
+    else NRC.notice(msg, "Check your inbox for the sign in link. It is valid for one hour.", "ok");
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Training | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="training.html">
+<header id="site-nav"></header>
+
+<section class="hero" style="padding:30px 0">
+  <div class="wrap">
+    <p class="kicker">Training, IHF rules only</p>
+    <h1>Stay sharp between games</h1>
+    <p class="sub">Flashcards and quizzes by rule and by level. Sign in to keep your progress across devices; otherwise it stays on this phone.</p>
+  </div>
+</section>
+
+<div class="wrap">
+<section>
+  <div class="tabs">
+    <button data-tab="practice" class="active">Practice quiz</button>
+    <button data-tab="timed">Timed challenge</button>
+    <button data-tab="cards">Flashcards</button>
+    <button data-tab="progress">My progress</button>
+  </div>
+
+  <div class="card" id="filters">
+    <div class="row">
+      <div><label>Level</label>
+        <div class="chips" id="chips-diff">
+          <span class="chip on" data-v="">All</span><span class="chip" data-v="level_1">Level 1</span><span class="chip" data-v="level_2">Level 2</span><span class="chip" data-v="level_3">Level 3</span>
+        </div></div>
+      <div><label>Rule</label><select id="f-rule"><option value="">All rules</option></select></div>
+    </div>
+    <label>Source</label>
+    <div class="chips" id="chips-src"><span class="chip on" data-v="">All</span><span class="chip" data-v="ihf">IHF Catalogue 2025</span><span class="chip" data-v="calcup">Game situations deck</span></div>
+    <p class="small muted" id="pool-count"></p>
+  </div>
+
+  <!-- Practice and timed -->
+  <div class="card hidden" id="quiz">
+    <div class="timer hidden" id="timer"><div></div></div>
+    <div class="small muted" id="quiz-meta"></div>
+    <div class="quiz-q" id="quiz-q"></div>
+    <div class="quiz-opts" id="quiz-opts"></div>
+    <div id="quiz-explain" class="notice hidden" style="margin-top:14px"></div>
+    <p style="margin-top:14px"><button class="btn secondary hidden" id="quiz-check">Check answer</button> <button class="btn" id="quiz-next">Next</button> <button class="btn ghost" id="quiz-stop">End session</button></p>
+  </div>
+  <div class="card" id="quiz-start">
+    <h3 id="start-title">Practice quiz</h3>
+    <p id="start-text">Multiple choice, no clock, explanation after each answer with the rule reference.</p>
+    <p><label>Questions per session</label><select id="n-q" style="width:auto"><option>10</option><option selected>15</option><option>25</option><option>50</option></select></p>
+    <button class="btn" id="btn-start">Start</button>
+  </div>
+  <div class="card hidden" id="quiz-result">
+    <h3>Session complete</h3>
+    <p id="result-text"></p>
+    <div id="result-missed"></div>
+    <p><button class="btn" id="btn-again">Again</button></p>
+  </div>
+
+  <!-- Flashcards -->
+  <div id="cards-ui" class="hidden">
+    <div class="grid c4" style="margin-bottom:12px">
+      <div class="stat good"><div class="n" id="c-knew">0</div><div class="l">Knew it</div></div>
+      <div class="stat bad"><div class="n" id="c-missed">0</div><div class="l">Missed</div></div>
+      <div class="stat"><div class="n" id="c-seen">0</div><div class="l">Seen</div></div>
+      <div class="stat"><div class="n" id="c-pct">0%</div><div class="l">Score</div></div>
+    </div>
+    <div class="flash" id="flash"><div class="inner">
+      <div class="face front"><div class="small muted" id="fc-meta"></div><div id="fc-q"></div><div class="small muted" style="margin-top:14px">Tap to reveal</div></div>
+      <div class="face back"><div id="fc-a"></div><div class="rule" id="fc-rule"></div></div>
+    </div></div>
+    <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn secondary" id="fc-missed">Missed</button><button class="btn" id="fc-knew">Knew it</button>
+      <button class="btn ghost" id="fc-shuffle">Shuffle</button><button class="btn ghost" id="fc-review">Review missed</button>
+    </p>
+  </div>
+
+  <!-- Progress -->
+  <div id="progress-ui" class="hidden">
+    <div class="card"><h3>Sessions</h3><div id="progress-list" class="small">No sessions yet.</div></div>
+    <div class="card"><h3>By rule</h3><div class="table-wrap"><table id="progress-rules"><thead><tr><th>Rule</th><th>Answered</th><th>Correct</th><th>Score</th></tr></thead><tbody></tbody></table></div></div>
+  </div>
+</section>
+</div>
+
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="data/questions.js"></script>
+<script src="js/app.js"></script>
+<script src="js/training.js"></script>
+</body>
+</html>
