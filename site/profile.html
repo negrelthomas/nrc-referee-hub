@@ -5,14 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>My profile | NRC Referee Hub</title>
 <link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
 </head>
 <body data-page="profile.html">
+<a class="skip" href="#main">Skip to content</a>
 <header id="site-nav"></header>
-<div class="wrap">
+<div class="wrap" id="main">
 <section>
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <h1 style="margin:0">My referee profile</h1>
+    <h1 style="margin:0" id="hello">My referee home</h1>
     <div><a class="btn ghost sm" href="directory.html">Directory</a> <button class="btn ghost sm" onclick="NRC.signOut()">Sign out</button></div>
   </div>
   <div id="msg" class="notice hidden" style="margin-top:12px"></div>
@@ -25,7 +28,8 @@
   </div>
 
   <div class="tabs" style="margin-top:18px">
-    <button data-tab="profile" class="active">Profile</button>
+    <button data-tab="home" class="active">Home</button>
+    <button data-tab="profile">Profile</button>
     <button data-tab="tournaments">Tournaments</button>
     <button data-tab="games">Games</button>
     <button data-tab="evals">Evaluations</button>
@@ -33,7 +37,23 @@
     <button data-tab="training">Training</button>
   </div>
 
-  <div id="tab-profile" class="card">
+  <div id="tab-home">
+    <div id="home-next"></div>
+    <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
+    <div class="grid c2" style="margin-top:14px">
+      <div class="card"><h3>Availability</h3><p class="small muted">Dates you cannot referee. The NRC checks this before inviting you.</p>
+        <div class="avail-list" id="avail-list"></div>
+        <form id="avail-form" class="row" style="margin-top:10px;grid-template-columns:1fr 1fr auto;align-items:end;gap:8px">
+          <div><label>From</label><input name="start_date" type="date" required></div>
+          <div><label>To</label><input name="end_date" type="date" required></div>
+          <div><button class="btn sm" type="submit">Block dates</button></div>
+        </form>
+        <label style="margin-top:4px">Note (optional)</label><input id="avail-note" placeholder="Playing with my club, travel...">
+      </div>
+      <div class="card"><h3>Keep sharp</h3><div id="home-training"></div><p style="margin-top:12px"><a class="btn yellow sm" href="training.html">Open training</a></p></div>
+    </div>
+  </div>
+  <div id="tab-profile" class="card hidden">
     <form id="form">
       <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
         <img id="photo" class="avatar lg" alt="">
@@ -91,7 +111,7 @@
 <script>
 let user, ref;
 const $ = NRC.$;
-NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").forEach(x => x.classList.toggle("active", x === b)); ["profile","tournaments","games","evals","assignments","training"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)); });
+NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").forEach(x => x.classList.toggle("active", x === b)); ["home","profile","tournaments","games","evals","assignments","training"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)); });
 
 async function load() {
   user = await NRC.requireUser(); if (!user) return;
@@ -108,7 +128,8 @@ async function load() {
     const today = new Date().toISOString().slice(0, 10);
     const item = (l, d) => `<div>${l}: ${d ? (d >= today ? '<span class="pill green">valid to ' + NRC.fmtDate(d) + '</span>' : '<span class="pill red">expired ' + NRC.fmtDate(d) + '</span>') : '<span class="pill amber">not on file</span>'}</div>`;
     $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);
-    loadTournaments(); loadGames(); loadEvals(); loadAssignments(); loadTraining();
+    $("#hello").textContent = "Hello " + ref.first_name;
+    loadHome(); loadTournaments(); loadGames(); loadEvals(); loadAssignments(); loadTraining();
   } else {
     NRC.notice($("#msg"), "Your account is not linked to a referee record. Write to referee@handballusa.org.", "error");
     $("#form").classList.add("hidden");
@@ -134,6 +155,43 @@ $("#form").addEventListener("submit", async (e) => {
   }
   NRC.notice($("#msg"), "Profile saved.", "ok"); window.scrollTo({ top: 0, behavior: "smooth" });
   if (!$("#compliance").textContent.includes("valid")) load();
+});
+async function loadHome() {
+  const today = new Date().toISOString().slice(0, 10);
+  // next confirmed assignment
+  const { data: hist } = await NRC.sb.from("referee_tournament_history").select("*").eq("referee_id", ref.id).gte("end_date", today).order("start_date").limit(1);
+  const n = hist && hist[0];
+  $("#home-next").innerHTML = n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Details</a></div>`
+    : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC confirms you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`;
+  // alerts
+  const alerts = [];
+  const { data: pend } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,start_date)").eq("referee_id", ref.id).eq("status", "sent");
+  (pend || []).forEach(p => alerts.push(`<div class="alert"><div><div class="t">Invitation waiting for your answer</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}</div></div><a class="btn sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Respond</a></div>`));
+  const soon = d => d && new Date(d) - Date.now() < 60 * 864e5;
+  [["USATH membership", ref.usath_membership_valid_until], ["SafeSport certificate", ref.safesport_valid_until], ["Background check", ref.background_check_valid_until]].forEach(([l, d]) => {
+    if (!d) alerts.push(`<div class="alert warn"><div><div class="t">${l} not on file</div><div class="small">Ask the NRC to record it, or it will block assignments.</div></div></div>`);
+    else if (d < today) alerts.push(`<div class="alert"><div><div class="t">${l} expired on ${NRC.fmtDate(d)}</div><div class="small">Renew it before accepting an assignment.</div></div></div>`);
+    else if (soon(d)) alerts.push(`<div class="alert warn"><div><div class="t">${l} expires ${NRC.fmtDate(d)}</div><div class="small">Renew it in the next few weeks.</div></div></div>`);
+  });
+  if (!ref.home_airport_iata || !ref.photo_url) alerts.push(`<div class="alert info"><div><div class="t">Complete your profile</div><div class="small">${!ref.photo_url ? "Add a photo. " : ""}${!ref.home_airport_iata ? "Add your home airport so travel can be planned." : ""}</div></div><a class="btn sm secondary" href="#" onclick="document.querySelector('[data-tab=profile]').click();return false">Edit</a></div>`);
+  $("#home-alerts").innerHTML = alerts.join("") || `<div class="alert ok"><div><div class="t">Everything is in order</div><div class="small">Membership, SafeSport and background check are current.</div></div></div>`;
+  loadAvail();
+  // training nudge
+  const { data: ans } = await NRC.sb.from("quiz_answers").select("correct,quiz_questions(rule_number),quiz_attempts!inner(user_id,created_at)").eq("quiz_attempts.user_id", user.id);
+  const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; });
+  const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n)[0];
+  $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
+}
+async function loadAvail() {
+  const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", new Date().toISOString().slice(0, 10)).order("start_date");
+  $("#avail-list").innerHTML = (data || []).map(b => `<div><span>${NRC.fmtDate(b.start_date)}${b.end_date !== b.start_date ? " to " + NRC.fmtDate(b.end_date) : ""}${b.note ? ' <span class="small muted">' + NRC.esc(b.note) + "</span>" : ""}</span><button class="btn ghost sm" onclick="delAvail('${b.id}')">Remove</button></div>`).join("") || '<div class="small muted">No blocked dates. You are shown as available.</div>';
+}
+window.delAvail = async function (id) { await NRC.sb.from("availability_blocks").delete().eq("id", id); loadAvail(); };
+$("#avail-form").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target;
+  const { error } = await NRC.sb.from("availability_blocks").insert({ referee_id: ref.id, start_date: f.start_date.value, end_date: f.end_date.value, note: $("#avail-note").value.trim() || null });
+  if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); return; }
+  f.reset(); $("#avail-note").value = ""; loadAvail();
 });
 const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
 function monthYear(d) { return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }); }

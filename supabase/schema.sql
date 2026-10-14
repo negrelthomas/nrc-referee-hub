@@ -145,6 +145,18 @@ create table if not exists public.pairs (
   check (referee_a <> referee_b)
 );
 
+-- Availability: dates a referee cannot work (assignors see this before inviting)
+create table if not exists public.availability_blocks (
+  id uuid primary key default gen_random_uuid(),
+  referee_id uuid not null references public.referees(id) on delete cascade,
+  start_date date not null,
+  end_date date not null,
+  note text,
+  created_at timestamptz not null default now(),
+  check (end_date >= start_date)
+);
+create index if not exists availability_ref_idx on public.availability_blocks(referee_id, start_date);
+
 -- Certification history (one row per promotion or renewal)
 create table if not exists public.certifications (
   id uuid primary key default gen_random_uuid(),
@@ -343,6 +355,11 @@ alter table public.profiles enable row level security;
 alter table public.referees enable row level security;
 alter table public.pairs enable row level security;
 alter table public.certifications enable row level security;
+alter table public.availability_blocks enable row level security;
+drop policy if exists avail_own on public.availability_blocks;
+create policy avail_own on public.availability_blocks for all
+  using (public.is_admin() or referee_id in (select id from public.referees where user_id = auth.uid()))
+  with check (public.is_admin() or referee_id in (select id from public.referees where user_id = auth.uid()));
 alter table public.tournaments enable row level security;
 alter table public.assignment_requests enable row level security;
 alter table public.assignments enable row level security;
