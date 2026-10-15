@@ -1,7 +1,7 @@
 /* Admin area */
 (function () {
   const $ = NRC.$, sb = () => NRC.sb;
-  let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], currentRef = null;
+  let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], currentRef = null;
   const today = () => new Date().toISOString().slice(0, 10);
   const CRIT = [["score_rules_application", "Rules application"], ["score_game_management", "Game management"], ["score_progressive_punishment", "Progressive punishment"], ["score_positioning", "Positioning"], ["score_pair_cooperation", "Pair cooperation"], ["score_communication", "Communication"]];
   const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
@@ -17,20 +17,21 @@
 
   // ---------- load ----------
   async function loadAll() {
-    const [c, r, t, q, v] = await Promise.all([
+    const [c, r, t, q, v, ts] = await Promise.all([
       sb().from("clubs").select("*").order("name"),
       sb().from("referees").select("*").order("last_name"),
       sb().from("tournaments").select("*").order("start_date", { ascending: false }),
       sb().from("quiz_questions").select("*").order("rule_number").order("created_at"),
-      sb().from("club_coverage").select("*")
+      sb().from("club_coverage").select("*"),
+      sb().from("training_sessions").select("*").order("starts_at", { ascending: false })
     ]);
-    clubs = c.data || []; refs = r.data || []; tournaments = t.data || []; questions = q.data || []; cov = v.data || [];
+    clubs = c.data || []; refs = r.data || []; tournaments = t.data || []; questions = q.data || []; cov = v.data || []; sessions = ts.data || [];
     // stats per referee
     const { data: stats } = await sb().from("referee_season_stats").select("*");
     const { data: evals } = await sb().from("evaluations").select("referee_id,evaluated_on").order("evaluated_on", { ascending: false });
     const yr = new Date().getFullYear();
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
-    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); loadTasks(); loadImportLog();
+    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); loadTasks(); loadImportLog();
   }
   function fillSelects() {
     NRC.$$("select[name=club_id]").forEach(s => { s.innerHTML = '<option value="">No club</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join(""); });
@@ -178,6 +179,38 @@
     const res = currentClub ? await sb().from("clubs").update(row).eq("id", currentClub.id) : await sb().from("clubs").insert(row);
     if (res.error) { alert(res.error.message); return; }
     $("#dlg-club").close(); loadAll();
+  });
+
+  // ---------- training sessions ----------
+  const STYPE = { online: "Online", in_person: "In person", course: "Certification course" };
+  const fmtWhen = (iso, tz) => { if (!iso) return ""; const d = new Date(iso); tz = tz || "America/Los_Angeles"; return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: tz }) + " " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz, timeZoneName: "short" }); };
+  function renderSessions() {
+    const now = Date.now();
+    $("#sessions-admin tbody").innerHTML = sessions.map(t => `<tr${new Date(t.starts_at).getTime() < now ? ' class="muted"' : ""}><td><strong>${NRC.esc(t.title)}</strong></td><td>${STYPE[t.session_type] || NRC.esc(t.session_type)}</td><td>${NRC.esc(fmtWhen(t.starts_at, t.timezone))}</td><td>${NRC.esc(t.location || "")}</td><td>${NRC.esc(t.audience || "")}</td><td>${t.published ? "Yes" : "No"}</td><td><button class="btn sm ghost" onclick="openSession('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="7">No sessions yet. Add the next clinic or online rule session.</td></tr>';
+  }
+  // datetime-local works in wall clock time of the chosen zone; convert with a fixed offset lookup
+  const toLocalInput = (iso, tz) => { if (!iso) return ""; const d = new Date(iso); const p = new Intl.DateTimeFormat("en-US", { timeZone: tz || "America/Los_Angeles", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d).reduce((a, x) => (a[x.type] = x.value, a), {}); return `${p.year}-${p.month}-${p.day}T${p.hour === "24" ? "00" : p.hour}:${p.minute}`; };
+  const fromLocalInput = (v, tz) => { if (!v) return null; const guess = new Date(v + ":00Z"); const asTz = new Date(toLocalInput(guess.toISOString(), tz) + ":00Z"); return new Date(guess.getTime() - (asTz.getTime() - guess.getTime())).toISOString(); };
+  let currentSession = null;
+  window.openSession = function (id) {
+    currentSession = id ? sessions.find(t => t.id === id) : null; const f = $("#form-session"); f.reset();
+    if (currentSession) { ["title", "session_type", "audience", "timezone", "location", "description", "registration_url"].forEach(k => { if (f[k]) f[k].value = currentSession[k] == null ? "" : currentSession[k]; }); f.starts_at.value = toLocalInput(currentSession.starts_at, currentSession.timezone); f.ends_at.value = toLocalInput(currentSession.ends_at, currentSession.timezone); f.published.checked = currentSession.published; }
+    $("#btn-session-delete").classList.toggle("hidden", !currentSession);
+    $("#dlg-session").showModal();
+  };
+  $("#form-session").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target; const row = {};
+    ["title", "session_type", "audience", "timezone", "location", "description", "registration_url"].forEach(k => row[k] = f[k].value.trim() || null);
+    row.starts_at = fromLocalInput(f.starts_at.value, row.timezone); row.ends_at = fromLocalInput(f.ends_at.value, row.timezone); row.published = f.published.checked;
+    const res = currentSession ? await sb().from("training_sessions").update(row).eq("id", currentSession.id) : await sb().from("training_sessions").insert(row);
+    if (res.error) { alert(res.error.message); return; }
+    $("#dlg-session").close(); loadAll();
+  });
+  $("#btn-session-delete").addEventListener("click", async () => {
+    if (!currentSession || !confirm("Delete this session?")) return;
+    const res = await sb().from("training_sessions").delete().eq("id", currentSession.id);
+    if (res.error) { alert(res.error.message); return; }
+    $("#dlg-session").close(); loadAll();
   });
 
   // ---------- tournaments ----------

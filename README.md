@@ -13,7 +13,8 @@ site/                      published folder (Netlify publish = site)
   request-referees.html    organizer intake form (writes to tournaments)
   referees.html            public club coverage list
   directory.html           referee directory (signed in)
-  login.html               magic link sign in
+  login.html               magic link sign in, with a 6 digit code fallback
+  auth.html                exchanges the token from the email link (not consumed by mail scanners)
   profile.html             referee profile, games, evaluations, assignments
   admin/index.html         NRC admin: dashboard, tasks, referees, clubs, requests, questions, imports
   js/config.js             Supabase URL and anon key (fill in)
@@ -26,6 +27,8 @@ supabase/
   seed_questions.sql       115 questions from the CalCup deck (76 flashcards, 39 timed)
   seed_questions_ihf.sql   430 questions, IHF Catalogue of Rules Questions, edition 1 July 2025
   seed_demo.sql            optional demo: Halina Lehto, Azadeh Ahmadi, Zeke McClintock with tournament history, evaluations, pair
+  seed_mock_referees.sql   optional: five fictional referees (emails @demo.nrc) for reviewing the directory and profiles
+  training_sessions.sql    training_sessions table (also included at the end of schema.sql)
 netlify/functions/        send-invitations.mjs (invite, reminder, confirm emails), respond.mjs (accept or decline from the email link)
 netlify.toml, package.json
 ```
@@ -33,7 +36,7 @@ netlify.toml, package.json
 ## Setup (one time, about 20 minutes)
 
 1. Supabase: create a project. In the SQL editor run, in this order: `supabase/schema.sql`, `supabase/seed_clubs.sql`, `supabase/seed_questions.sql`, `supabase/seed_questions_ihf.sql`, and optionally `supabase/seed_demo.sql` (demo profiles use placeholder emails ending in @demo.nrc; edit them to real emails to let those referees sign in, or delete the rows later).
-2. Supabase > Authentication > URL configuration: set the Site URL to the Netlify URL and add it to the redirect allow list. Email provider: enable magic links (default). Optional: custom SMTP later when the sender moves to USATH.
+2. Supabase > Authentication > URL configuration: set the Site URL to the Netlify URL and add `<netlify url>/**` to the redirect allow list. Authentication > Emails > Magic Link template: link to `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` and include `{{ .Token }}` as a 6 digit code (mail scanners otherwise consume the default link before the user clicks). Optional: custom SMTP later when the sender moves to USATH.
 3. Copy Project settings > API > Project URL and anon public key into `site/js/config.js`.
 4. Netlify: new site from the GitHub repo, publish directory `site`, no build command. Deploy.
 5. Sign in once on the deployed site with negrel.thomas@gmail.com (pre-invited as admin in schema.sql). The nav shows Admin. To add another admin: `insert into public.admin_invites (email) values ('x@y.org');` before they sign in.

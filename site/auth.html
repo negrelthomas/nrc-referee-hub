@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Signing in | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="auth.html">
+<header id="site-nav"></header>
+<div class="wrap" id="main">
+<section style="max-width:480px;margin:0 auto">
+  <div class="card">
+    <h2 style="margin-top:0">Signing you in</h2>
+    <p id="msg" class="muted">One moment.</p>
+    <p id="fallback" class="hidden"><a class="btn" href="login.html">Back to sign in</a></p>
+  </div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+// The sign in email links here with a token_hash. The token is exchanged only when this script runs,
+// so a mail scanner that opens the link does not consume it. The 6 digit code in the same email is the fallback.
+document.addEventListener("DOMContentLoaded", async () => {
+  const q = new URLSearchParams(location.search);
+  const next = q.get("next") || "";
+  const msg = document.getElementById("msg");
+  const fail = (t) => { msg.textContent = t; msg.className = "notice error"; document.getElementById("fallback").classList.remove("hidden"); };
+  if (!NRC.sb) { fail("Supabase is not configured yet."); return; }
+  const go = async () => {
+    const u = await NRC.currentUser();
+    location.replace(next || (u && u.role === "admin" ? "admin/index.html" : "profile.html"));
+  };
+  const tokenHash = q.get("token_hash");
+  if (tokenHash) {
+    const { error } = await NRC.sb.auth.verifyOtp({ token_hash: tokenHash, type: q.get("type") || "magiclink" });
+    if (error) { fail("This link is no longer valid: " + error.message + ". Request a new one and use the 6 digit code from the email if the link fails again."); return; }
+    await go(); return;
+  }
+  // Legacy link format (token in the URL fragment): supabase-js reads it on load.
+  const { data } = await NRC.sb.auth.getSession();
+  if (data && data.session) { await go(); return; }
+  fail("No sign in token found. Request a new link.");
+});
+</script>
+</body>
+</html>

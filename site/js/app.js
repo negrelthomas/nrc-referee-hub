@@ -25,7 +25,7 @@
     if (!host) return;
     const links = [
       ["index.html", "Home"], ["become-a-referee.html", "Become a referee"], ["training.html", "Training"],
-      ["referees.html", "Referees"], ["request-referees.html", "Organizers"]
+      ["referees.html", "Referees"], ["request-referees.html", "Request referees for a tournament"]
     ];
     host.className = "nav";
     host.innerHTML = `<div class="wrap">

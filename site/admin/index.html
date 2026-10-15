@@ -22,6 +22,7 @@
       <a href="#clubs">Clubs</a>
       <a href="#tournaments">Tournament requests</a>
       <a href="#questions">Questions</a>
+      <a href="#training">Training sessions</a>
       <a href="#imports">Imports</a>
       <a href="#" onclick="NRC.signOut();return false">Sign out</a>
     </nav>
@@ -65,6 +66,13 @@
         <h1>Tournament requests</h1>
         <p class="muted small">Submitted by organizers through the public form. Open a tournament to record who officiated and how many games each (this feeds every referee's history). Invitations and responses arrive in phase 2.</p>
         <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Sanction</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Covers</th><th>Organizer</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Training sessions -->
+      <div id="pane-training" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Training sessions</h1><button class="btn sm" onclick="openSession(null)">Add session</button></div>
+        <p class="muted small">Published sessions appear on the public Training page under "Next training sessions". Past sessions stay here for the record.</p>
+        <div class="table-wrap" style="margin-top:12px"><table id="sessions-admin"><thead><tr><th>Session</th><th>Type</th><th>When</th><th>Where</th><th>Audience</th><th>Published</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Questions -->
@@ -200,6 +208,20 @@
     <label>Program notes</label><textarea name="pair_program_notes"></textarea>
     <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
     <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-club').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<dialog id="dlg-session"><div class="body">
+  <h3>Training session</h3>
+  <form id="form-session">
+    <label>Title</label><input name="title" required>
+    <div class="row"><div><label>Type</label><select name="session_type"><option value="online">Online</option><option value="in_person">In person</option><option value="course">Certification course</option></select></div><div><label>Audience</label><input name="audience" placeholder="All referees, Level 1 candidates"></div></div>
+    <div class="row"><div><label>Starts</label><input name="starts_at" type="datetime-local" required></div><div><label>Ends</label><input name="ends_at" type="datetime-local"></div></div>
+    <div class="row"><div><label>Time zone</label><select name="timezone"><option value="America/Los_Angeles">Pacific</option><option value="America/Denver">Mountain</option><option value="America/Chicago">Central</option><option value="America/New_York">Eastern</option></select></div><div><label>Location</label><input name="location" placeholder="Zoom, or venue and city"></div></div>
+    <label>Description</label><textarea name="description"></textarea>
+    <label>Registration link</label><input name="registration_url" type="url">
+    <label><input type="checkbox" name="published" style="width:auto" checked> Published on the public Training page</label>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" id="btn-session-delete">Delete</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-session').close()">Cancel</button></p>
   </form>
 </div></dialog>
 

@@ -22,6 +22,11 @@
 </section>
 
 <div class="wrap">
+<section id="sessions-section">
+  <h2>Next training sessions</h2>
+  <p class="muted small">Clinics, online rule sessions and certification courses announced by the NRC.</p>
+  <div id="sessions" class="grid c3"><p class="muted">Loading.</p></div>
+</section>
 <section>
   <div class="tabs">
     <button data-tab="practice" class="active">Practice quiz</button>
@@ -97,5 +102,19 @@
 <script src="data/questions.js"></script>
 <script src="js/app.js"></script>
 <script src="js/training.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", async () => {
+  const host = document.getElementById("sessions"); if (!host) return;
+  if (!NRC.sb) { host.innerHTML = '<p class="muted">Sessions are announced here once the NRC publishes them.</p>'; return; }
+  const { data } = await NRC.sb.from("training_sessions").select("*").eq("published", true).gte("starts_at", new Date(Date.now() - 86400000).toISOString()).order("starts_at").limit(12);
+  const TYPE = { online: "Online", in_person: "In person", course: "Certification course" };
+  if (!data || !data.length) { host.innerHTML = '<p class="muted">No sessions scheduled yet. The NRC publishes upcoming clinics and online rule sessions here.</p>'; return; }
+  host.innerHTML = data.map(t => {
+    const d = new Date(t.starts_at); const tz = t.timezone || "America/Los_Angeles";
+    const when = d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", year: "numeric", timeZone: tz }) + ", " + d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: tz, timeZoneName: "short" });
+    return `<div class="card"><span class="pill">${NRC.esc(TYPE[t.session_type] || t.session_type)}</span><h3 style="margin:8px 0 4px">${NRC.esc(t.title)}</h3><p class="small"><strong>${NRC.esc(when)}</strong>${t.location ? "<br>" + NRC.esc(t.location) : ""}${t.audience ? "<br>For: " + NRC.esc(t.audience) : ""}</p>${t.description ? "<p class=\"small muted\">" + NRC.esc(t.description) + "</p>" : ""}${t.registration_url ? '<p><a class="btn sm" href="' + NRC.esc(t.registration_url) + '" target="_blank" rel="noopener">Register</a></p>' : ""}</div>`;
+  }).join("");
+});
+</script>
 </body>
 </html>
