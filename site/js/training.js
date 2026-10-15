@@ -2,7 +2,8 @@
 (function () {
   const $ = NRC.$;
   let ALL = [], user = null, tab = "practice", diff = "", rule = "", src = "";
-  const TIMED_SECONDS = 20;
+  const secsPerQ = () => Math.min(30, Math.max(10, parseInt(($("#secs") || {}).value, 10) || 20));
+  const SKEY = "nrc_quiz_secs";
   const LKEY = "nrc_training_v1";
 
   // ---------- local progress (used when signed out, and as a cache) ----------
@@ -41,8 +42,9 @@
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.add("hidden");
     $("#cards-ui").classList.toggle("hidden", t !== "cards");
     $("#progress-ui").classList.toggle("hidden", t !== "progress");
-    if (t === "practice") { $("#start-title").textContent = "Practice quiz"; $("#start-text").textContent = "Multiple choice, no clock, explanation after each answer with the rule reference."; }
-    if (t === "timed") { $("#start-title").textContent = "Timed challenge"; $("#start-text").textContent = TIMED_SECONDS + " seconds per question, no second chance. The format used on the court."; }
+    if (t === "practice") { $("#start-title").textContent = "Practice quiz"; $("#start-text").textContent = "Multiple choice, explanation after each answer with the rule reference. Add a clock if you want to train the speed too."; }
+    if (t === "timed") { $("#start-title").textContent = "Timed challenge"; $("#start-text").textContent = "A clock on every question, no second chance, next question comes by itself. The format used on the court."; }
+    $("#clock-opt").classList.toggle("hidden", t !== "practice");
     if (t === "cards") startCards();
     if (t === "progress") renderProgress();
     updatePoolCount();
@@ -60,7 +62,8 @@
     const n = parseInt($("#n-q").value, 10);
     const qs = NRC.shuffle(pool(false)).slice(0, n);
     if (!qs.length) { alert("No questions match these filters."); return; }
-    session = { mode: tab, qs, i: 0, correct: 0, missed: [], answers: [], started: Date.now() };
+    session = { mode: tab, qs, i: 0, correct: 0, missed: [], answers: [], started: Date.now(), secs: secsPerQ(), clock: tab === "timed" || $("#clock-on").checked };
+    try { localStorage.setItem(SKEY, String(session.secs)); } catch (e) { }
     $("#quiz-start").classList.add("hidden"); $("#quiz-result").classList.add("hidden"); $("#quiz").classList.remove("hidden");
     showQuestion();
   }
@@ -77,11 +80,12 @@
     if (multi) $("#quiz-meta").textContent += ". Several answers are correct: select all that apply.";
     q.options.forEach((o, idx) => { const b = document.createElement("button"); b.textContent = (multi ? String.fromCharCode(97 + idx) + ") " : "") + o; b.dataset.idx = idx;
       b.onclick = () => { if (multi) b.classList.toggle("picked"); else answer(idx); }; opts.appendChild(b); });
-    if (session.mode === "timed") {
+    if (session.clock) {
       $("#timer").classList.remove("hidden");
-      const bar = $("#timer > div"); let left = TIMED_SECONDS; bar.style.width = "100%";
+      const bar = $("#timer > div"); const total = session.secs; let left = total; bar.style.width = "100%";
       clearInterval(timerId);
-      timerId = setInterval(() => { left -= 0.25; bar.style.width = Math.max(0, left / TIMED_SECONDS * 100) + "%"; if (left <= 0) { clearInterval(timerId); answer(-1); } }, 250);
+      // the clock runs only while the question is open; answer() clears it, so reading the explanation is untimed
+      timerId = setInterval(() => { left -= 0.25; bar.style.width = Math.max(0, left / total * 100) + "%"; if (left <= 0) { clearInterval(timerId); answer(-1); } }, 250);
     } else $("#timer").classList.add("hidden");
   }
   function answer(idx) {
@@ -163,6 +167,8 @@
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
+    const sl = $("#secs"), out = $("#secs-out");
+    if (sl) { try { const v = parseInt(localStorage.getItem(SKEY), 10); if (v >= 10 && v <= 30) sl.value = v; } catch (e) { } out.textContent = sl.value + " s"; sl.oninput = () => out.textContent = sl.value + " s"; }
     user = await NRC.currentUser();
     ALL = await NRC.loadQuestions();
     buildFilters(); updatePoolCount();

@@ -34,6 +34,7 @@ supabase/
   staffing_v2.sql          weekend availability, tentative answers, supervisor need, organizer token (also in schema.sql; run its first line alone)
   update_real_referees.sql real emails for the three CalCup referees and the CalCup 2027 respondents
   confirm_and_theory.sql   level_confirmed badge, level1_theory_passed_on, award function records theory passed only
+  changes.sql              organizer update policy, tournament_changes log, status guard trigger
   organizers_travel.sql    organizer sign in (role organizer for emails that submitted a request), travel_managed_by, travel_bookings, organizer and staffing views
 netlify/functions/        mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data)
 netlify.toml, package.json

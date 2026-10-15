@@ -62,7 +62,11 @@
   <div class="card" id="quiz-start">
     <h3 id="start-title">Practice quiz</h3>
     <p id="start-text">Multiple choice, no clock, explanation after each answer with the rule reference.</p>
-    <p><label>Questions per session</label><select id="n-q" style="width:auto"><option>10</option><option selected>15</option><option>25</option><option>50</option></select></p>
+    <div class="row" style="align-items:end">
+      <div><label>Questions per session</label><select id="n-q" style="width:auto"><option>10</option><option selected>15</option><option>25</option><option>50</option></select></div>
+      <div><label>Seconds per question (10 to 30, reading time included)</label><div style="display:flex;align-items:center;gap:10px"><input id="secs" type="range" min="10" max="30" step="1" value="20" style="width:160px"><strong id="secs-out">20 s</strong></div></div>
+    </div>
+    <p id="clock-opt"><label style="font-weight:400;display:inline-flex;align-items:center;gap:8px"><input type="checkbox" id="clock-on" style="width:auto"> Clock per question. It stops while you read the explanation.</label></p>
     <button class="btn" id="btn-start">Start</button>
   </div>
   <div class="card hidden" id="quiz-result">

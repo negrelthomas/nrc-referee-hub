@@ -19,13 +19,14 @@ export default async (req) => {
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const { data: who, error: whoErr } = await admin.auth.getUser(token);
   if (whoErr || !who?.user) return json(401, { error: "Invalid session" });
-  const { data: prof } = await admin.from("profiles").select("role").eq("id", who.user.id).maybeSingle();
-  if (!prof || prof.role !== "admin") return json(403, { error: "Admin only" });
-
-  const { tournament_id, request_ids, kind } = await req.json();
+  const { data: prof } = await admin.from("profiles").select("role,email").eq("id", who.user.id).maybeSingle();
+  const { tournament_id, request_ids, assignment_ids, kind } = await req.json();
   if (!tournament_id || !kind) return json(400, { error: "tournament_id and kind required" });
   const { data: t } = await admin.from("tournaments").select("*").eq("id", tournament_id).single();
   if (!t) return json(404, { error: "Tournament not found" });
+  const isAdmin = prof && prof.role === "admin";
+  const isOwner = prof && (t.organizer_user_id === who.user.id || (t.organizer_email || "").toLowerCase() === (prof.email || "").toLowerCase());
+  if (!isAdmin && !(isOwner && ["changes", "cancel"].includes(kind))) return json(403, { error: "Admin only" });
   const base = (SITE_URL || "").replace(/\/$/, "");
   const when = `${fmtDate(t.start_date)} to ${fmtDate(t.end_date)}`;
   const where = `${t.venue_name || ""}${t.venue_address ? ", " + t.venue_address : ""}, ${t.venue_city}, ${t.venue_state}${t.nearest_airport_iata ? " (nearest airport " + t.nearest_airport_iata + ")" : ""}`;
@@ -33,9 +34,44 @@ export default async (req) => {
   const contact = process.env.CONTACT_EMAIL || "referee@handballusa.org";
 
   // Designated referees (confirmed) with their partner, used by the organizer and confirmation emails
-  const { data: confirmedRows } = await admin.from("assignments").select("role, referees(id, first_name, last_name, email, phone, cert_level, home_city, home_state, home_airport_iata, clubs(name))").eq("tournament_id", tournament_id);
-  const designated = (confirmedRows || []).map(a => ({ role: a.role, ...a.referees }));
+  const { data: confirmedRows } = await admin.from("assignments").select("id, role, referees(id, first_name, last_name, email, phone, cert_level, home_city, home_state, home_airport_iata, clubs(name))").eq("tournament_id", tournament_id);
+  const designated = (confirmedRows || []).map(a => ({ assignment_id: a.id, role: a.role, ...a.referees }));
   const LEVEL = { candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3", nachc: "NACHC", ihf: "IHF" };
+
+  const LABEL = { name: "Name", start_date: "Start date", end_date: "End date", venue_name: "Venue", venue_address: "Address", venue_city: "City", venue_state: "State", nearest_airport_iata: "Nearest airport", pairs_needed: "Pairs needed", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights covered", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers covered", airport_transfer_how: "Airport transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure last day", travel_managed_by: "Travel booked by", notes: "Notes", status: "Status", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
+  const logAndSend = async (to, subject, html, kindLabel) => { const r = await sendMail({ to, subject, html }); await admin.from("email_log").insert({ to_email: to, subject, kind: kindLabel, sent: r.sent, error: r.error }); return { email: to, sent: r.sent, error: r.error }; };
+  const recipients = () => { const list = designated.map(d => ({ email: d.email, name: d.first_name })); return list; };
+
+  if (kind === "changes" || kind === "cancel") {
+    const { data: ch } = await admin.from("tournament_changes").select("*").eq("tournament_id", tournament_id).is("notified_at", null).order("created_at");
+    const rows = (ch || []).flatMap(c => Object.entries(c.changes || {}).map(([f, v]) => `<li>${esc(LABEL[f] || f)}: ${esc(v.from == null ? "none" : v.from)} to ${esc(v.to == null ? "none" : v.to)}</li>`));
+    const cancelled = kind === "cancel" || t.status === "cancelled";
+    const subject = cancelled ? `Cancelled: ${t.name}, ${fmtDate(t.start_date)}` : `Update: ${t.name}, ${fmtDate(t.start_date)}`;
+    const body = cancelled ? `<p><strong>${esc(t.name)}</strong> (${when}, ${esc(t.venue_city)}, ${esc(t.venue_state)}) is cancelled by the organizer. Any assignment for this event is void; the NRC cancels bookings it made and will confirm by email.</p>` : `<p>The details of <strong>${esc(t.name)}</strong> (${when}, ${esc(where)}) changed:</p><ul>${rows.join("") || "<li>See the event page for the current details.</li>"}</ul><p>Your assignment stands unless the NRC tells you otherwise. Check your trip on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p>`;
+    const results = [];
+    for (const r of recipients()) results.push(await logAndSend(r.email, subject, `<p>Hi ${esc(r.name)},</p>${body}<p>National Referee Committee</p>`, kind));
+    results.push(await logAndSend(contact, `[NRC hub] ${subject}`, `<p>${isOwner ? "The organizer" : "An administrator"} ${isOwner ? esc(t.organizer_name) : ""} ${cancelled ? "cancelled" : "changed"} ${esc(t.name)}.</p>${cancelled ? "" : "<ul>" + rows.join("") + "</ul>"}<p>${designated.length} designated official(s) were notified.</p>`, kind));
+    if (!isAdmin || true) results.push(await logAndSend(t.organizer_email, subject, `<p>Hi ${esc(t.organizer_name)},</p>${cancelled ? `<p>Your request for <strong>${esc(t.name)}</strong> is recorded as cancelled. The NRC confirms the cancellation of any booking it made.</p>` : `<p>This confirms the changes to <strong>${esc(t.name)}</strong>:</p><ul>${rows.join("")}</ul><p>The designated officials were told. Your page: <a href="${base}/organizer.html">${base}/organizer.html</a>.</p>`}<p>National Referee Committee</p>`, kind));
+    if (ch && ch.length) await admin.from("tournament_changes").update({ notified_at: new Date().toISOString() }).in("id", ch.map(c => c.id));
+    return json(200, { results });
+  }
+
+  if (kind === "brief") {
+    if (!Array.isArray(assignment_ids) || !assignment_ids.length) return json(400, { error: "assignment_ids required" });
+    const results = [];
+    for (const a of designated.filter(d => assignment_ids.includes(d.assignment_id))) {
+      const roleWord = a.role === "referee" ? "referee" : a.role === "delegate" ? "supervisor" : a.role;
+      const others = designated.filter(d => d.id !== a.id).map(d => esc(d.first_name + " " + d.last_name) + " (" + (a.role === "referee" ? (LEVEL[d.cert_level] || "") : d.role) + ")").join(", ");
+      const duties = a.role === "referee" ? "" : `<p><strong>Your role:</strong> you oversee the referee pairs, handle protests with the organizer, and record an evaluation for each pair on the hub after the event.${t.supervisor_notes ? " Organizer notes: " + esc(t.supervisor_notes) : ""}</p>`;
+      const subject = `Confirmed as ${roleWord}: ${t.name}, ${fmtDate(t.start_date)}`;
+      const html = `<p>Hi ${esc(a.first_name)},</p><p>You are confirmed as <strong>${roleWord}</strong> for <strong>${esc(t.name)}</strong>.</p>
+        <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br><strong>Where:</strong> ${esc(where)}<br>${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + "<br>" : ""}${others ? "<strong>Officials:</strong> " + others + "<br>" : ""}<strong>Organizer:</strong> ${esc(t.organizer_name)}, ${esc(t.organizer_email)}${t.organizer_phone ? ", " + esc(t.organizer_phone) : ""}</p>${duties}
+        <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : "the organizer"}.</p>
+        <p>Your trip and bookings are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p><p>National Referee Committee</p>`;
+      results.push(await logAndSend(a.email, subject, html, "brief"));
+    }
+    return json(200, { results });
+  }
 
   if (kind === "organizer") {
     const link = `${base}/tournament.html?token=${t.organizer_token}`;

@@ -327,6 +327,7 @@
     $("#dlg-tour-title").textContent = currentTour.name;
     $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs needed.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || "";
+    ["start_date", "end_date", "venue_name", "venue_city", "pairs_needed", "travel_managed_by"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
     $("#asg-ref").innerHTML = refs.filter(r => r.active).map(r => `<option value="${r.id}">${NRC.esc(r.first_name + " " + r.last_name)}</option>`).join("");
     // weekends touched by the tournament (Saturday keys)
     const sat = (d) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); return x.toISOString().slice(0, 10); };
@@ -421,7 +422,10 @@
     if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg();
   };
   window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
-  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; await sb().from("tournaments").update({ sanction: f.sanction.value, region: f.region.value || null }).eq("id", currentTour.id); currentTour.sanction = f.sanction.value; currentTour.region = f.region.value || null; loadAll(); });
+  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { sanction: f.sanction.value, region: f.region.value || null, start_date: f.start_date.value || currentTour.start_date, end_date: f.end_date.value || currentTour.end_date, venue_name: f.venue_name.value || null, venue_city: f.venue_city.value || null, pairs_needed: parseInt(f.pairs_needed.value, 10) || currentTour.pairs_needed, travel_managed_by: f.travel_managed_by.value }; const { error } = await sb().from("tournaments").update(row).eq("id", currentTour.id); if (error) { alert(error.message); return; } Object.assign(currentTour, row); loadAll(); alert("Saved. Use Notify changes to tell the officials and the organizer."); });
+  async function callMail(body) { const { data: sess } = await sb().auth.getSession(); const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, ...body }) }); const d = await res.json(); if (!res.ok) { alert("Failed: " + (d.error || res.status)); return null; } const ok = d.results.filter(r => r.sent).length; alert(ok + " email(s) sent." + (d.results.length - ok ? " Not sent: " + d.results.filter(r => !r.sent).map(r => r.email + " (" + (r.error || "").slice(0, 60) + ")").join("; ") : "")); return d; }
+  window.notifyChanges = () => callMail({ kind: currentTour.status === "cancelled" ? "cancel" : "changes" });
+  window.sendBriefs = () => { if (!desRows.length) { alert("Nobody designated yet."); return; } callMail({ kind: "brief", assignment_ids: desRows.map(a => a.id) }); };
 
   // ---------- questions ----------
   function renderQuestions() {

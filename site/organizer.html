@@ -24,6 +24,25 @@
 </section>
 </div>
 <footer id="site-footer"></footer>
+<dialog id="dlg-edit"><div class="body">
+  <h3 style="margin-top:0">Edit the request</h3>
+  <p class="small muted">Every change is recorded and sent to the NRC and to the officials already designated.</p>
+  <form id="form-edit">
+    <input type="hidden" name="id">
+    <label>Tournament name</label><input name="name" required>
+    <div class="row"><div><label>Start date</label><input name="start_date" type="date" required></div><div><label>End date</label><input name="end_date" type="date" required></div></div>
+    <div class="row"><div><label>Referee pairs needed</label><input name="pairs_needed" type="number" min="1" required></div><div><label>Expected games</label><input name="games_expected" type="number" min="1"></div></div>
+    <div class="row"><div><label>Venue name</label><input name="venue_name" required></div><div><label>Nearest airport</label><input name="nearest_airport_iata" maxlength="3" style="text-transform:uppercase"></div></div>
+    <label>Street address</label><input name="venue_address">
+    <div class="row"><div><label>City</label><input name="venue_city" required></div><div><label>State</label><input name="venue_state" maxlength="2" required style="text-transform:uppercase"></div></div>
+    <div class="row"><div><label>Supervisor needed</label><select name="supervisor_needed"><option value="false">No</option><option value="true">Yes</option></select></div><div><label>Who books travel</label><select name="travel_managed_by"><option value="organizer">We book ourselves</option><option value="nrc">The NRC books, we reimburse</option></select></div></div>
+    <div class="row"><div><label>Hotel nights covered</label><input name="hotel_nights_covered" type="number" min="0"></div><div><label>Food stipend per day (USD)</label><input name="food_stipend_per_day" type="number" min="0" step="1"></div></div>
+    <div class="row"><div><label>Flights</label><select name="flights_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div><div><label>Airport transfers</label><select name="airport_transfers_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div></div>
+    <div class="row"><div><label>Transport hotel to venue</label><input name="hotel_to_venue_transport"></div><div><label>Earliest departure on the last day</label><input name="earliest_return_last_day" type="time"></div></div>
+    <label>Notes for the NRC</label><textarea name="notes"></textarea>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save and notify</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-edit').close()">Cancel</button></p>
+  </form>
+</div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
@@ -38,7 +57,7 @@ async function load() {
   if (user.role === "referee") { location.replace("profile.html"); return; }
   if (user.full_name) $("#hello").textContent = "Tournaments, " + user.full_name;
   const { data: tours } = await NRC.sb.from("tournaments").select("*").order("start_date", { ascending: false });
-  const T = (tours || []).filter(t => user.role === "admin" || true);
+  const T = tours || []; TOURS = T;
   if (!T.length) { $("#list").innerHTML = '<div class="card"><p>No request on file for this email. <a href="request-referees.html">Submit one</a>.</p></div>'; return; }
   const ids = T.map(t => t.id);
   const [{ data: des }, { data: book }] = await Promise.all([NRC.sb.from("organizer_designations").select("*").in("tournament_id", ids), NRC.sb.from("travel_bookings").select("*").order("start_at")]);
@@ -52,12 +71,41 @@ async function load() {
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h2 style="margin:0">${NRC.esc(t.name)}</h2><span class="small muted">${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}, ${NRC.esc([t.venue_name, t.venue_city, t.venue_state].filter(Boolean).join(", "))}</span></div>
       ${cancelled ? '<p class="notice error">Cancelled.</p>' : '<div class="progress">' + STEPS.map((s, i) => `<div class="${i < idx ? "done" : i === idx ? "now" : ""}">${s[1]}</div>`).join("") + "</div>"}
       <div class="grid c3"><div class="stat ${d.filter(x => x.role === "referee").length >= t.pairs_needed * 2 ? "good" : ""}"><div class="n">${d.filter(x => x.role === "referee").length}/${t.pairs_needed * 2}</div><div class="l">Referees designated</div></div><div class="stat"><div class="n">${d.filter(x => x.role !== "referee").length}${t.supervisor_needed ? "/1" : ""}</div><div class="l">Supervisor or observer</div></div><div class="stat"><div class="n" style="font-size:22px;padding-top:8px">${t.travel_managed_by === "nrc" ? "NRC" : "You"}</div><div class="l">Books travel</div></div></div>
+      ${cancelled || t.status === "completed" ? "" : `<p class="cta-row" style="margin:4px 0 10px"><button class="btn sm secondary" type="button" onclick="editTour('${t.id}')">Edit the request</button> <button class="btn sm ghost" type="button" onclick="cancelTour('${t.id}')">Cancel the event</button></p>`}
       <h3 style="margin-top:16px">Designated officials</h3>
       ${d.length ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Level</th><th>Club</th><th>From</th><th>Contact</th>' + (t.travel_managed_by === "nrc" ? "<th>Travel</th>" : "<th>Travel notes</th>") + '</tr></thead><tbody>' + d.map(r => { const bk = B.filter(b => b.assignment_id === r.assignment_id); return `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.esc(r.role)}</td><td>${LEVEL[r.cert_level] || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small"><a href="mailto:${NRC.esc(r.email)}">${NRC.esc(r.email)}</a>${r.phone ? "<br>" + NRC.esc(r.phone) : ""}</td><td class="small">${t.travel_managed_by === "nrc" ? (bk.length ? bk.map(b => `${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span>`).join("<br>") : '<span class="muted">Not booked yet</span>') : NRC.esc(r.travel_notes || "")}</td></tr>`; }).join("") + "</tbody></table></div>" : '<p class="muted">Nobody confirmed yet. The NRC is working on it; names appear here as they are confirmed.</p>'}
       <p class="small muted" style="margin:12px 0 0">You committed to: ${covers.map(NRC.esc).join(", ")}.${t.supervisor_needed ? " Supervisor requested." : ""}</p>
     </div>`;
   }).join("");
 }
+let TOURS = [];
+const FIELDS = ["name", "start_date", "end_date", "pairs_needed", "games_expected", "venue_name", "nearest_airport_iata", "venue_address", "venue_city", "venue_state", "supervisor_needed", "travel_managed_by", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "hotel_to_venue_transport", "earliest_return_last_day", "notes"];
+window.editTour = function (id) {
+  const t = TOURS.find(x => x.id === id); if (!t) return; const f = $("#form-edit"); f.reset(); f.id.value = id;
+  FIELDS.forEach(k => { if (f[k]) f[k].value = t[k] == null ? "" : String(t[k]); });
+  $("#dlg-edit").showModal();
+};
+async function notify(id, kind) {
+  const { data: sess } = await NRC.sb.auth.getSession();
+  const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: id, kind }) });
+  const d = await res.json(); return res.ok ? d : null;
+}
+$("#form-edit").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target; const row = {};
+  FIELDS.forEach(k => { if (!f[k]) return; let v = f[k].value.trim(); if (v === "") { row[k] = null; return; } if (["supervisor_needed", "flights_covered", "airport_transfers_covered"].includes(k)) v = v === "true"; else if (["pairs_needed", "games_expected", "hotel_nights_covered"].includes(k)) v = parseInt(v, 10); else if (k === "food_stipend_per_day") v = parseFloat(v); else if (["nearest_airport_iata", "venue_state"].includes(k)) v = v.toUpperCase(); row[k] = v; });
+  const { error } = await NRC.sb.from("tournaments").update(row).eq("id", f.id.value);
+  if (error) { alert("Could not save: " + error.message); return; }
+  $("#dlg-edit").close();
+  const d = await notify(f.id.value, "changes");
+  alert(d ? "Saved. " + d.results.filter(r => r.sent).length + " notification(s) sent." : "Saved. Notifications could not be sent; the NRC sees the change on the hub.");
+  load();
+});
+window.cancelTour = async function (id) {
+  const t = TOURS.find(x => x.id === id); if (!t || !confirm("Cancel " + t.name + "? The NRC and every designated official are notified. This cannot be undone from this page.")) return;
+  const { error } = await NRC.sb.from("tournaments").update({ status: "cancelled" }).eq("id", id);
+  if (error) { alert("Could not cancel: " + error.message); return; }
+  await notify(id, "cancel"); load();
+};
 document.addEventListener("DOMContentLoaded", load);
 </script>
 </body>
