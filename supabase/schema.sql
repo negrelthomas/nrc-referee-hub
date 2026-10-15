@@ -90,6 +90,8 @@ create table if not exists public.admin_invites (
   created_at timestamptz not null default now()
 );
 insert into public.admin_invites (email, invited_by) values ('negrel.thomas@gmail.com', 'setup') on conflict do nothing;
+-- Joshua Forsthoefel, NRC chair: full admin access. Hosting accounts stay with Thomas until the transfer to USATH.
+insert into public.admin_invites (email, invited_by) values ('referee@handballusa.org', 'setup') on conflict do nothing;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
