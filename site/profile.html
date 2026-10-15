@@ -108,6 +108,28 @@
 </section>
 </div>
 <footer id="site-footer"></footer>
+<dialog id="dlg-claim"><div class="body">
+  <h3 style="margin-top:0">Expense claim</h3>
+  <p class="small muted">One claim per receipt. The NRC reviews it; the organizer or the NRC reimburses according to what was agreed for the event.</p>
+  <form id="form-claim">
+    <input type="hidden" name="assignment_id">
+    <div class="row"><div><label>Type</label><select name="kind"><option value="flight">Flight</option><option value="hotel">Hotel</option><option value="car">Car rental or fuel</option><option value="mileage">Mileage</option><option value="transport">Ground transport</option><option value="per_diem">Per diem</option><option value="other">Other</option></select></div><div><label>Amount (USD)</label><input name="amount" type="number" step="0.01" min="0" required></div></div>
+    <label>Description</label><input name="description" placeholder="SFO to BOS round trip, 2 nights Hampton Inn, 120 miles...">
+    <label>Receipt (photo or PDF)</label><input type="file" name="receipt" accept="image/*,.pdf">
+    <p style="margin-top:14px"><button class="btn" type="submit">Submit claim</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-claim').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+<dialog id="dlg-mybooking"><div class="body">
+  <h3 style="margin-top:0">A booking I made</h3>
+  <form id="form-mybooking">
+    <input type="hidden" name="assignment_id">
+    <div class="row"><div><label>Type</label><select name="kind"><option value="flight">Flight</option><option value="hotel">Hotel</option><option value="car">Car rental</option><option value="train">Train</option><option value="other">Other</option></select></div><div><label>Provider</label><input name="provider"></div></div>
+    <div class="row"><div><label>Reference</label><input name="reference"></div><div><label>Cost (USD)</label><input name="cost" type="number" step="0.01" min="0"></div></div>
+    <div class="row"><div><label>Start</label><input name="start_at" type="datetime-local"></div><div><label>End</label><input name="end_at" type="datetime-local"></div></div>
+    <div class="row"><div><label>From</label><input name="from_place"></div><div><label>To</label><input name="to_place"></div></div>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-mybooking').close()">Cancel</button></p>
+  </form>
+</div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
@@ -178,11 +200,16 @@ async function loadHome() {
       (bk || []).forEach(b => { if (!b.start_at) return; ev.push({ title: KIND[b.kind] + (b.provider ? ": " + b.provider : "") + (b.reference ? " (" + b.reference + ")" : ""), start: new Date(b.start_at), end: b.end_at ? new Date(b.end_at) : null, location: [b.from_place, b.to_place].filter(Boolean).join(" to "), desc: (b.notes || "") + (b.paid_by ? " Paid by " + b.paid_by + "." : ""), url: location.origin + "/profile.html" }); });
       NRC.downloadIcs((T.name || "tournament").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics", ev);
     };
+    const { data: claims } = asg ? await NRC.sb.from("expense_claims").select("*").eq("assignment_id", asg.id).order("created_at") : { data: [] };
+    const CK = { flight: "Flight", hotel: "Hotel", car: "Car", mileage: "Mileage", transport: "Transport", per_diem: "Per diem", other: "Other" };
+    const claimsHtml = (claims || []).length ? '<h3 style="margin-top:14px">Expenses</h3>' + claims.map(c => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)">${CK[c.kind]}${c.description ? ", " + NRC.esc(c.description) : ""}: <strong>$${Number(c.amount).toFixed(2)}</strong> <span class="pill ${c.status === "reimbursed" ? "green" : c.status === "rejected" ? "red" : c.status === "approved" ? "green" : "amber"}">${c.status}</span>${c.review_note ? " <span class='muted'>" + NRC.esc(c.review_note) + "</span>" : ""}</div>`).join("") : "";
     const rows = (bk || []).map(b => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>${KIND[b.kind]}</strong>${b.provider ? ", " + NRC.esc(b.provider) : ""}${b.reference ? " <span class='pill'>" + NRC.esc(b.reference) + "</span>" : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span><div class="small">${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.from_place || b.to_place ? "<br>" + NRC.esc([b.from_place, b.to_place].filter(Boolean).join(" to ")) : ""}${b.notes ? "<br>" + NRC.esc(b.notes) : ""}</div></div>`).join("");
     travelHtml = `<div class="card" style="margin-top:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3 style="margin:0">Your trip</h3><div class="cta-row"><button class="btn sm secondary" type="button" onclick="nextCalendar()">Add to my calendar</button><a class="btn sm ghost" href="mailto:referee@handballusa.org?subject=${encodeURIComponent("Cannot officiate: " + (T.name || ""))}&body=${encodeURIComponent("Hi,\n\nI am confirmed for " + (T.name || "") + " (" + T.start_date + ") and I have to withdraw because:\n\n")}">I need to withdraw</a></div></div>
       <div class="small muted" style="margin:6px 0 8px">${NRC.esc(venue)}${T.nearest_airport_iata ? ", nearest airport " + NRC.esc(T.nearest_airport_iata) : ""}. Organizer: ${NRC.esc(T.organizer_name || "")}, ${NRC.esc(T.organizer_email || "")}${T.organizer_phone ? ", " + NRC.esc(T.organizer_phone) : ""}.${T.earliest_return_last_day ? " Do not leave before " + String(T.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}</div>
       ${rows || '<p class="small muted">' + (T.travel_managed_by === "nrc" ? "The NRC is booking your travel; flights, hotel and car appear here with their references." : "The organizer books travel directly with you; what they confirm is recorded here by the NRC.") + "</p>"}
-      ${asg && asg.travel_notes ? '<p class="small"><strong>Travel notes:</strong> ' + NRC.esc(asg.travel_notes) + "</p>" : ""}</div>`;
+      ${asg && asg.travel_notes ? '<p class="small"><strong>Travel notes:</strong> ' + NRC.esc(asg.travel_notes) + "</p>" : ""}
+      ${asg ? `<p class="cta-row" style="margin:10px 0 0"><button class="btn sm ghost" type="button" onclick="openMyBooking('${asg.id}')">Add a booking I made</button> <button class="btn sm ghost" type="button" onclick="openClaim('${asg.id}')">Submit an expense</button></p>` : ""}
+      ${claimsHtml}</div>`;
   }
   $("#home-next").innerHTML = (n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Details</a></div>`
     : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC confirms you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`) + travelHtml;
@@ -292,6 +319,23 @@ async function loadAssignments() {
   const STATUS = { sent: "amber", accepted: "green", tentative: "amber", declined: "red", confirmed: "green" };
   $("#asg tbody").innerHTML = (data || []).filter(a => a.status !== "draft").map(a => `<tr><td><strong>${NRC.esc(a.tournaments.name)}</strong>${a.status === "tentative" ? ' <button class="btn sm" onclick="respond(\'' + a.id + '\',\'accepted\')">Confirm now</button>' : ""}${a.tournaments.sanction ? ' <span class="pill">' + (SANCTION[a.tournaments.sanction] || "") + "</span>" : ""}</td><td>${NRC.fmtDate(a.tournaments.start_date)} to ${NRC.fmtDate(a.tournaments.end_date)}</td><td>${NRC.esc([a.tournaments.venue_city, a.tournaments.venue_state].filter(Boolean).join(", "))}</td><td>${a.status === "sent" ? `<button class="btn sm" onclick="respond('${a.id}','accepted')">Accept</button> <button class="btn sm secondary" onclick="respond('${a.id}','tentative')">Tentative</button> <button class="btn sm ghost" onclick="respond('${a.id}','declined')">Decline</button>` : `<span class="pill ${STATUS[a.status] || ""}">${NRC.esc(a.status.replace("_", " "))}</span>`}</td></tr>`).join("") || '<tr><td colspan="4">No invitation yet. The NRC invites referees by email; invitations also appear here.</td></tr>';
 }
+window.openClaim = (aid) => { const f = $("#form-claim"); f.reset(); f.assignment_id.value = aid; $("#dlg-claim").showModal(); };
+$("#form-claim").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target;
+  let receipt_url = null; const file = f.receipt.files[0];
+  if (file) { const ext = (file.name.split(".").pop() || "jpg").toLowerCase(); const path = `${user.id}/${Date.now()}.${ext}`; const up = await NRC.sb.storage.from("receipts").upload(path, file, { contentType: file.type }); if (up.error) { alert("Receipt upload failed: " + up.error.message); return; } receipt_url = path; }
+  const { error } = await NRC.sb.from("expense_claims").insert({ assignment_id: f.assignment_id.value, kind: f.kind.value, amount: parseFloat(f.amount.value), description: f.description.value.trim() || null, receipt_url, submitted_by: user.id });
+  if (error) { alert("Could not submit: " + error.message); return; }
+  $("#dlg-claim").close(); loadHome();
+});
+window.openMyBooking = (aid) => { const f = $("#form-mybooking"); f.reset(); f.assignment_id.value = aid; $("#dlg-mybooking").showModal(); };
+$("#form-mybooking").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target;
+  const row = { assignment_id: f.assignment_id.value, kind: f.kind.value, status: "booked", provider: f.provider.value.trim() || null, reference: f.reference.value.trim() || null, cost: f.cost.value === "" ? null : parseFloat(f.cost.value), start_at: f.start_at.value ? new Date(f.start_at.value).toISOString() : null, end_at: f.end_at.value ? new Date(f.end_at.value).toISOString() : null, from_place: f.from_place.value.trim() || null, to_place: f.to_place.value.trim() || null, paid_by: "referee", entered_by: "referee" };
+  const { error } = await NRC.sb.from("travel_bookings").insert(row);
+  if (error) { alert("Could not save: " + error.message); return; }
+  $("#dlg-mybooking").close(); loadHome();
+});
 document.addEventListener("DOMContentLoaded", load);
 </script>
 </body>

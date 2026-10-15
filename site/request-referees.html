@@ -100,6 +100,7 @@
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
+(function () { try { if (new URLSearchParams(location.search).get("prefill")) { const c = JSON.parse(sessionStorage.getItem("nrc_prefill_request") || "{}"); const f = document.getElementById("req-form"); Object.keys(c).forEach(k => { if (f[k]) f[k].value = typeof c[k] === "boolean" ? String(c[k]) : c[k]; }); f.start_date.value = ""; f.end_date.value = ""; } } catch (e) { } })();
 document.getElementById("req-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = NRC.$("#msg");

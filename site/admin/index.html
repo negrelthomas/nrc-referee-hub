@@ -152,7 +152,8 @@
             <li><strong>Notify organizer.</strong> Sends the organizer the designated list and the link to their private tournament page, where they see names, levels, clubs, contact details and travel notes, and the coverage they committed to. Send it again after any change.</li>
             <li><strong>Designated and travel.</strong> This tab lists who is designated with their contact and home airport, shows who else is open to officiate (accepted or tentative but not designated), lets you add a supervisor or observer directly, and remove a designated referee (their invitation is marked declined; pick a replacement from Find referees). When the NRC books travel, record each flight, hotel, car or train with provider, reference, times, cost and who pays; the referee sees every booking on their home with a calendar file, and the organizer sees them on their page. When the organizer books, record what they tell you so the referee still has one place to look.</li>
             <li><strong>Changes and cancellations.</strong> Organizers can edit their request (dates, venue, pairs, coverage, who books travel) or cancel it from their page; every change is logged and emailed to the NRC and to the designated officials. The NRC edits the main fields in the tournament header and uses Notify changes to send the same email; a cancelled event sends a cancellation notice. Send brief sends each designated official a role specific confirmation (referee, supervisor, observer) with the full details.</li>
-            <li><strong>After the event.</strong> On the Officiated and games tab, record who officiated and how many games each. This feeds every referee's history and the season load used at the next staffing.</li>
+            <li><strong>After the event.</strong> The organizer files a two minute report from their page (games played, games per official, ratings, incidents); it fills the Officiated and games tab and shows under Expenses. You can still record or correct games on that tab. Referees submit expense claims with receipts from their home; the Expenses tab shows the money picture (bookings paid by the NRC or the organizer, claims to review), lets you approve, reject or mark reimbursed, and sets who reimburses each claim. Organizers see the totals on their page.</li>
+            <li><strong>Automatic reminders, every morning at 8am Pacific.</strong> Unanswered invitations after 7 days (and once more at 14), designated officials without a booked flight or hotel within 21 days when the NRC books, organizers without a report 3 days after the event, overdue training programs. Each person is reminded at most once per item; you receive a digest at referee@handballusa.org of everything the job did and saw.</li>
           </ol>
           <p class="small muted">Emails go out from the NRC Referee Hub sender configured on Netlify and are logged; a send that fails is shown with the reason. Referees contact organizers only once confirmed; organizers reach referees through their tournament page.</p></div>
 
@@ -287,6 +288,7 @@
     <button data-ttab="invites" class="active">Invitations</button>
     <button data-ttab="candidates">Find referees</button>
     <button data-ttab="designated">Designated and travel</button>
+    <button data-ttab="money">Expenses</button>
     <button data-ttab="officiated">Officiated and games</button>
   </div>
 
@@ -319,6 +321,12 @@
       <div><button class="btn sm secondary" type="button" onclick="addDesignated()">Add</button></div>
     </div>
     <p class="small muted">Removing a designated referee reopens their invitation as declined so you can pick a replacement from Find referees. Travel: the NRC books only when the organizer chose "NRC books"; otherwise record what the organizer or the referee booked so the referee sees everything in one place.</p>
+  </div>
+  <div id="ttab-money" class="hidden">
+    <div id="money-summary" class="chips"></div>
+    <div class="table-wrap"><table id="claims"><thead><tr><th>Official</th><th>Type</th><th>Description</th><th>Amount</th><th>Receipt</th><th>Status</th><th>Reimbursed by</th><th>Note</th><th></th></tr></thead><tbody></tbody></table></div>
+    <p class="small muted">Approve or reject each claim; mark it reimbursed when the money has gone out. What the organizer reimburses to the NRC: bookings paid by the NRC plus approved claims set to "NRC" reimbursement. The organizer sees the totals on their page.</p>
+    <div id="report-view" style="margin-top:12px"></div>
   </div>
   <div id="ttab-officiated" class="hidden">
     <div class="table-wrap"><table id="tour-asg"><thead><tr><th>Referee</th><th>Role</th><th>Games</th><th></th></tr></thead><tbody></tbody></table></div>
