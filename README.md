@@ -11,7 +11,7 @@ site/                      published folder (Netlify publish = site)
   become-a-referee.html    certification path (USATH Level 1, 2, 3, NACHC, IHF)
   training.html            quiz (practice, timed), flashcards, progress
   request-referees.html    organizer intake form (writes to tournaments)
-  referees.html            public club coverage list
+  referees.html            public list of certified referees (name, level, dates, club; no contact details)
   directory.html           referee directory (signed in)
   login.html               magic link sign in, with a 6 digit code fallback
   auth.html                exchanges the token from the email link (not consumed by mail scanners)
@@ -19,7 +19,7 @@ site/                      published folder (Netlify publish = site)
   admin/index.html         NRC admin: dashboard, tasks, referees, clubs, requests, questions, imports
   js/config.js             Supabase URL and anon key (fill in)
   js/app.js                shared shell, auth, data helpers
-  js/training.js, js/admin.js
+  js/training.js, js/program.js (Level 1 course, baseline assessment, tailored program, re-test), js/admin.js
   data/questions.js        static copy of the question seed (training works without a database)
 supabase/
   schema.sql               tables, views, RLS policies, storage buckets, recurring admin task
@@ -29,6 +29,7 @@ supabase/
   seed_demo.sql            optional demo: Halina Lehto, Azadeh Ahmadi, Zeke McClintock with tournament history, evaluations, pair
   seed_mock_referees.sql   optional: five fictional referees (emails @demo.nrc) for reviewing the directory and profiles
   training_sessions.sql    training_sessions table (also included at the end of schema.sql)
+  level1_pathway.sql       public referee list view, contact requests, Level 1 course and test, baseline assessment and programs (also in schema.sql)
 netlify/functions/        send-invitations.mjs (invite, reminder, confirm emails), respond.mjs (accept or decline from the email link)
 netlify.toml, package.json
 ```
@@ -41,6 +42,12 @@ netlify.toml, package.json
 4. Netlify: new site from the GitHub repo, publish directory `site`, no build command. Deploy.
 5. Sign in once on the deployed site with negrel.thomas@gmail.com (pre-invited as admin in schema.sql). The nav shows Admin. To add another admin: `insert into public.admin_invites (email) values ('x@y.org');` before they sign in.
 6. Admin > Referees > Add referee. Sign in is invitation only: a magic link is only sent to emails that exist on the roster (or in admin_invites). Admin > Clubs to correct city, state and airports.
+
+## Pathways
+
+- Candidates (cert_level candidate): Level 1 online course on the Training page, tab My program. Six modules (study cards, module test), study plan exported as a calendar file, final timed test. A passed final test calls `award_certification`, which records the Level 1 certification and updates the profile. Parameters in `certification_tests` (Admin > Programs).
+- Certified referees: at first sign in, a baseline assessment (default 50 questions at their level, 60 minutes). Score at or above the hurdle (default 80%) clears it. Below, a program is built on the rules scored under the threshold, due in 12 weeks by default, with study sessions exported to the referee's calendar, module tests per rule, then a re-test; a failed re-test builds a new program. Parameters in `program_settings` (Admin > Programs). Admin > Programs lists every referee's status; the dashboard counts referees without a baseline and overdue programs.
+- Prospects: the Become a referee page has a contact form (table `referee_inquiries`), worked from Admin > Inquiries; "Add to roster" prefills a new candidate.
 
 ## Referee profile
 

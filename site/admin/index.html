@@ -19,10 +19,12 @@
     <nav class="admin-nav">
       <a href="#dashboard" class="active">Dashboard</a>
       <a href="#referees">Referees</a>
+      <a href="#inquiries">Inquiries <span class="pill red hidden" id="nav-inq"></span></a>
       <a href="#clubs">Clubs</a>
       <a href="#tournaments">Tournament requests</a>
       <a href="#questions">Questions</a>
       <a href="#training">Training sessions</a>
+      <a href="#programs">Programs</a>
       <a href="#imports">Imports</a>
       <a href="#" onclick="NRC.signOut();return false">Sign out</a>
     </nav>
@@ -37,6 +39,12 @@
           <div class="stat good"><div class="n" id="k-certified">&nbsp;</div><div class="l">Certified (L1 and above)</div></div>
           <div class="stat bad"><div class="n" id="k-noclub">&nbsp;</div><div class="l">Clubs with no referee</div></div>
           <div class="stat"><div class="n" id="k-pairs">&nbsp;</div><div class="l">Clubs with a certified pair</div></div>
+        </div>
+        <div class="grid c4" style="margin-top:10px">
+          <div class="stat"><div class="n" id="k-inq">&nbsp;</div><div class="l">New contact requests</div></div>
+          <div class="stat bad"><div class="n" id="k-nobase">&nbsp;</div><div class="l">Referees without baseline</div></div>
+          <div class="stat"><div class="n" id="k-inprog">&nbsp;</div><div class="l">Programs in progress</div></div>
+          <div class="stat bad"><div class="n" id="k-overdue">&nbsp;</div><div class="l">Programs overdue</div></div>
         </div>
         <h2>Club coverage</h2>
         <div class="table-wrap"><table id="cov"><thead><tr><th>Club</th><th>City</th><th>Referees</th><th>Certified</th><th>Pair</th><th>Program status</th></tr></thead><tbody></tbody></table></div>
@@ -73,6 +81,37 @@
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Training sessions</h1><button class="btn sm" onclick="openSession(null)">Add session</button></div>
         <p class="muted small">Published sessions appear on the public Training page under "Next training sessions". Past sessions stay here for the record.</p>
         <div class="table-wrap" style="margin-top:12px"><table id="sessions-admin"><thead><tr><th>Session</th><th>Type</th><th>When</th><th>Where</th><th>Audience</th><th>Published</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Inquiries -->
+      <div id="pane-inquiries" class="hidden">
+        <h1>Contact requests</h1>
+        <p class="muted small">People who asked to be contacted from the Become a referee page. Set the status as you work them; "Invited" means you added them as a candidate on the roster.</p>
+        <div class="table-wrap"><table id="inq"><thead><tr><th>When</th><th>Name</th><th>Contact</th><th>Where</th><th>Club</th><th>Background</th><th>Availability</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+      </div>
+
+      <!-- Programs -->
+      <div id="pane-programs" class="hidden">
+        <h1>Programs and assessments</h1>
+        <div class="grid c2">
+          <div class="card"><h3 style="margin-top:0">Certified referees: assessment and program</h3>
+            <form id="form-ps" class="small">
+              <div class="row"><div><label>Assessment questions</label><input name="assessment_questions" type="number" min="10" max="100"></div><div><label>Hurdle to clear (%)</label><input name="assessment_pass_pct" type="number" min="50" max="100"></div></div>
+              <div class="row"><div><label>Rule goes into the program below (%)</label><input name="weak_rule_pct" type="number" min="50" max="100"></div><div><label>Program length (weeks)</label><input name="program_weeks" type="number" min="1" max="52"></div></div>
+              <div class="row"><div><label>Study sessions per week</label><input name="sessions_per_week" type="number" min="1" max="7"></div><div><label>Time limit (minutes)</label><input name="time_limit_minutes" type="number" min="10" max="180"></div></div>
+              <div class="row"><div><label>Module questions</label><input name="module_question_count" type="number" min="5" max="30"></div><div><label>Module pass mark (%)</label><input name="module_pass_pct" type="number" min="50" max="100"></div></div>
+              <p><button class="btn sm" type="submit">Save</button></p>
+            </form></div>
+          <div class="card"><h3 style="margin-top:0">Level 1 course and final test</h3>
+            <form id="form-ct" class="small">
+              <div class="row"><div><label>Final test questions</label><input name="question_count" type="number" min="10" max="100"></div><div><label>Pass mark (%)</label><input name="pass_pct" type="number" min="50" max="100"></div></div>
+              <div class="row"><div><label>Time limit (minutes)</label><input name="time_limit_minutes" type="number" min="10" max="180"></div><div><label>Question pool up to</label><select name="max_difficulty"><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option></select></div></div>
+              <div class="row"><div><label>Module questions</label><input name="module_question_count" type="number" min="5" max="30"></div><div><label>Module pass mark (%)</label><input name="module_pass_pct" type="number" min="50" max="100"></div></div>
+              <p><button class="btn sm" type="submit">Save</button></p>
+            </form></div>
+        </div>
+        <h2>Status by referee</h2>
+        <div class="table-wrap"><table id="pstat"><thead><tr><th>Referee</th><th>Level</th><th>Signed in</th><th>Baseline</th><th>Last score</th><th>Program</th><th>Modules</th><th>Due</th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Questions -->

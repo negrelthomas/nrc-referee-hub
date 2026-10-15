@@ -33,8 +33,11 @@
     tab = t; clearInterval(timerId);
     NRC.$$(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === t));
     const quizTabs = t === "practice" || t === "timed";
-    $("#filters").classList.toggle("hidden", t === "progress");
+    $("#filters").classList.toggle("hidden", t === "progress" || t === "program");
+    $("#program-ui").classList.toggle("hidden", t !== "program");
+    if (t === "program" && NRC.renderProgram) NRC.renderProgram();
     $("#quiz-start").classList.toggle("hidden", !quizTabs);
+    $("#pool-count").classList.toggle("hidden", t === "program");
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.add("hidden");
     $("#cards-ui").classList.toggle("hidden", t !== "cards");
     $("#progress-ui").classList.toggle("hidden", t !== "progress");

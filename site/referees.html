@@ -15,27 +15,27 @@
 
 <section class="hero" id="main" style="padding:36px 0">
   <div class="wrap">
-    <p class="kicker">Club coverage</p>
-    <h1>Where the referees are</h1>
-    <p class="sub">Every USATH club, with the number of certified referees attached to it. The goal: one certified pair per club.</p>
+    <p class="kicker">Certified referees</p>
+    <h1>The USATH referee corps</h1>
+    <p class="sub">Every certified referee on the NRC roster, with level and certification dates. Referees are contacted through the NRC, never directly: organizers use the <a href="request-referees.html" style="color:#fff;text-decoration:underline">tournament request page</a>.</p>
   </div>
 </section>
 
 <div class="wrap">
 <section>
   <div class="grid c4" style="margin-bottom:16px">
-    <div class="stat"><div class="n" id="st-clubs">&nbsp;</div><div class="l">Active clubs</div></div>
-    <div class="stat good"><div class="n" id="st-with-pair">&nbsp;</div><div class="l">With a certified pair</div></div>
-    <div class="stat"><div class="n" id="st-with-ref">&nbsp;</div><div class="l">With at least one referee</div></div>
-    <div class="stat bad"><div class="n" id="st-none">&nbsp;</div><div class="l">No referee</div></div>
+    <div class="stat"><div class="n" id="st-total">&nbsp;</div><div class="l">Certified referees</div></div>
+    <div class="stat"><div class="n" id="st-l1">&nbsp;</div><div class="l">Level 1</div></div>
+    <div class="stat"><div class="n" id="st-l2">&nbsp;</div><div class="l">Level 2</div></div>
+    <div class="stat good"><div class="n" id="st-l3">&nbsp;</div><div class="l">Level 3 and above</div></div>
   </div>
   <div class="toolbar">
-    <input id="q" placeholder="Search club, city, state">
-    <select id="f-type"><option value="">All club types</option><option value="adult">Adult</option><option value="collegiate_men">Collegiate men</option><option value="collegiate_women">Collegiate women</option><option value="youth">Youth</option></select>
-    <select id="f-cov"><option value="">All coverage</option><option value="none">No referee</option><option value="one">One referee</option><option value="pair">Certified pair</option></select>
+    <input id="q" placeholder="Search name, club, state">
+    <select id="f-level"><option value="">All levels</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3 (National)</option><option value="nachc">NACHC Continental</option><option value="ihf">IHF International</option></select>
+    <select id="f-sort"><option value="name">Sort by name</option><option value="level">Sort by level</option><option value="since">Sort by certified since</option><option value="last">Sort by last certification</option></select>
   </div>
-  <div class="table-wrap"><table id="tbl"><thead><tr><th>Club</th><th>Type</th><th>City</th><th>Referees</th><th>Certified</th><th>Pair</th><th>Program</th></tr></thead><tbody></tbody></table></div>
-  <p class="small muted" style="margin-top:10px">Signed in referees can see the <a href="directory.html">referee directory</a> with photos, home base and airport.</p>
+  <div class="table-wrap"><table id="tbl"><thead><tr><th>Referee</th><th>Current level</th><th>Certified since</th><th>Last certification</th><th>Club</th><th>State</th></tr></thead><tbody></tbody></table></div>
+  <p class="small muted" style="margin-top:10px">To request referees for an event, use the <a href="request-referees.html">tournament request page</a>. For anything else, write to the NRC at <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>. Signed in referees can open the <a href="directory.html">referee directory</a>.</p>
 </section>
 </div>
 
@@ -45,29 +45,28 @@
 <script src="js/app.js"></script>
 <script>
 let rows = [];
-const TYPE = { adult: "Adult", collegiate_men: "Collegiate (M)", collegiate_women: "Collegiate (W)", youth: "Youth" };
-const PROG = { none: "", nominated: "Nominated", mentor_assigned: "Mentor assigned", in_training: "In training", observed: "Observed", certified_pair: "Certified pair" };
+const RANK = { level_1: 1, level_2: 2, level_3: 3, nachc: 4, ihf: 5 };
 function render() {
-  const q = NRC.$("#q").value.toLowerCase(), t = NRC.$("#f-type").value, c = NRC.$("#f-cov").value;
+  const q = NRC.$("#q").value.toLowerCase(), lv = NRC.$("#f-level").value, sort = NRC.$("#f-sort").value;
   const tb = NRC.$("#tbl tbody"); tb.innerHTML = "";
-  rows.filter(r => (!t || r.club_type === t) && (!c || (c === "none" ? r.referee_count == 0 : c === "one" ? r.referee_count == 1 : r.has_certified_pair))
-    && (!q || [r.name, r.city, r.state].join(" ").toLowerCase().includes(q)))
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .forEach(r => {
-      const pill = r.has_certified_pair ? '<span class="pill green">Pair</span>' : r.referee_count == 0 ? '<span class="pill red">None</span>' : '<span class="pill amber">Partial</span>';
-      tb.insertAdjacentHTML("beforeend", `<tr><td><strong>${NRC.esc(r.name)}</strong></td><td>${TYPE[r.club_type] || NRC.esc(r.club_type)}</td><td>${NRC.esc([r.city, r.state].filter(Boolean).join(", "))}</td><td>${r.referee_count}</td><td>${r.certified_count}</td><td>${pill}</td><td>${PROG[r.pair_program_status] || ""}</td></tr>`);
-    });
+  const list = rows.filter(r => (!lv || r.cert_level === lv) && (!q || [r.first_name, r.last_name, r.club_name, r.home_state].join(" ").toLowerCase().includes(q)));
+  list.sort((a, b) => sort === "level" ? (RANK[b.cert_level] - RANK[a.cert_level]) || a.last_name.localeCompare(b.last_name)
+    : sort === "since" ? String(a.certified_since || "9").localeCompare(String(b.certified_since || "9"))
+    : sort === "last" ? String(b.last_certified_on || "").localeCompare(String(a.last_certified_on || ""))
+    : a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
+  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level)}</td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
+  if (!list.length) tb.innerHTML = '<tr><td colspan="6">No referee matches.</td></tr>';
 }
 document.addEventListener("DOMContentLoaded", async () => {
-  if (!NRC.sb) { NRC.$("#tbl tbody").innerHTML = '<tr><td colspan="7">Database not configured. The club list appears here once Supabase is set up.</td></tr>'; return; }
-  const { data } = await NRC.sb.from("club_coverage").select("*");
+  if (!NRC.sb) { NRC.$("#tbl tbody").innerHTML = '<tr><td colspan="6">Database not configured. The referee list appears here once Supabase is set up.</td></tr>'; return; }
+  const { data } = await NRC.sb.from("referee_directory").select("*");
   rows = data || [];
-  NRC.$("#st-clubs").textContent = rows.length;
-  NRC.$("#st-with-pair").textContent = rows.filter(r => r.has_certified_pair).length;
-  NRC.$("#st-with-ref").textContent = rows.filter(r => r.referee_count > 0).length;
-  NRC.$("#st-none").textContent = rows.filter(r => r.referee_count == 0).length;
+  NRC.$("#st-total").textContent = rows.length;
+  NRC.$("#st-l1").textContent = rows.filter(r => r.cert_level === "level_1").length;
+  NRC.$("#st-l2").textContent = rows.filter(r => r.cert_level === "level_2").length;
+  NRC.$("#st-l3").textContent = rows.filter(r => RANK[r.cert_level] >= 3).length;
   render();
-  ["#q", "#f-type", "#f-cov"].forEach(s => NRC.$(s).addEventListener("input", render));
+  ["#q", "#f-level", "#f-sort"].forEach(s => NRC.$(s).addEventListener("input", render));
 });
 </script>
 </body>

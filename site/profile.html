@@ -173,6 +173,15 @@ async function loadHome() {
     else if (d < today) alerts.push(`<div class="alert"><div><div class="t">${l} expired on ${NRC.fmtDate(d)}</div><div class="small">Renew it before accepting an assignment.</div></div></div>`);
     else if (soon(d)) alerts.push(`<div class="alert warn"><div><div class="t">${l} expires ${NRC.fmtDate(d)}</div><div class="small">Renew it in the next few weeks.</div></div></div>`);
   });
+  // program status: baseline assessment or Level 1 course
+  const certified = ref.cert_level !== "candidate";
+  const { data: asmt } = await NRC.sb.from("assessments").select("id,pct,passed,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
+  const { data: prg } = await NRC.sb.from("programs").select("status,due_on,weak_rules").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
+  const pr = prg && prg[0];
+  if (certified && !(asmt && asmt.length)) alerts.unshift(`<div class="alert warn"><div><div class="t">Take your baseline assessment</div><div class="small">50 questions at your level. It measures your strength rule by rule and builds your program for the next 12 weeks.</div></div><a class="btn sm" href="training.html#program">Start</a></div>`);
+  else if (certified && pr && pr.status === "active") alerts.unshift(`<div class="alert ${pr.due_on < today ? "" : "info"}"><div><div class="t">${pr.due_on < today ? "Program overdue" : "Program in progress"}</div><div class="small">${pr.weak_rules.length} rules to clear, due ${NRC.fmtDate(pr.due_on)}.</div></div><a class="btn sm" href="training.html#program">Continue</a></div>`);
+  else if (certified && pr && pr.status === "ready_for_retest") alerts.unshift(`<div class="alert warn"><div><div class="t">Modules done, re-test open</div><div class="small">Clear the hurdle to close your program.</div></div><a class="btn sm" href="training.html#program">Re-test</a></div>`);
+  else if (!certified) alerts.unshift(`<div class="alert info"><div><div class="t">Level 1 online course</div><div class="small">Six modules, then the final test. Pass it and Level 1 is recorded here.</div></div><a class="btn sm" href="training.html#program">Open</a></div>`);
   if (!ref.home_airport_iata || !ref.photo_url) alerts.push(`<div class="alert info"><div><div class="t">Complete your profile</div><div class="small">${!ref.photo_url ? "Add a photo. " : ""}${!ref.home_airport_iata ? "Add your home airport so travel can be planned." : ""}</div></div><a class="btn sm secondary" href="#" onclick="document.querySelector('[data-tab=profile]').click();return false">Edit</a></div>`);
   $("#home-alerts").innerHTML = alerts.join("") || `<div class="alert ok"><div><div class="t">Everything is in order</div><div class="small">Membership, SafeSport and background check are current.</div></div></div>`;
   loadAvail();

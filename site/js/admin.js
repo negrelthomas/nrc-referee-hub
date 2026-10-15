@@ -1,7 +1,7 @@
 /* Admin area */
 (function () {
   const $ = NRC.$, sb = () => NRC.sb;
-  let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], currentRef = null;
+  let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], inquiries = [], pstat = [], psettings = null, ctest = null, currentRef = null;
   const today = () => new Date().toISOString().slice(0, 10);
   const CRIT = [["score_rules_application", "Rules application"], ["score_game_management", "Game management"], ["score_progressive_punishment", "Progressive punishment"], ["score_positioning", "Positioning"], ["score_pair_cooperation", "Pair cooperation"], ["score_communication", "Communication"]];
   const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
@@ -17,21 +17,26 @@
 
   // ---------- load ----------
   async function loadAll() {
-    const [c, r, t, q, v, ts] = await Promise.all([
+    const [c, r, t, q, v, ts, inq, ps, pse, ct] = await Promise.all([
       sb().from("clubs").select("*").order("name"),
       sb().from("referees").select("*").order("last_name"),
       sb().from("tournaments").select("*").order("start_date", { ascending: false }),
       sb().from("quiz_questions").select("*").order("rule_number").order("created_at"),
       sb().from("club_coverage").select("*"),
-      sb().from("training_sessions").select("*").order("starts_at", { ascending: false })
+      sb().from("training_sessions").select("*").order("starts_at", { ascending: false }),
+      sb().from("referee_inquiries").select("*").order("created_at", { ascending: false }),
+      sb().from("referee_program_status").select("*").order("last_name"),
+      sb().from("program_settings").select("*").eq("id", 1).maybeSingle(),
+      sb().from("certification_tests").select("*").eq("level", "level_1").maybeSingle()
     ]);
+    inquiries = (inq && inq.data) || []; pstat = (ps && ps.data) || []; psettings = (pse && pse.data) || null; ctest = (ct && ct.data) || null;
     clubs = c.data || []; refs = r.data || []; tournaments = t.data || []; questions = q.data || []; cov = v.data || []; sessions = ts.data || [];
     // stats per referee
     const { data: stats } = await sb().from("referee_season_stats").select("*");
     const { data: evals } = await sb().from("evaluations").select("referee_id,evaluated_on").order("evaluated_on", { ascending: false });
     const yr = new Date().getFullYear();
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
-    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); loadTasks(); loadImportLog();
+    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); loadTasks(); loadImportLog();
   }
   function fillSelects() {
     NRC.$$("select[name=club_id]").forEach(s => { s.innerHTML = '<option value="">No club</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join(""); });
@@ -47,6 +52,12 @@
     $("#k-certified").textContent = active.filter(r => r.cert_level !== "candidate").length;
     $("#k-noclub").textContent = cov.filter(c => c.referee_count == 0).length;
     $("#k-pairs").textContent = cov.filter(c => c.has_certified_pair).length;
+    const newInq = inquiries.filter(i => i.status === "new").length;
+    $("#k-inq").textContent = newInq; const nb = $("#nav-inq"); nb.textContent = newInq; nb.classList.toggle("hidden", !newInq);
+    const cert = pstat.filter(p => p.cert_level !== "candidate");
+    $("#k-nobase").textContent = cert.filter(p => !p.baseline_at).length;
+    $("#k-inprog").textContent = pstat.filter(p => p.program_status === "active" || p.program_status === "ready_for_retest").length;
+    $("#k-overdue").textContent = pstat.filter(p => (p.program_status === "active" || p.program_status === "ready_for_retest") && p.due_on < today()).length;
     $("#cov tbody").innerHTML = cov.slice().sort((a, b) => a.referee_count - b.referee_count || a.name.localeCompare(b.name)).map(c => `<tr><td><strong>${NRC.esc(c.name)}</strong></td><td>${NRC.esc([c.city, c.state].filter(Boolean).join(", "))}</td><td>${c.referee_count}</td><td>${c.certified_count}</td><td>${c.has_certified_pair ? '<span class="pill green">Yes</span>' : '<span class="pill red">No</span>'}</td><td>${PROG[c.pair_program_status] || ""}</td></tr>`).join("");
     const t = today();
     const bad = active.filter(r => [r.usath_membership_valid_until, r.safesport_valid_until, r.background_check_valid_until].some(d => !d || d < t));
@@ -212,6 +223,29 @@
     if (res.error) { alert(res.error.message); return; }
     $("#dlg-session").close(); loadAll();
   });
+
+  // ---------- inquiries ----------
+  function renderInquiries() {
+    const ST = ["new", "contacted", "invited", "closed"];
+    $("#inq tbody").innerHTML = inquiries.map(i => `<tr><td class="small">${NRC.fmtDate(i.created_at)}</td><td><strong>${NRC.esc(i.first_name + " " + i.last_name)}</strong></td><td class="small"><a href="mailto:${NRC.esc(i.email)}">${NRC.esc(i.email)}</a>${i.phone ? "<br>" + NRC.esc(i.phone) : ""}</td><td class="small">${NRC.esc([i.city, i.state].filter(Boolean).join(", "))}</td><td class="small">${NRC.esc(i.club_name || "")}</td><td class="small">${NRC.esc(i.background || "")}</td><td class="small">${NRC.esc(i.availability || "")}</td><td class="small">${NRC.esc(i.message || "")}</td><td><select onchange="setInqStatus('${i.id}',this.value)">${ST.map(x => `<option ${x === i.status ? "selected" : ""}>${x}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="inviteFromInquiry('${i.id}')">Add to roster</button></td></tr>`).join("") || '<tr><td colspan="10">No contact requests yet.</td></tr>';
+  }
+  window.setInqStatus = async function (id, status) { const res = await sb().from("referee_inquiries").update({ status }).eq("id", id); if (res.error) alert(res.error.message); else loadAll(); };
+  window.inviteFromInquiry = function (id) {
+    const i = inquiries.find(x => x.id === id); if (!i) return;
+    openRef(null); const f = $("#form-ref");
+    if (f) { f.first_name.value = i.first_name; f.last_name.value = i.last_name; f.email.value = i.email; if (f.phone) f.phone.value = i.phone || ""; if (f.home_city) f.home_city.value = i.city || ""; if (f.home_state) f.home_state.value = i.state || ""; if (f.cert_level) f.cert_level.value = "candidate"; }
+    sb().from("referee_inquiries").update({ status: "invited" }).eq("id", id).then(() => {});
+  };
+
+  // ---------- programs ----------
+  function renderPrograms() {
+    const PS = { active: "In progress", ready_for_retest: "Ready for re-test", cleared: "Cleared", expired: "Replaced" };
+    $("#pstat tbody").innerHTML = pstat.map(p => `<tr><td><strong>${NRC.esc(p.first_name + " " + p.last_name)}</strong></td><td>${NRC.levelPill(p.cert_level)}</td><td>${p.user_id ? "Yes" : '<span class="muted">not yet</span>'}</td><td>${p.cert_level === "candidate" ? '<span class="muted">Level 1 course</span>' : p.baseline_at ? NRC.fmtDate(p.baseline_at) : '<span class="pill red">missing</span>'}</td><td>${p.last_pct != null ? p.last_pct + "%" : ""}</td><td>${p.program_status ? (p.program_status === "cleared" ? '<span class="pill green">Cleared</span>' : p.program_status === "active" && p.due_on < today() ? '<span class="pill red">Overdue</span>' : '<span class="pill amber">' + PS[p.program_status] + "</span>") : ""}</td><td>${p.modules_total ? p.modules_done + "/" + p.modules_total : ""}</td><td>${p.due_on && p.program_status !== "cleared" ? NRC.fmtDate(p.due_on) : ""}</td></tr>`).join("") || '<tr><td colspan="8">No referees on the roster yet.</td></tr>';
+    if (psettings) { const f = $("#form-ps"); Object.keys(psettings).forEach(k => { if (f[k]) f[k].value = psettings[k]; }); }
+    if (ctest) { const f = $("#form-ct"); Object.keys(ctest).forEach(k => { if (f[k]) f[k].value = ctest[k]; }); }
+  }
+  $("#form-ps").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = {}; ["assessment_questions", "assessment_pass_pct", "weak_rule_pct", "program_weeks", "sessions_per_week", "time_limit_minutes", "module_question_count", "module_pass_pct"].forEach(k => row[k] = parseInt(f[k].value, 10)); row.updated_at = new Date().toISOString(); const res = await sb().from("program_settings").update(row).eq("id", 1); if (res.error) alert(res.error.message); else loadAll(); });
+  $("#form-ct").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { max_difficulty: f.max_difficulty.value }; ["question_count", "pass_pct", "time_limit_minutes", "module_question_count", "module_pass_pct"].forEach(k => row[k] = parseInt(f[k].value, 10)); row.updated_at = new Date().toISOString(); const res = await sb().from("certification_tests").update(row).eq("level", "level_1"); if (res.error) alert(res.error.message); else loadAll(); });
 
   // ---------- tournaments ----------
   function renderTournaments() {

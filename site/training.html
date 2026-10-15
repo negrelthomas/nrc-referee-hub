@@ -29,6 +29,7 @@
 </section>
 <section>
   <div class="tabs">
+    <button data-tab="program">My program</button>
     <button data-tab="practice" class="active">Practice quiz</button>
     <button data-tab="timed">Timed challenge</button>
     <button data-tab="cards">Flashcards</button>
@@ -89,6 +90,7 @@
   </div>
 
   <!-- Progress -->
+  <div id="program-ui" class="hidden"></div>
   <div id="progress-ui" class="hidden">
     <div class="card"><h3>Sessions</h3><div id="progress-list" class="small">No sessions yet.</div></div>
     <div class="card"><h3>By rule</h3><div class="table-wrap"><table id="progress-rules"><thead><tr><th>Rule</th><th>Answered</th><th>Correct</th><th>Score</th></tr></thead><tbody></tbody></table></div></div>
@@ -102,6 +104,7 @@
 <script src="data/questions.js"></script>
 <script src="js/app.js"></script>
 <script src="js/training.js"></script>
+<script src="js/program.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
   const host = document.getElementById("sessions"); if (!host) return;
