@@ -10,7 +10,8 @@ site/                      published folder (Netlify publish = site)
   index.html               why referees matter, hub overview, club coverage stats
   become-a-referee.html    certification path (USATH Level 1, 2, 3, NACHC, IHF)
   training.html            quiz (practice, timed), flashcards, progress
-  request-referees.html    organizer intake form (writes to tournaments)
+  request-referees.html    organizer intake form (writes to tournaments), asks who books travel
+  organizer.html           organizer page: progress of each request, designated officials, travel bookings
   referees.html            public list of certified referees (name, level, dates, club; no contact details)
   directory.html           referee directory (signed in)
   login.html               magic link sign in, with a 6 digit code fallback
@@ -33,6 +34,7 @@ supabase/
   staffing_v2.sql          weekend availability, tentative answers, supervisor need, organizer token (also in schema.sql; run its first line alone)
   update_real_referees.sql real emails for the three CalCup referees and the CalCup 2027 respondents
   confirm_and_theory.sql   level_confirmed badge, level1_theory_passed_on, award function records theory passed only
+  organizers_travel.sql    organizer sign in (role organizer for emails that submitted a request), travel_managed_by, travel_bookings, organizer and staffing views
 netlify/functions/        mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data)
 netlify.toml, package.json
 ```
@@ -60,7 +62,7 @@ Photo, club, home city and state, home airport and usual departure airport, cert
 
 - `referee` (default on first sign in): own profile, directory, training progress, own games, shared evaluations, own assignment requests.
 - `admin`: everything. Set in `public.profiles.role`.
-- `organizer`: reserved for phase 2 (own tournament requests). The public form works without an account.
+- `organizer`: given at first sign in to an email that submitted a tournament request; sees organizer.html (own requests, designated officials, bookings). The public form works without an account.
 
 ## Recurring admin task
 

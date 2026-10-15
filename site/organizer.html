@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My tournaments | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>.progress{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:10px 0 14px}.progress div{padding:8px 10px;border-radius:6px;background:#EEF2F8;font-size:13px;font-weight:600;color:var(--muted);text-align:center}.progress div.done{background:var(--green-tint);color:var(--green)}.progress div.now{background:var(--navy);color:#fff}@media (max-width:600px){.progress{grid-template-columns:1fr 1fr}}</style>
+</head>
+<body data-page="organizer.html">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+<div class="wrap" id="main">
+<section>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h1 style="margin:0" id="hello">My tournaments</h1>
+    <div><a class="btn sm" href="request-referees.html">New request</a> <button class="btn ghost sm" onclick="NRC.signOut()">Sign out</button></div>
+  </div>
+  <p class="muted" style="margin-top:8px">Every request you submitted, where it stands, who is designated and, when the NRC books travel, the bookings made. Changes or questions: <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>.</p>
+  <div id="list"><p class="muted">Loading.</p></div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+const $ = NRC.$;
+const LEVEL = { candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3", nachc: "NACHC", ihf: "IHF" };
+const STEPS = [["submitted", "Request received"], ["reviewing", "NRC reviewing"], ["staffed", "Referees designated"], ["completed", "Completed"]];
+const KIND = { flight: "Flight", hotel: "Hotel", car: "Car rental", train: "Train", other: "Other" };
+const fmtDT = (d) => d ? new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+async function load() {
+  const user = await NRC.requireUser(); if (!user) return;
+  if (user.role === "referee") { location.replace("profile.html"); return; }
+  if (user.full_name) $("#hello").textContent = "Tournaments, " + user.full_name;
+  const { data: tours } = await NRC.sb.from("tournaments").select("*").order("start_date", { ascending: false });
+  const T = (tours || []).filter(t => user.role === "admin" || true);
+  if (!T.length) { $("#list").innerHTML = '<div class="card"><p>No request on file for this email. <a href="request-referees.html">Submit one</a>.</p></div>'; return; }
+  const ids = T.map(t => t.id);
+  const [{ data: des }, { data: book }] = await Promise.all([NRC.sb.from("organizer_designations").select("*").in("tournament_id", ids), NRC.sb.from("travel_bookings").select("*").order("start_at")]);
+  const D = des || [], B = book || [];
+  $("#list").innerHTML = T.map(t => {
+    const idx = Math.max(0, STEPS.findIndex(s => s[0] === t.status));
+    const cancelled = t.status === "cancelled";
+    const d = D.filter(x => x.tournament_id === t.id);
+    const covers = [t.flights_covered ? "Flights covered" : "Flights not covered", (t.hotel_nights_covered || 0) + " hotel nights", t.airport_transfers_covered ? "Airport transfers covered" : "Airport transfers not covered", t.food_stipend_per_day ? "$" + t.food_stipend_per_day + " per day food" : (t.meals_provided || null), t.earliest_return_last_day ? "Earliest departure " + String(t.earliest_return_last_day).slice(0, 5) : null].filter(Boolean);
+    return `<div class="card" style="margin-top:14px">
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h2 style="margin:0">${NRC.esc(t.name)}</h2><span class="small muted">${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}, ${NRC.esc([t.venue_name, t.venue_city, t.venue_state].filter(Boolean).join(", "))}</span></div>
+      ${cancelled ? '<p class="notice error">Cancelled.</p>' : '<div class="progress">' + STEPS.map((s, i) => `<div class="${i < idx ? "done" : i === idx ? "now" : ""}">${s[1]}</div>`).join("") + "</div>"}
+      <div class="grid c3"><div class="stat ${d.filter(x => x.role === "referee").length >= t.pairs_needed * 2 ? "good" : ""}"><div class="n">${d.filter(x => x.role === "referee").length}/${t.pairs_needed * 2}</div><div class="l">Referees designated</div></div><div class="stat"><div class="n">${d.filter(x => x.role !== "referee").length}${t.supervisor_needed ? "/1" : ""}</div><div class="l">Supervisor or observer</div></div><div class="stat"><div class="n" style="font-size:22px;padding-top:8px">${t.travel_managed_by === "nrc" ? "NRC" : "You"}</div><div class="l">Books travel</div></div></div>
+      <h3 style="margin-top:16px">Designated officials</h3>
+      ${d.length ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Level</th><th>Club</th><th>From</th><th>Contact</th>' + (t.travel_managed_by === "nrc" ? "<th>Travel</th>" : "<th>Travel notes</th>") + '</tr></thead><tbody>' + d.map(r => { const bk = B.filter(b => b.assignment_id === r.assignment_id); return `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.esc(r.role)}</td><td>${LEVEL[r.cert_level] || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small"><a href="mailto:${NRC.esc(r.email)}">${NRC.esc(r.email)}</a>${r.phone ? "<br>" + NRC.esc(r.phone) : ""}</td><td class="small">${t.travel_managed_by === "nrc" ? (bk.length ? bk.map(b => `${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span>`).join("<br>") : '<span class="muted">Not booked yet</span>') : NRC.esc(r.travel_notes || "")}</td></tr>`; }).join("") + "</tbody></table></div>" : '<p class="muted">Nobody confirmed yet. The NRC is working on it; names appear here as they are confirmed.</p>'}
+      <p class="small muted" style="margin:12px 0 0">You committed to: ${covers.map(NRC.esc).join(", ")}.${t.supervisor_needed ? " Supervisor requested." : ""}</p>
+    </div>`;
+  }).join("");
+}
+document.addEventListener("DOMContentLoaded", load);
+</script>
+</body>
+</html>

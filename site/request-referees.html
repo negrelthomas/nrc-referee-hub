@@ -73,6 +73,11 @@
       <label>Transport between hotel and venue</label><input name="hotel_to_venue_transport" placeholder="Shuttle, rental car, walking distance...">
       <label>Meals provided on site</label><input name="meals_provided" placeholder="Lunch at the venue each day, dinner Saturday...">
 
+      <h3 style="margin-top:22px">Bookings and expenses</h3>
+      <div class="row">
+        <div><label>Who books and pays referee travel?</label><select name="travel_managed_by"><option value="organizer">We book flights, hotel and car ourselves</option><option value="nrc">The NRC books on our behalf, we reimburse</option></select><div class="help">Either way, the designated referees and their travel details show on your organizer page.</div></div>
+      </div>
+
       <h3 style="margin-top:22px">Contact</h3>
       <div class="row">
         <div><label>Your name</label><input name="organizer_name" required></div>
@@ -110,7 +115,7 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
   const { error } = await NRC.sb.from("tournaments").insert(row);
   if (error) { NRC.notice(msg, "Could not submit: " + NRC.esc(error.message), "error"); return; }
   e.target.reset();
-  NRC.notice(msg, "Request received. The NRC will come back to you by email at the address you gave.", "ok");
+  NRC.notice(msg, "Request received. The NRC will come back to you by email at " + NRC.esc(row.organizer_email) + ". To follow your request, see who is designated and their travel details, <a href=\"login.html?next=organizer.html\">sign in with that email</a>: you get a link and a code, no password.", "ok");
   window.scrollTo({ top: 0, behavior: "smooth" });
 });
 </script>

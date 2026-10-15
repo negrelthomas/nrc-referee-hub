@@ -67,8 +67,8 @@ p{margin:0 0 1em}
 .hero::after{content:"";position:absolute;z-index:-1;pointer-events:none;top:-30%;bottom:-30%;left:52%;width:9%;
   background:linear-gradient(180deg,rgba(232,235,47,.0) 0%,rgba(232,235,47,.55) 35%,rgba(232,235,47,.85) 50%,rgba(232,235,47,.55) 65%,rgba(232,235,47,0) 100%);
   transform:skewX(-20deg);mix-blend-mode:screen;opacity:.35;filter:blur(1px)}
-.hero .court{position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.14;background:
-  url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400' preserveAspectRatio='xMinYMid slice'%3E%3Cg fill='none' stroke='%23ffffff' stroke-width='3'%3E%3Cpath d='M0 20 H1200 M0 380 H1200'/%3E%3Cpath d='M0 110 H60 A140 140 0 0 1 60 290 H0'/%3E%3Cpath d='M0 50 H60 A200 200 0 0 1 60 350 H0' stroke-dasharray='22 16'/%3E%3Cpath d='M135 190 V210'/%3E%3Cpath d='M1200 110 H1140 A140 140 0 0 0 1140 290 H1200'/%3E%3Cpath d='M1200 50 H1140 A200 200 0 0 0 1140 350 H1200' stroke-dasharray='22 16'/%3E%3Cpath d='M1065 190 V210'/%3E%3C/g%3E%3C/svg%3E") center/cover no-repeat}
+.hero .court{position:absolute;inset:0;z-index:-1;pointer-events:none;opacity:.15;background:url("court.svg") center/cover no-repeat}
+.hero.compact .court{opacity:.13;background-image:url("court.svg")}
 .hero .glow{position:absolute;z-index:-1;pointer-events:none;width:60vw;height:60vw;max-width:720px;max-height:720px;right:-18%;top:-40%;border-radius:50%;
   background:radial-gradient(closest-side,rgba(30,90,184,.55),rgba(30,90,184,0));filter:blur(20px)}
 .hero > .wrap{position:relative}
@@ -148,6 +148,9 @@ section > h2{margin-top:.2em}
 .panel{color:#fff;border-radius:14px;padding:24px;position:relative;overflow:hidden;isolation:isolate;background:linear-gradient(118deg,var(--deep),var(--navy) 60%,var(--mid));box-shadow:0 24px 50px -30px rgba(2,22,56,.8)}
 .panel::before{content:"";position:absolute;inset:0;z-index:-1;background:repeating-linear-gradient(-32deg,transparent 0 70px,rgba(255,255,255,.045) 70px 100px)}
 .panel::after{content:"";position:absolute;z-index:-1;right:-30px;top:-30px;width:180px;height:180px;border-radius:50%;background:radial-gradient(closest-side,rgba(30,90,184,.6),rgba(30,90,184,0))}
+.panel.tactics::before{background:url("court-tactics.svg") right center/auto 125% no-repeat;opacity:.45}
+.panel.tactics h3,.panel.tactics p{max-width:58%}
+@media (max-width:700px){.panel.tactics h3,.panel.tactics p{max-width:100%}.panel.tactics::before{opacity:.22}}
 .panel h3{color:#fff}
 .panel p{opacity:.92}
 .panel.yellow{background:linear-gradient(118deg,#F2F45A,var(--yellow) 55%,#D6D918);color:var(--navy);box-shadow:0 24px 50px -30px rgba(92,94,0,.6)}

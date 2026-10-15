@@ -40,7 +40,7 @@
     NRC.currentUser().then((u) => {
       const a = NRC.$("#nav-login");
       if (!a) return;
-      if (u) { a.textContent = u.role === "admin" ? "Admin" : "My profile"; a.href = u.role === "admin" ? "admin/index.html" : "profile.html"; }
+      if (u) { a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : "My profile"; a.href = u.role === "admin" ? "admin/index.html" : u.role === "organizer" ? "organizer.html" : "profile.html"; }
     });
   };
 
@@ -73,6 +73,17 @@
     if (!u) { const inAdmin = location.pathname.includes("/admin/"); const prefix = inAdmin && !document.querySelector("base") ? "../" : ""; location.href = prefix + "login.html?next=" + encodeURIComponent(inAdmin ? "admin/index.html" : location.pathname.split("/").pop()); return null; }
     if (role === "admin" && u.role !== "admin") { document.body.innerHTML = '<div class="wrap" style="padding:40px"><h1>Admin access only</h1><p>Your account is not an NRC administrator. Write to ' + NRC.esc(C.CONTACT_EMAIL) + ' if you believe this is a mistake.</p><p><a href="../profile.html">Back to my profile</a></p></div>'; return null; }
     return u;
+  };
+  NRC.homeFor = (u) => !u ? "login.html" : u.role === "admin" ? "admin/index.html" : u.role === "organizer" ? "organizer.html" : "profile.html";
+  // Calendar file with one event per item. events: [{title, start (Date), end (Date), location, desc, url}]
+  NRC.downloadIcs = function (name, events) {
+    const fmt = (d) => new Date(d).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    const escT = (t) => String(t || "").replace(/\\/g, "\\\\").replace(/,/g, "\\,").replace(/;/g, "\\;").replace(/\n/g, "\\n");
+    const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//NRC Referee Hub//EN", "CALSCALE:GREGORIAN"];
+    events.forEach((e, i) => { lines.push("BEGIN:VEVENT", `UID:nrc-${Date.now()}-${i}@nrc-referee-hub`, `DTSTAMP:${fmt(new Date())}`, `DTSTART:${fmt(e.start)}`, `DTEND:${fmt(e.end || new Date(new Date(e.start).getTime() + 36e5))}`, `SUMMARY:${escT(e.title)}`, e.location ? `LOCATION:${escT(e.location)}` : null, `DESCRIPTION:${escT(e.desc)}`, e.url ? `URL:${e.url}` : null, "BEGIN:VALARM", "TRIGGER:-PT2H", "ACTION:DISPLAY", "DESCRIPTION:Reminder", "END:VALARM", "END:VEVENT"); });
+    lines.push("END:VCALENDAR");
+    const blob = new Blob([lines.filter(Boolean).join("\r\n")], { type: "text/calendar" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
   };
   NRC.signOut = async function () { if (NRC.sb) await NRC.sb.auth.signOut(); location.href = "index.html"; };
 

@@ -118,6 +118,7 @@ NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").f
 
 async function load() {
   user = await NRC.requireUser(); if (!user) return;
+  if (user.role === "organizer") { location.replace("organizer.html"); return; }
   const { data: clubs } = await NRC.sb.from("clubs").select("id,name").eq("active", true).order("name");
   const sel = $("select[name=club_id]"); (clubs || []).forEach(c => { const o = document.createElement("option"); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
   const { data } = await NRC.sb.from("referees").select("*").eq("user_id", user.id).maybeSingle();
@@ -164,8 +165,27 @@ async function loadHome() {
   // next confirmed assignment
   const { data: hist } = await NRC.sb.from("referee_tournament_history").select("*").eq("referee_id", ref.id).gte("end_date", today).order("start_date").limit(1);
   const n = hist && hist[0];
-  $("#home-next").innerHTML = n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Details</a></div>`
-    : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC confirms you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`;
+  let travelHtml = "";
+  if (n) {
+    const [{ data: tour }, { data: asg }] = await Promise.all([NRC.sb.from("tournaments").select("*").eq("id", n.tournament_id).maybeSingle(), NRC.sb.from("assignments").select("id,travel_notes").eq("tournament_id", n.tournament_id).eq("referee_id", ref.id).maybeSingle()]);
+    const { data: bk } = asg ? await NRC.sb.from("travel_bookings").select("*").eq("assignment_id", asg.id).neq("status", "cancelled").order("start_at") : { data: [] };
+    const KIND = { flight: "Flight", hotel: "Hotel", car: "Car rental", train: "Train", other: "Other" };
+    const fmtDT = (d) => d ? new Date(d).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+    const T = tour || {};
+    const venue = [T.venue_name, T.venue_address, T.venue_city, T.venue_state].filter(Boolean).join(", ");
+    window.nextCalendar = () => {
+      const ev = [{ title: "Refereeing: " + T.name, start: new Date(T.start_date + "T08:00:00"), end: new Date(T.end_date + "T20:00:00"), location: venue, desc: "Confirmed by the NRC. Organizer: " + (T.organizer_name || "") + " " + (T.organizer_email || "") + ". Details on your referee home.", url: location.origin + "/profile.html" }];
+      (bk || []).forEach(b => { if (!b.start_at) return; ev.push({ title: KIND[b.kind] + (b.provider ? ": " + b.provider : "") + (b.reference ? " (" + b.reference + ")" : ""), start: new Date(b.start_at), end: b.end_at ? new Date(b.end_at) : null, location: [b.from_place, b.to_place].filter(Boolean).join(" to "), desc: (b.notes || "") + (b.paid_by ? " Paid by " + b.paid_by + "." : ""), url: location.origin + "/profile.html" }); });
+      NRC.downloadIcs((T.name || "tournament").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics", ev);
+    };
+    const rows = (bk || []).map(b => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>${KIND[b.kind]}</strong>${b.provider ? ", " + NRC.esc(b.provider) : ""}${b.reference ? " <span class='pill'>" + NRC.esc(b.reference) + "</span>" : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span><div class="small">${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.from_place || b.to_place ? "<br>" + NRC.esc([b.from_place, b.to_place].filter(Boolean).join(" to ")) : ""}${b.notes ? "<br>" + NRC.esc(b.notes) : ""}</div></div>`).join("");
+    travelHtml = `<div class="card" style="margin-top:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3 style="margin:0">Your trip</h3><div class="cta-row"><button class="btn sm secondary" type="button" onclick="nextCalendar()">Add to my calendar</button><a class="btn sm ghost" href="mailto:referee@handballusa.org?subject=${encodeURIComponent("Cannot officiate: " + (T.name || ""))}&body=${encodeURIComponent("Hi,\n\nI am confirmed for " + (T.name || "") + " (" + T.start_date + ") and I have to withdraw because:\n\n")}">I need to withdraw</a></div></div>
+      <div class="small muted" style="margin:6px 0 8px">${NRC.esc(venue)}${T.nearest_airport_iata ? ", nearest airport " + NRC.esc(T.nearest_airport_iata) : ""}. Organizer: ${NRC.esc(T.organizer_name || "")}, ${NRC.esc(T.organizer_email || "")}${T.organizer_phone ? ", " + NRC.esc(T.organizer_phone) : ""}.${T.earliest_return_last_day ? " Do not leave before " + String(T.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}</div>
+      ${rows || '<p class="small muted">' + (T.travel_managed_by === "nrc" ? "The NRC is booking your travel; flights, hotel and car appear here with their references." : "The organizer books travel directly with you; what they confirm is recorded here by the NRC.") + "</p>"}
+      ${asg && asg.travel_notes ? '<p class="small"><strong>Travel notes:</strong> ' + NRC.esc(asg.travel_notes) + "</p>" : ""}</div>`;
+  }
+  $("#home-next").innerHTML = (n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Details</a></div>`
+    : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC confirms you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`) + travelHtml;
   // alerts
   const alerts = [];
   const { data: pend } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,start_date)").eq("referee_id", ref.id).eq("status", "sent");

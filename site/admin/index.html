@@ -21,6 +21,7 @@
       <a href="#referees">Referees</a>
       <a href="#inquiries">Inquiries <span class="pill red hidden" id="nav-inq"></span></a>
       <a href="#clubs">Clubs</a>
+      <a href="#staffing">Staffing</a>
       <a href="#tournaments">Tournament requests</a>
       <a href="#questions">Questions</a>
       <a href="#training">Training sessions</a>
@@ -70,11 +71,19 @@
         <div class="table-wrap" style="margin-top:12px"><table id="clubs"><thead><tr><th>Club</th><th>Type</th><th>City</th><th>Airport</th><th>Pair program</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
+      <!-- Staffing cards -->
+      <div id="pane-staffing" class="hidden">
+        <h1>Staffing</h1>
+        <p class="muted small">One card per tournament to staff, newest event last. Open a card for the full dashboard: who is open to officiate, who is designated, travel bookings when the NRC manages them.</p>
+        <div class="chips" id="staff-filter"><span class="chip on" data-v="open">To staff</span><span class="chip" data-v="all">All</span></div>
+        <div class="grid c3" id="staff-cards"></div>
+      </div>
+
       <!-- Tournaments -->
       <div id="pane-tournaments" class="hidden">
         <h1>Tournament requests</h1>
         <p class="muted small">Submitted by organizers through the public form. Open a tournament to record who officiated and how many games each (this feeds every referee's history). Invitations and responses arrive in phase 2.</p>
-        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Sanction</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Supervisor</th><th>Covers</th><th>Organizer</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Sanction</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Supervisor</th><th>Travel</th><th>Covers</th><th>Organizer</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Training sessions -->
@@ -133,14 +142,15 @@
         <div class="card"><h3 style="margin-top:0">4. Clubs</h3>
           <p>The USATH club list with city, state and nearest airport, used for coverage statistics and for travel planning. Each club has a pair program status (not started, nominated, mentor assigned, in training, observed, certified pair) that you update as the club progresses. Correct airports and cities here; they drive the "local" flag when staffing.</p></div>
 
-        <div class="card"><h3 style="margin-top:0">5. Tournament requests and staffing</h3>
-          <p>Organizers submit a request on the public page: dates, venue, pairs needed, whether a supervisor is needed, and what they cover (hotel nights, flights, transfers, food, earliest departure). The request arrives here with status submitted. The intended flow:</p>
+        <div class="card"><h3 style="margin-top:0">5. Staffing, tournament requests and travel</h3>
+          <p>Organizers submit a request on the public page: dates, venue, pairs needed, whether a supervisor is needed, who books travel (the organizer, or the NRC with the organizer reimbursing), and what they cover (hotel nights, flights, transfers, food, earliest departure). The request arrives with status submitted. The organizer can sign in with the email of the request and follow it on their own page: progress, designated officials with contact details, and travel bookings when the NRC books. The Staffing page shows one card per event to staff with progress; a card opens the full dashboard. The intended flow:</p>
           <ol class="steps small">
             <li><strong>Review.</strong> Open the request, set the sanction and region, set status to reviewing. Note the supervisor need in the header.</li>
             <li><strong>Find referees.</strong> The Find referees tab lists certified referees, best first: those who declared themselves available for the tournament weekends, then tentative, then not declared; unavailable ones are hidden by default. Local referees (same airport as the venue) are flagged, as are established pairs and season load. Tick the referees to propose and add them as draft invitations. Propose both members of a pair when you want the pair.</li>
             <li><strong>Send invitations.</strong> Select the drafts and send. Each referee gets an email with the event, what is covered, and three answers: accept, tentative, decline, plus a prompt to sign in. The same proposal appears on their referee home. Answers show on the Invitations tab as they come in; send a reminder after a few days to those still waiting.</li>
             <li><strong>Confirm.</strong> Select the accepted referees and confirm. The hub checks that the confirmed count matches the pairs requested and that established pairs stay together, and warns if not. Confirming emails each referee the full brief (dates, venue, airport, earliest departure, partner, the rest of the team, organizer contact, coverage) and records the assignment; the tournament moves to staffed.</li>
             <li><strong>Notify organizer.</strong> Sends the organizer the designated list and the link to their private tournament page, where they see names, levels, clubs, contact details and travel notes, and the coverage they committed to. Send it again after any change.</li>
+            <li><strong>Designated and travel.</strong> This tab lists who is designated with their contact and home airport, shows who else is open to officiate (accepted or tentative but not designated), lets you add a supervisor or observer directly, and remove a designated referee (their invitation is marked declined; pick a replacement from Find referees). When the NRC books travel, record each flight, hotel, car or train with provider, reference, times, cost and who pays; the referee sees every booking on their home with a calendar file, and the organizer sees them on their page. When the organizer books, record what they tell you so the referee still has one place to look.</li>
             <li><strong>After the event.</strong> On the Officiated and games tab, record who officiated and how many games each. This feeds every referee's history and the season load used at the next staffing.</li>
           </ol>
           <p class="small muted">Emails go out from the NRC Referee Hub sender configured on Netlify and are logged; a send that fails is shown with the reason. Referees contact organizers only once confirmed; organizers reach referees through their tournament page.</p></div>
@@ -268,6 +278,7 @@
   <div class="tabs" style="margin-top:14px">
     <button data-ttab="invites" class="active">Invitations</button>
     <button data-ttab="candidates">Find referees</button>
+    <button data-ttab="designated">Designated and travel</button>
     <button data-ttab="officiated">Officiated and games</button>
   </div>
 
@@ -290,6 +301,16 @@
     <p style="margin-top:10px"><button class="btn sm" type="button" onclick="addCandidates()">Add selected as draft invitations</button> <span class="small muted">Then send from the Invitations tab.</span></p>
   </div>
 
+  <div id="ttab-designated" class="hidden">
+    <div id="des-summary" class="chips"></div>
+    <div class="table-wrap"><table id="des"><thead><tr><th>Official</th><th>Role</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="row" style="margin-top:10px;grid-template-columns:1fr auto auto;align-items:end;gap:8px">
+      <div><label>Add an official directly (supervisor, observer, replacement)</label><select id="des-ref"></select></div>
+      <div><label>Role</label><select id="des-role"><option value="referee">Referee</option><option value="delegate">Supervisor</option><option value="observer">Observer</option></select></div>
+      <div><button class="btn sm secondary" type="button" onclick="addDesignated()">Add</button></div>
+    </div>
+    <p class="small muted">Removing a designated referee reopens their invitation as declined so you can pick a replacement from Find referees. Travel: the NRC books only when the organizer chose "NRC books"; otherwise record what the organizer or the referee booked so the referee sees everything in one place.</p>
+  </div>
   <div id="ttab-officiated" class="hidden">
     <div class="table-wrap"><table id="tour-asg"><thead><tr><th>Referee</th><th>Role</th><th>Games</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="row" style="margin-top:10px"><div><label>Add referee</label><select id="asg-ref"></select></div><div><label>Games officiated</label><input id="asg-games" type="number" min="0"></div></div>
@@ -322,6 +343,20 @@
     <label>Registration link</label><input name="registration_url" type="url">
     <label><input type="checkbox" name="published" style="width:auto" checked> Published on the public Training page</label>
     <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" id="btn-session-delete">Delete</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-session').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<dialog id="dlg-travel"><div class="body">
+  <h3 style="margin-top:0" id="dlg-travel-title">Travel booking</h3>
+  <form id="form-travel">
+    <input type="hidden" name="assignment_id">
+    <div class="row"><div><label>Type</label><select name="kind"><option value="flight">Flight</option><option value="hotel">Hotel</option><option value="car">Car rental</option><option value="train">Train</option><option value="other">Other</option></select></div><div><label>Status</label><select name="status"><option value="pending">Pending</option><option value="booked">Booked</option><option value="cancelled">Cancelled</option></select></div></div>
+    <div class="row"><div><label>Provider (airline, hotel, rental company)</label><input name="provider"></div><div><label>Confirmation or reference</label><input name="reference"></div></div>
+    <div class="row"><div><label>Start (departure, check in, pickup)</label><input name="start_at" type="datetime-local"></div><div><label>End (arrival, check out, return)</label><input name="end_at" type="datetime-local"></div></div>
+    <div class="row"><div><label>From (airport, address)</label><input name="from_place"></div><div><label>To</label><input name="to_place"></div></div>
+    <div class="row"><div><label>Cost (USD)</label><input name="cost" type="number" step="0.01" min="0"></div><div><label>Paid by</label><select name="paid_by"><option value="nrc">NRC (organizer reimburses)</option><option value="organizer">Organizer</option><option value="referee">Referee (reimbursed)</option></select></div></div>
+    <label>Notes for the referee</label><textarea name="notes" placeholder="Seat, baggage, pickup instructions, hotel address..."></textarea>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" id="btn-travel-delete">Delete</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-travel').close()">Cancel</button></p>
   </form>
 </div></dialog>
 

@@ -35,7 +35,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!NRC.sb) { fail("Supabase is not configured yet."); return; }
   const go = async () => {
     const u = await NRC.currentUser();
-    location.replace(next || (u && u.role === "admin" ? "admin/index.html" : "profile.html"));
+    location.replace(next || NRC.homeFor(u));
   };
   const tokenHash = q.get("token_hash");
   if (tokenHash) {

@@ -39,7 +39,7 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const next = new URLSearchParams(location.search).get("next");
   const u = await NRC.currentUser();
-  if (u) { location.href = next || (u.role === "admin" ? "admin/index.html" : "profile.html"); return; }
+  if (u) { location.href = next || NRC.homeFor(u); return; }
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = NRC.$("#msg");
@@ -66,7 +66,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     NRC.$("#btn-code").disabled = false;
     if (error) { NRC.notice(msg, "That code did not work: " + NRC.esc(error.message), "error"); return; }
     const u = await NRC.currentUser();
-    location.href = next || (u && u.role === "admin" ? "admin/index.html" : "profile.html");
+    location.href = next || NRC.homeFor(u);
   });
 });
 </script>

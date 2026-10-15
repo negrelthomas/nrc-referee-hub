@@ -1,7 +1,7 @@
 /* Admin area */
 (function () {
   const $ = NRC.$, sb = () => NRC.sb;
-  let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], inquiries = [], pstat = [], psettings = null, ctest = null, currentRef = null;
+  let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], inquiries = [], pstat = [], psettings = null, ctest = null, staffing = [], currentRef = null;
   const today = () => new Date().toISOString().slice(0, 10);
   const CRIT = [["score_rules_application", "Rules application"], ["score_game_management", "Game management"], ["score_progressive_punishment", "Progressive punishment"], ["score_positioning", "Positioning"], ["score_pair_cooperation", "Pair cooperation"], ["score_communication", "Communication"]];
   const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
@@ -17,7 +17,7 @@
 
   // ---------- load ----------
   async function loadAll() {
-    const [c, r, t, q, v, ts, inq, ps, pse, ct] = await Promise.all([
+    const [c, r, t, q, v, ts, inq, ps, pse, ct, st] = await Promise.all([
       sb().from("clubs").select("*").order("name"),
       sb().from("referees").select("*").order("last_name"),
       sb().from("tournaments").select("*").order("start_date", { ascending: false }),
@@ -27,8 +27,10 @@
       sb().from("referee_inquiries").select("*").order("created_at", { ascending: false }),
       sb().from("referee_program_status").select("*").order("last_name"),
       sb().from("program_settings").select("*").eq("id", 1).maybeSingle(),
-      sb().from("certification_tests").select("*").eq("level", "level_1").maybeSingle()
+      sb().from("certification_tests").select("*").eq("level", "level_1").maybeSingle(),
+      sb().from("tournament_staffing").select("*").order("start_date")
     ]);
+    staffing = (st && st.data) || [];
     inquiries = (inq && inq.data) || []; pstat = (ps && ps.data) || []; psettings = (pse && pse.data) || null; ctest = (ct && ct.data) || null;
     clubs = c.data || []; refs = r.data || []; tournaments = t.data || []; questions = q.data || []; cov = v.data || []; sessions = ts.data || [];
     // stats per referee
@@ -36,7 +38,7 @@
     const { data: evals } = await sb().from("evaluations").select("referee_id,evaluated_on").order("evaluated_on", { ascending: false });
     const yr = new Date().getFullYear();
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
-    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); loadTasks(); loadImportLog();
+    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); loadTasks(); loadImportLog();
   }
   function fillSelects() {
     NRC.$$("select[name=club_id]").forEach(s => { s.innerHTML = '<option value="">No club</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join(""); });
@@ -247,13 +249,79 @@
   $("#form-ps").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = {}; ["assessment_questions", "assessment_pass_pct", "weak_rule_pct", "program_weeks", "sessions_per_week", "time_limit_minutes", "module_question_count", "module_pass_pct"].forEach(k => row[k] = parseInt(f[k].value, 10)); row.updated_at = new Date().toISOString(); const res = await sb().from("program_settings").update(row).eq("id", 1); if (res.error) alert(res.error.message); else loadAll(); });
   $("#form-ct").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { max_difficulty: f.max_difficulty.value }; ["question_count", "pass_pct", "time_limit_minutes", "module_question_count", "module_pass_pct"].forEach(k => row[k] = parseInt(f[k].value, 10)); row.updated_at = new Date().toISOString(); const res = await sb().from("certification_tests").update(row).eq("level", "level_1"); if (res.error) alert(res.error.message); else loadAll(); });
 
+  // ---------- staffing cards ----------
+  let staffFilter = "open";
+  NRC.$$("#staff-filter .chip").forEach(c => c.onclick = () => { NRC.$$("#staff-filter .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); staffFilter = c.dataset.v; renderStaffing(); });
+  function renderStaffing() {
+    const t = today();
+    const list = staffing.filter(s => staffFilter === "all" || (!["completed", "cancelled"].includes(s.status) && s.end_date >= t));
+    $("#staff-cards").innerHTML = list.map(s => {
+      const need = s.pairs_needed * 2; const pct = Math.min(100, Math.round(s.confirmed / need * 100));
+      const travel = s.travel_managed_by === "nrc" ? `<div class="small" style="margin-top:6px">Travel: ${s.bookings_done} booked, ${s.bookings_pending} pending</div>` : '<div class="small muted" style="margin-top:6px">Travel booked by the organizer</div>';
+      const days = Math.ceil((new Date(s.start_date) - new Date()) / 864e5);
+      return `<div class="card" style="cursor:pointer" onclick="openTour('${s.id}')"><div style="display:flex;justify-content:space-between;gap:8px"><strong>${NRC.esc(s.name)}</strong><span class="pill ${s.confirmed >= need ? "green" : s.status === "submitted" ? "red" : "amber"}">${s.confirmed >= need ? "staffed" : s.status}</span></div>
+        <div class="small muted">${NRC.fmtDate(s.start_date)}, ${NRC.esc([s.venue_city, s.venue_state].filter(Boolean).join(", "))}${days >= 0 ? ", in " + days + " days" : ""}</div>
+        <div class="timer" style="margin:10px 0 6px;height:8px"><div style="width:${pct}%;background:${pct >= 100 ? "var(--green)" : "var(--red)"}"></div></div>
+        <div class="small">${s.confirmed}/${need} referees confirmed, ${s.accepted} accepted, ${s.waiting} waiting${s.supervisor_needed ? ", supervisor " + (s.officials ? "assigned" : "needed") : ""}</div>${travel}
+        ${s.organizer_notified_at ? '<div class="small muted" style="margin-top:4px">Organizer notified ' + NRC.fmtDate(s.organizer_notified_at) + "</div>" : ""}</div>`;
+    }).join("") || '<div class="card">Nothing to staff. New requests appear here.</div>';
+  }
+
+  // ---------- designated and travel ----------
+  let desRows = [], travelRows = [];
+  const KIND = { flight: "Flight", hotel: "Hotel", car: "Car", train: "Train", other: "Other" };
+  const fmtDT = (d) => d ? new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+  async function renderDesignated() {
+    const [{ data: asg }, { data: acc }] = await Promise.all([sb().from("assignments").select("*").eq("tournament_id", currentTour.id), sb().from("assignment_requests").select("referee_id,status").eq("tournament_id", currentTour.id).in("status", ["accepted", "tentative"])]);
+    desRows = asg || [];
+    const ids = desRows.map(a => a.id);
+    const { data: tb } = ids.length ? await sb().from("travel_bookings").select("*").in("assignment_id", ids).order("start_at") : { data: [] };
+    travelRows = tb || [];
+    const need = currentTour.pairs_needed * 2; const refsConfirmed = desRows.filter(a => a.role === "referee").length;
+    const openList = (acc || []).filter(a => !desRows.find(d => d.referee_id === a.referee_id));
+    $("#des-summary").innerHTML = `<span class="chip ${refsConfirmed >= need ? "on" : ""}">${refsConfirmed}/${need} referees designated</span><span class="chip">${desRows.filter(a => a.role !== "referee").length} supervisor or observer${currentTour.supervisor_needed ? " (requested)" : ""}</span><span class="chip">${currentTour.travel_managed_by === "nrc" ? "NRC books travel" : "Organizer books travel"}</span>` + (openList.length ? `<span class="chip">Open to officiate, not designated: ${openList.map(a => NRC.esc(refName(a.referee_id)) + (a.status === "tentative" ? " (tentative)" : "")).join(", ")}</span>` : "");
+    $("#des tbody").innerHTML = desRows.map(a => { const r = refs.find(x => x.id === a.referee_id) || {}; const bk = travelRows.filter(b => b.assignment_id === a.id);
+      return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong><br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>'}<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)">Add booking</button></div></td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Confirm accepted referees on the Invitations tab.</td></tr>';
+    $("#des-ref").innerHTML = refs.filter(r => r.active && !desRows.find(d => d.referee_id === r.id)).map(r => `<option value="${r.id}">${NRC.esc(r.first_name + " " + r.last_name)} (${NRC.levelLabel(r.cert_level).replace(" (National)", "")})</option>`).join("");
+  }
+  window.addDesignated = async function () {
+    const rid = $("#des-ref").value; if (!rid) return;
+    const { error } = await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: rid, role: $("#des-role").value }, { onConflict: "tournament_id,referee_id" });
+    if (error) { alert(error.message); return; }
+    renderDesignated(); renderTourAsg();
+  };
+  window.removeDesignated = async function (id) {
+    const a = desRows.find(x => x.id === id); if (!a || !confirm("Remove " + refName(a.referee_id) + " from this tournament? Their invitation is marked declined so you can pick a replacement.")) return;
+    await sb().from("assignments").delete().eq("id", id);
+    await sb().from("assignment_requests").update({ status: "declined", response_note: "Removed by the NRC after confirmation" }).eq("tournament_id", currentTour.id).eq("referee_id", a.referee_id);
+    renderDesignated(); renderInvites(); renderTourAsg();
+  };
+  let currentTravel = null;
+  const toLocal = (iso) => { if (!iso) return ""; const d = new Date(iso); const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
+  window.openTravel = function (assignmentId, bookingId) {
+    currentTravel = bookingId ? travelRows.find(b => b.id === bookingId) : null; const f = $("#form-travel"); f.reset(); f.assignment_id.value = assignmentId;
+    const a = desRows.find(x => x.id === assignmentId); $("#dlg-travel-title").textContent = "Travel booking, " + (a ? refName(a.referee_id) : "");
+    if (currentTravel) { ["kind", "status", "provider", "reference", "from_place", "to_place", "cost", "paid_by", "notes"].forEach(k => { if (f[k]) f[k].value = currentTravel[k] == null ? "" : currentTravel[k]; }); f.start_at.value = toLocal(currentTravel.start_at); f.end_at.value = toLocal(currentTravel.end_at); }
+    $("#btn-travel-delete").classList.toggle("hidden", !currentTravel);
+    $("#dlg-travel").showModal();
+  };
+  $("#form-travel").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target; const row = { assignment_id: f.assignment_id.value };
+    ["kind", "status", "provider", "reference", "from_place", "to_place", "paid_by", "notes"].forEach(k => row[k] = f[k].value.trim() || null);
+    row.cost = f.cost.value === "" ? null : parseFloat(f.cost.value); row.start_at = f.start_at.value ? new Date(f.start_at.value).toISOString() : null; row.end_at = f.end_at.value ? new Date(f.end_at.value).toISOString() : null; row.updated_at = new Date().toISOString();
+    const res = currentTravel ? await sb().from("travel_bookings").update(row).eq("id", currentTravel.id) : await sb().from("travel_bookings").insert(row);
+    if (res.error) { alert(res.error.message); return; }
+    $("#dlg-travel").close(); renderDesignated();
+  });
+  $("#btn-travel-delete").addEventListener("click", async () => { if (!currentTravel || !confirm("Delete this booking?")) return; await sb().from("travel_bookings").delete().eq("id", currentTravel.id); $("#dlg-travel").close(); renderDesignated(); });
+
   // ---------- tournaments ----------
   function renderTournaments() {
-    $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td><span class="pill">${SANCTION[t.sanction] || ""}</span>${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.supervisor_needed ? "Yes" + (t.supervisor_notes ? "<br>" + NRC.esc(t.supervisor_notes) : "") : "No"}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="openTour('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="10">No requests yet.</td></tr>';
+    $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td><span class="pill">${SANCTION[t.sanction] || ""}</span>${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.supervisor_needed ? "Yes" + (t.supervisor_notes ? "<br>" + NRC.esc(t.supervisor_notes) : "") : "No"}</td><td class="small">${t.travel_managed_by === "nrc" ? '<span class="pill amber">NRC books</span>' : "Organizer"}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="openTour('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="11">No requests yet.</td></tr>';
   }
   window.setTourStatus = async function (id, status) { await sb().from("tournaments").update({ status }).eq("id", id); };
   let currentTour = null, pairsCache = [], availCache = [];
-  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "officiated"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab)); });
+  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "designated", "officiated"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab)); });
   window.openTour = async function (id) {
     currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour");
     $("#dlg-tour-title").textContent = currentTour.name;
@@ -267,7 +335,7 @@
     pairsCache = pr || []; availCache = av || []; weekendCache = wa || [];
     $("#dlg-tour-sub").textContent += currentTour.supervisor_needed ? " Supervisor requested" + (currentTour.supervisor_notes ? ": " + currentTour.supervisor_notes : "") + "." : "";
     $("#btn-organizer").textContent = currentTour.organizer_notified_at ? "Notify organizer again" : "Notify organizer";
-    await Promise.all([renderInvites(), renderCandidates(), renderTourAsg()]);
+    await Promise.all([renderInvites(), renderCandidates(), renderTourAsg(), renderDesignated()]);
     $("#dlg-tour").showModal();
   };
   const refName = id => { const r = refs.find(x => x.id === id); return r ? r.first_name + " " + r.last_name : "?"; };

@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-12 -12 424 224" preserveAspectRatio="xMidYMid slice">
+  <g fill="none" stroke="#ffffff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="0" y="0" width="400" height="200"/>
+    <path d="M200 0 V200"/>
+    <path d="M155 0 V4 M245 0 V4 M155 196 V200 M245 196 V200"/>
+    <path d="M0 25 A60 60 0 0 1 60 85 L60 115 A60 60 0 0 1 0 175"/><path d="M400 25 A60 60 0 0 0 340 85 L340 115 A60 60 0 0 0 400 175"/>
+    <path d="M29.6 0 A90 90 0 0 1 90 85 L90 115 A90 90 0 0 1 29.6 200" stroke-dasharray="4 3"/><path d="M370.4 0 A90 90 0 0 0 310 85 L310 115 A90 90 0 0 0 370.4 200" stroke-dasharray="4 3"/>
+    <path d="M70 95 V105"/><path d="M330 95 V105"/>
+    <path d="M40 98.5 V101.5"/><path d="M360 98.5 V101.5"/>
+    <path d="M0 85 H-8 V115 H0" stroke-width="2.4"/><path d="M400 85 H408 V115 H400" stroke-width="2.4"/>
+  </g>
+
+  <defs><marker id="ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#E8EB2F"/></marker></defs>
+  <g stroke="#E8EB2F" stroke-width="1.4" fill="none" stroke-linecap="round">
+    <path d="M265 100 C280 84 282 66 288 56" marker-end="url(#ah)"/>
+    <path d="M288 52 C278 70 272 88 264 96" stroke-dasharray="3 3"/>
+    <path d="M265 100 L342 102" stroke-dasharray="1.5 3" stroke-width="1"/>
+    <path d="M350 100 C344 92 338 88 334 84" marker-end="url(#ah)"/>
+    <path d="M360 18 C354 30 348 36 342 40" marker-end="url(#ah)"/>
+  </g>
+  <g><circle cx="338" cy="40" r="6" fill="#04234F" stroke="#ffffff" stroke-width="1.2"/><circle cx="332" cy="66" r="6" fill="#04234F" stroke="#ffffff" stroke-width="1.2"/><circle cx="329" cy="90" r="6" fill="#04234F" stroke="#ffffff" stroke-width="1.2"/><circle cx="329" cy="110" r="6" fill="#04234F" stroke="#ffffff" stroke-width="1.2"/><circle cx="332" cy="134" r="6" fill="#04234F" stroke="#ffffff" stroke-width="1.2"/><circle cx="338" cy="160" r="6" fill="#04234F" stroke="#ffffff" stroke-width="1.2"/><circle cx="360" cy="18" r="6" fill="#E8EB2F" stroke="#04234F" stroke-width="1.2"/><text x="360" y="20.4" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="7" font-weight="700" fill="#04234F" text-anchor="middle">LW</text><circle cx="288" cy="52" r="6" fill="#E8EB2F" stroke="#04234F" stroke-width="1.2"/><text x="288" y="54.4" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="7" font-weight="700" fill="#04234F" text-anchor="middle">LB</text><circle cx="265" cy="100" r="6" fill="#E8EB2F" stroke="#04234F" stroke-width="1.2"/><text x="265" y="102.4" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="7" font-weight="700" fill="#04234F" text-anchor="middle">CB</text><circle cx="288" cy="148" r="6" fill="#E8EB2F" stroke="#04234F" stroke-width="1.2"/><text x="288" y="150.4" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="7" font-weight="700" fill="#04234F" text-anchor="middle">RB</text><circle cx="360" cy="182" r="6" fill="#E8EB2F" stroke="#04234F" stroke-width="1.2"/><text x="360" y="184.4" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="7" font-weight="700" fill="#04234F" text-anchor="middle">RW</text><circle cx="350" cy="100" r="6" fill="#E8EB2F" stroke="#04234F" stroke-width="1.2"/><text x="350" y="102.4" font-family="Barlow Condensed, Arial Narrow, sans-serif" font-size="7" font-weight="700" fill="#04234F" text-anchor="middle">PV</text>
+    <circle cx="269" cy="104" r="2.6" fill="#ffffff" stroke="#04234F" stroke-width="1"/>
+  </g>
+</svg>
