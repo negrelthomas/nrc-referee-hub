@@ -26,6 +26,7 @@
       <a href="#training">Training sessions</a>
       <a href="#programs">Programs</a>
       <a href="#imports">Imports</a>
+      <a href="#guide">Guide</a>
       <a href="#" onclick="NRC.signOut();return false">Sign out</a>
     </nav>
     <div id="panes">
@@ -73,7 +74,7 @@
       <div id="pane-tournaments" class="hidden">
         <h1>Tournament requests</h1>
         <p class="muted small">Submitted by organizers through the public form. Open a tournament to record who officiated and how many games each (this feeds every referee's history). Invitations and responses arrive in phase 2.</p>
-        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Sanction</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Covers</th><th>Organizer</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Sanction</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Supervisor</th><th>Covers</th><th>Organizer</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Training sessions -->
@@ -114,6 +115,57 @@
         <div class="table-wrap"><table id="pstat"><thead><tr><th>Referee</th><th>Level</th><th>Signed in</th><th>Baseline</th><th>Last score</th><th>Program</th><th>Modules</th><th>Due</th></tr></thead><tbody></tbody></table></div>
       </div>
 
+      <!-- Guide -->
+      <div id="pane-guide" class="hidden">
+        <h1>Admin guide</h1>
+        <p class="muted">What each part of the hub does, what it is for, and the order things happen in. Written for the NRC administrators.</p>
+
+        <div class="card"><h3 style="margin-top:0">1. Dashboard</h3>
+          <p>The first screen after sign in. It shows the recurring tasks the committee owes (the Sport80 import every 30 days turns red when overdue and only clears when the import runs), the size and certification of the roster, club coverage against the one certified pair per club goal, new contact requests, referees who have not taken their baseline assessment, programs in progress and overdue, the weakest rules across the pool (a direct input for clinic content) and the compliance watch (expired or missing membership, SafeSport, background check).</p></div>
+
+        <div class="card"><h3 style="margin-top:0">2. Referees</h3>
+          <p>The roster. One record per referee: identity, club, home city and airports, certification level and date, Sport80 member ID, compliance dates, availability notes and admin notes. Open a referee to see and edit everything, add a certification, log a game sheet or record an evaluation. Add referee creates a record by hand; the record's email is what allows the person to sign in (sign in is by invitation only: an email that is not on the roster or in the admin list gets no link). Export CSV gives the roster as a spreadsheet. To update many records at once, use Imports.</p>
+          <p>Removing someone: set the record inactive rather than deleting it, so tournament history and evaluations stay attached.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">3. Inquiries</h3>
+          <p>People who pressed "I want to be contacted" on the public Become a referee page. Each row carries their answers: where they are, club if any, background, availability, message. Work them in order: contact the person, then "Add to roster" when they are ready (it opens a prefilled candidate record; save it and they can sign in), set the status to invited. The dashboard counts the new ones.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">4. Clubs</h3>
+          <p>The USATH club list with city, state and nearest airport, used for coverage statistics and for travel planning. Each club has a pair program status (not started, nominated, mentor assigned, in training, observed, certified pair) that you update as the club progresses. Correct airports and cities here; they drive the "local" flag when staffing.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">5. Tournament requests and staffing</h3>
+          <p>Organizers submit a request on the public page: dates, venue, pairs needed, whether a supervisor is needed, and what they cover (hotel nights, flights, transfers, food, earliest departure). The request arrives here with status submitted. The intended flow:</p>
+          <ol class="steps small">
+            <li><strong>Review.</strong> Open the request, set the sanction and region, set status to reviewing. Note the supervisor need in the header.</li>
+            <li><strong>Find referees.</strong> The Find referees tab lists certified referees, best first: those who declared themselves available for the tournament weekends, then tentative, then not declared; unavailable ones are hidden by default. Local referees (same airport as the venue) are flagged, as are established pairs and season load. Tick the referees to propose and add them as draft invitations. Propose both members of a pair when you want the pair.</li>
+            <li><strong>Send invitations.</strong> Select the drafts and send. Each referee gets an email with the event, what is covered, and three answers: accept, tentative, decline, plus a prompt to sign in. The same proposal appears on their referee home. Answers show on the Invitations tab as they come in; send a reminder after a few days to those still waiting.</li>
+            <li><strong>Confirm.</strong> Select the accepted referees and confirm. The hub checks that the confirmed count matches the pairs requested and that established pairs stay together, and warns if not. Confirming emails each referee the full brief (dates, venue, airport, earliest departure, partner, the rest of the team, organizer contact, coverage) and records the assignment; the tournament moves to staffed.</li>
+            <li><strong>Notify organizer.</strong> Sends the organizer the designated list and the link to their private tournament page, where they see names, levels, clubs, contact details and travel notes, and the coverage they committed to. Send it again after any change.</li>
+            <li><strong>After the event.</strong> On the Officiated and games tab, record who officiated and how many games each. This feeds every referee's history and the season load used at the next staffing.</li>
+          </ol>
+          <p class="small muted">Emails go out from the NRC Referee Hub sender configured on Netlify and are logged; a send that fails is shown with the reason. Referees contact organizers only once confirmed; organizers reach referees through their tournament page.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">6. Questions</h3>
+          <p>The question bank behind the training module, the Level 1 course, the assessments and the programs: the IHF Catalogue of Rules Questions (2025 edition) plus the game situation deck. Each question has a rule number, a difficulty (Level 1 to 3), options and the correct answer with the rule reference. Edit, deactivate or add questions here; difficulty decides which pool a referee is tested on.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">7. Training sessions</h3>
+          <p>Clinics, online rule sessions and certification courses the NRC announces. Published sessions appear on the public Training page under Next training sessions, with date, time zone, location, audience and registration link.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">8. Programs</h3>
+          <p>Two tracks run automatically on the training page, under My program:</p>
+          <p><strong>Candidates</strong> (level candidate) follow the Level 1 online course: six modules by rule group, each with study cards and a module test, a study plan they can push to their calendar, then a timed final test. A pass records the Level 1 certification on their profile with the date; the NRC then schedules the practical parts (signals, whistle, physical test) at a clinic.</p>
+          <p><strong>Certified referees</strong> take a baseline assessment at first sign in: 50 questions at their level by default. At or above the hurdle, they are cleared. Below, the hub builds a program on every rule they scored under the threshold, due in 12 weeks, with study sessions exported to their calendar and a module test per rule, then a re-test; a re-test below the hurdle builds a new program. The Programs page shows every referee's state (signed in or not, baseline date, last score, program status, modules done, due date) and lets you change the parameters of both tracks.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">9. Imports</h3>
+          <p><strong>Roster CSV:</strong> create or update many referees at once from a spreadsheet (match on email, then on name; empty cells keep the current value). Use it for the initial roster and after each NRC review. <strong>Sport80 export:</strong> refreshes membership IDs and expiry dates; this is the recurring 30 day task. <strong>IHF catalogue:</strong> loads a new edition of the question catalogue from its text.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">10. What referees see</h3>
+          <p>After sign in, a referee home with: next assignment, proposals waiting for an answer, compliance alerts, the weekends they declare available, tentative or unavailable (this is what the staffing screen reads), blocked dates, training nudges. Tabs for profile (editable by the referee, level set by the NRC), tournaments officiated, game log, evaluations shared with them, assignments, training results by rule and level. The public Referees page lists certified referees with level, certified since, last certification and club, no contact details.</p></div>
+
+        <div class="card"><h3 style="margin-top:0">11. Accounts and transfer</h3>
+          <p>Hosting (Netlify), database and sign in (Supabase), code (GitHub) and the sending mailbox are held by Thomas Negrel until the hub is transferred to USATH; the transfer checklist is in the README of the code repository. Administrators are added by inserting their email in the admin list before their first sign in.</p></div>
+      </div>
+
       <!-- Questions -->
       <div id="pane-questions" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Quiz questions</h1><button class="btn sm" onclick="openQ(null)">Add question</button></div>
@@ -124,6 +176,13 @@
       <!-- Imports -->
       <div id="pane-imports" class="hidden">
         <h1>Imports</h1>
+        <div class="card">
+          <h3>Referee roster (CSV)</h3>
+          <p class="small">Import or update the roster from a spreadsheet saved as CSV (Excel: File > Save as > CSV). Matched on email, otherwise on first and last name; new emails create a candidate record. Columns recognized, any order: <code>first name</code>, <code>last name</code>, <code>email</code>, <code>phone</code>, <code>club</code> (name as in the Clubs list), <code>city</code>, <code>state</code>, <code>airport</code>, <code>level</code> (candidate, 1, 2, 3, nachc, ihf), <code>certified</code> or <code>cert date</code>, <code>member id</code>, <code>membership expiry</code>, <code>safesport</code>, <code>background</code>, <code>notes</code>. Empty cells leave the current value in place.</p>
+          <input type="file" id="roster-file" accept=".csv,text/csv">
+          <p style="margin-top:10px"><button class="btn sm" onclick="importRoster()">Run roster import</button></p>
+          <div id="roster-result" class="small"></div>
+        </div>
         <div class="card">
           <h3>Sport80 membership export</h3>
           <p class="small">Export the referee membership list from Sport80 as CSV. The importer matches on email (then on first and last name) and updates the membership validity date and member ID. Expected columns, any order, header names flexible: <code>email</code>, <code>first name</code>, <code>last name</code>, <code>member id</code>, <code>expiry</code> or <code>valid until</code>. Unmatched rows are listed for review and nothing is created automatically.</p>
@@ -219,8 +278,9 @@
       <button class="btn sm secondary" type="button" onclick="sendSelected('reminder')">Send reminder</button>
       <button class="btn sm yellow" type="button" onclick="sendSelected('confirm')">Confirm selected (accepted only)</button>
       <button class="btn sm ghost" type="button" onclick="removeSelected()">Remove draft</button>
+      <button class="btn sm" type="button" id="btn-organizer" onclick="notifyOrganizer()">Notify organizer</button>
     </div>
-    <p class="small muted">Invite sets status to sent and emails the referee with accept and decline links. Confirm emails the final selection and creates the assignment. Emails require RESEND_API_KEY on Netlify; without it the rows are recorded and marked not sent.</p>
+    <p class="small muted">Invite emails the referee with accept, tentative and decline links and a prompt to sign in; the proposal also shows on their referee home. Confirm checks the count against the pairs requested and keeps established pairs together, then emails each confirmed referee the full brief and creates the assignment. Notify organizer emails the organizer the designated list and their private tournament page. See the Guide for the full flow.</p>
   </div>
 
   <div id="ttab-candidates" class="hidden">

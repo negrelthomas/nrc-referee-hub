@@ -30,7 +30,9 @@ supabase/
   seed_mock_referees.sql   optional: five fictional referees (emails @demo.nrc) for reviewing the directory and profiles
   training_sessions.sql    training_sessions table (also included at the end of schema.sql)
   level1_pathway.sql       public referee list view, contact requests, Level 1 course and test, baseline assessment and programs (also in schema.sql)
-netlify/functions/        send-invitations.mjs (invite, reminder, confirm emails), respond.mjs (accept or decline from the email link)
+  staffing_v2.sql          weekend availability, tentative answers, supervisor need, organizer token (also in schema.sql; run its first line alone)
+  update_real_referees.sql real emails for the three CalCup referees
+netlify/functions/        mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data)
 netlify.toml, package.json
 ```
 
@@ -71,7 +73,9 @@ Domain and DNS, Netlify site ownership, Supabase project ownership (Organization
 
 Admin > Tournament requests > Open. Three tabs: Find referees (level filter, local airport first, blocked dates from the referees' availability, season games, established partner), Invitations (draft, send, remind, confirm), Officiated and games (what feeds each referee's history). Referees answer from the email links (respond.html, token based, no sign in) or from their home page. Confirming creates the assignment and emails the confirmation with what the organizer covers.
 
-Email needs four environment variables on Netlify (Site configuration > Environment variables): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Supabase > Project settings > API, service role, server only), `RESEND_API_KEY` (resend.com, free tier), `MAIL_FROM` (a verified sender on Resend, e.g. `NRC Referee Hub <thomas@calheat.com>` until USATH's domain is verified), `SITE_URL` (the Netlify URL). Without these the admin can still track invitations; the send buttons record the attempt as not sent. Every email is logged in `email_log`.
+Email needs these environment variables on Netlify (Site configuration > Environment variables): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Supabase > Project settings > API keys, service role, server only), `GMAIL_USER` and `GMAIL_APP_PASSWORD` (the same Gmail account and app password used for the Supabase auth SMTP), `MAIL_FROM` (e.g. `NRC Referee Hub <negrel.thomas@gmail.com>`), `SITE_URL` (the Netlify URL). `RESEND_API_KEY` works as an alternative transport. Without a transport the admin can still track invitations; the send buttons record the attempt as not sent. Every email is logged in `email_log`.
+
+Staffing flow: organizer request (with supervisor need) > Find referees (declared weekend availability first, local flag, pairs) > invitations with accept, tentative, decline and a sign in prompt > confirm (count and pair checks, full brief emailed, assignment created) > Notify organizer (designated list and private page `tournament.html?token=`). Referees declare weekend availability on their home page.
 
 ## Phase 3 (evaluations at scale)
 

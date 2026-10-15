@@ -40,11 +40,12 @@ async function send(note) {
   const when = t.start_date ? `${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}, ${[t.venue_city, t.venue_state].filter(Boolean).join(", ")}` : "";
   if (d.already) { $("#title").textContent = "Already " + d.status; $("#text").textContent = `${t.name}: this invitation is ${d.status}. Contact the NRC if something changed.`; return; }
   if (d.status === "accepted") { $("#title").textContent = "Thank you" + (d.name ? ", " + d.name : ""); $("#text").innerHTML = `You accepted <strong>${NRC.esc(t.name)}</strong>, ${NRC.esc(when)}. The NRC confirms the final selection by email; nothing to book until then.`; }
+  else if (d.status === "tentative") { $("#title").textContent = "Marked as tentative"; $("#text").innerHTML = `<strong>${NRC.esc(t.name)}</strong>, ${NRC.esc(when)}: the NRC sees you as a possible, not yet confirmed. Sign in to your <a href="profile.html">referee home</a> to confirm or decline when you know.`; }
   else { $("#title").textContent = "Answer recorded"; $("#text").innerHTML = `You declined <strong>${NRC.esc(t.name)}</strong>. Thank you for answering quickly; it helps the NRC staff the event.`; }
 }
 document.addEventListener("DOMContentLoaded", () => {
   if (!token || !answer) { $("#title").textContent = "Missing link details"; $("#text").textContent = "Open the link from the invitation email."; return; }
-  $("#title").textContent = answer === "accept" ? "Accept this invitation" : "Decline this invitation";
+  $("#title").textContent = answer === "accept" ? "Accept this invitation" : answer === "tentative" ? "Mark as tentative" : "Decline this invitation";
   $("#text").textContent = "Add a note if useful, then send.";
   $("#note-wrap").classList.remove("hidden");
   $("#btn-send").onclick = () => { $("#btn-send").disabled = true; send($("#note").value.trim()); };

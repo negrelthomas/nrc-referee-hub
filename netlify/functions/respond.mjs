@@ -7,11 +7,11 @@ export default async (req) => {
   const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY } = process.env;
   const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   const { token, answer, note } = await req.json();
-  if (!token || !["accept", "decline"].includes(answer)) return json(400, { error: "token and answer required" });
+  if (!token || !["accept", "decline", "tentative"].includes(answer)) return json(400, { error: "token and answer required" });
   const { data: r } = await admin.from("assignment_requests").select("id,status,referee_id,tournament_id,tournaments(name,start_date,end_date,venue_city,venue_state),referees(first_name)").eq("token", token).maybeSingle();
   if (!r) return json(404, { error: "This link is not valid." });
   if (["confirmed", "cancelled"].includes(r.status)) return json(200, { already: true, status: r.status, tournament: r.tournaments, name: r.referees?.first_name });
-  const status = answer === "accept" ? "accepted" : "declined";
+  const status = answer === "accept" ? "accepted" : answer === "tentative" ? "tentative" : "declined";
   await admin.from("assignment_requests").update({ status, responded_at: new Date().toISOString(), response_note: note || null }).eq("id", r.id);
   return json(200, { status, tournament: r.tournaments, name: r.referees?.first_name });
 };

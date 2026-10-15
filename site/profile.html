@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
+<style>.weekends{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}.weekends button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 4px;font-size:13px;cursor:pointer;line-height:1.2}.weekends button.available{background:#E3F6E8;border-color:#2E9E5B;color:#17532D}.weekends button.tentative{background:#FFF4D6;border-color:#D99A00;color:#6B4C00}.weekends button.unavailable{background:#FBE3E6;border-color:#C8102E;color:#7A0A1C}</style>
 </head>
 <body data-page="profile.html">
 <a class="skip" href="#main">Skip to content</a>
@@ -41,7 +42,9 @@
     <div id="home-next"></div>
     <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
     <div class="grid c2" style="margin-top:14px">
-      <div class="card"><h3>Availability</h3><p class="small muted">Dates you cannot referee. The NRC checks this before inviting you.</p>
+      <div class="card"><h3>Weekends I can referee</h3><p class="small muted">Tap a weekend to cycle: available, tentative, unavailable. The NRC sees this when staffing a tournament; weekends you leave blank count as unknown.</p>
+        <div id="weekends" class="weekends"></div>
+        <h3 style="margin-top:16px">Blocked dates</h3><p class="small muted">Longer periods you cannot referee (travel, season with your club).</p>
         <div class="avail-list" id="avail-list"></div>
         <form id="avail-form" class="row" style="margin-top:10px;grid-template-columns:1fr 1fr auto;align-items:end;gap:8px">
           <div><label>From</label><input name="start_date" type="date" required></div>
@@ -191,7 +194,23 @@ async function loadHome() {
   const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n)[0];
   $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
 }
+let WA = {};
+function saturday(d) { const x = new Date(d); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); x.setHours(12, 0, 0, 0); return x; }
+async function loadWeekends() {
+  const { data } = await NRC.sb.from("weekend_availability").select("*").eq("referee_id", ref.id).gte("weekend", new Date().toISOString().slice(0, 10));
+  WA = {}; (data || []).forEach(r => WA[r.weekend] = r.status);
+  const host = $("#weekends"); host.innerHTML = "";
+  let d = saturday(new Date());
+  for (let i = 0; i < 26; i++) {
+    const key = d.toISOString().slice(0, 10); const st = WA[key] || "";
+    const b = document.createElement("button"); b.type = "button"; b.className = st; b.dataset.w = key;
+    b.innerHTML = d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "<br><span class='small'>" + (st || "unknown") + "</span>";
+    b.onclick = async () => { const next = { "": "available", available: "tentative", tentative: "unavailable", unavailable: "available" }[st]; const { error } = await NRC.sb.from("weekend_availability").upsert({ referee_id: ref.id, weekend: key, status: next, updated_at: new Date().toISOString() }, { onConflict: "referee_id,weekend" }); if (error) NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); else loadWeekends(); };
+    host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7);
+  }
+}
 async function loadAvail() {
+  loadWeekends();
   const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", new Date().toISOString().slice(0, 10)).order("start_date");
   $("#avail-list").innerHTML = (data || []).map(b => `<div><span>${NRC.fmtDate(b.start_date)}${b.end_date !== b.start_date ? " to " + NRC.fmtDate(b.end_date) : ""}${b.note ? ' <span class="small muted">' + NRC.esc(b.note) + "</span>" : ""}</span><button class="btn ghost sm" onclick="delAvail('${b.id}')">Remove</button></div>`).join("") || '<div class="small muted">No blocked dates. You are shown as available.</div>';
 }
@@ -250,8 +269,8 @@ async function loadEvals() {
 }
 async function loadAssignments() {
   const { data } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,sanction,start_date,end_date,venue_city,venue_state)").eq("referee_id", ref.id).order("created_at", { ascending: false });
-  const STATUS = { sent: "amber", accepted: "green", declined: "red", confirmed: "green" };
-  $("#asg tbody").innerHTML = (data || []).filter(a => a.status !== "draft").map(a => `<tr><td><strong>${NRC.esc(a.tournaments.name)}</strong>${a.tournaments.sanction ? ' <span class="pill">' + (SANCTION[a.tournaments.sanction] || "") + "</span>" : ""}</td><td>${NRC.fmtDate(a.tournaments.start_date)} to ${NRC.fmtDate(a.tournaments.end_date)}</td><td>${NRC.esc([a.tournaments.venue_city, a.tournaments.venue_state].filter(Boolean).join(", "))}</td><td>${a.status === "sent" ? `<button class="btn sm" onclick="respond('${a.id}','accepted')">Accept</button> <button class="btn sm ghost" onclick="respond('${a.id}','declined')">Decline</button>` : `<span class="pill ${STATUS[a.status] || ""}">${NRC.esc(a.status.replace("_", " "))}</span>`}</td></tr>`).join("") || '<tr><td colspan="4">No invitation yet. The NRC invites referees by email; invitations also appear here.</td></tr>';
+  const STATUS = { sent: "amber", accepted: "green", tentative: "amber", declined: "red", confirmed: "green" };
+  $("#asg tbody").innerHTML = (data || []).filter(a => a.status !== "draft").map(a => `<tr><td><strong>${NRC.esc(a.tournaments.name)}</strong>${a.status === "tentative" ? ' <button class="btn sm" onclick="respond(\'' + a.id + '\',\'accepted\')">Confirm now</button>' : ""}${a.tournaments.sanction ? ' <span class="pill">' + (SANCTION[a.tournaments.sanction] || "") + "</span>" : ""}</td><td>${NRC.fmtDate(a.tournaments.start_date)} to ${NRC.fmtDate(a.tournaments.end_date)}</td><td>${NRC.esc([a.tournaments.venue_city, a.tournaments.venue_state].filter(Boolean).join(", "))}</td><td>${a.status === "sent" ? `<button class="btn sm" onclick="respond('${a.id}','accepted')">Accept</button> <button class="btn sm secondary" onclick="respond('${a.id}','tentative')">Tentative</button> <button class="btn sm ghost" onclick="respond('${a.id}','declined')">Decline</button>` : `<span class="pill ${STATUS[a.status] || ""}">${NRC.esc(a.status.replace("_", " "))}</span>`}</td></tr>`).join("") || '<tr><td colspan="4">No invitation yet. The NRC invites referees by email; invitations also appear here.</td></tr>';
 }
 document.addEventListener("DOMContentLoaded", load);
 </script>

@@ -4,7 +4,8 @@
 -- ---------------------------------------------------------------
 -- Public referee list (no contact details). Certified, active referees only.
 -- ---------------------------------------------------------------
-create or replace view public.referee_directory as
+drop view if exists public.referee_directory;
+create view public.referee_directory as
 select r.id,
        r.first_name,
        r.last_name,
@@ -210,7 +211,8 @@ create policy programs_own on public.programs for all using (user_id = auth.uid(
 grant select, insert, update on public.programs to authenticated;
 
 -- Admin overview: one row per referee with sign in status, baseline and program state
-create or replace view public.referee_program_status as
+drop view if exists public.referee_program_status;
+create view public.referee_program_status as
 select r.id as referee_id, r.first_name, r.last_name, r.cert_level, r.user_id,
        (select max(created_at) from public.assessments a where a.user_id = r.user_id and a.kind = 'baseline') as baseline_at,
        (select pct from public.assessments a where a.user_id = r.user_id order by created_at desc limit 1) as last_pct,

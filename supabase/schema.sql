@@ -409,7 +409,8 @@ drop policy if exists referees_admin on public.referees;
 create policy referees_admin on public.referees for all using (public.is_admin()) with check (public.is_admin());
 
 -- directory view for signed in referees (no contact details, no admin notes)
-create or replace view public.referee_directory as
+drop view if exists public.referee_directory;
+create view public.referee_directory as
   select r.id, r.first_name, r.last_name, r.photo_url, r.home_city, r.home_state,
          r.home_airport_iata, r.cert_level, r.active, c.name as club_name, c.id as club_id
   from public.referees r left join public.clubs c on c.id = r.club_id
@@ -778,7 +779,8 @@ create policy programs_own on public.programs for all using (user_id = auth.uid(
 grant select, insert, update on public.programs to authenticated;
 
 -- Admin overview: one row per referee with sign in status, baseline and program state
-create or replace view public.referee_program_status as
+drop view if exists public.referee_program_status;
+create view public.referee_program_status as
 select r.id as referee_id, r.first_name, r.last_name, r.cert_level, r.user_id,
        (select max(created_at) from public.assessments a where a.user_id = r.user_id and a.kind = 'baseline') as baseline_at,
        (select pct from public.assessments a where a.user_id = r.user_id order by created_at desc limit 1) as last_pct,
@@ -789,3 +791,33 @@ from public.referees r
 left join lateral (select * from public.programs x where x.user_id = r.user_id order by created_at desc limit 1) p on true
 where r.active and public.is_admin();
 grant select on public.referee_program_status to authenticated;
+-- Staffing v2: weekend availability, tentative answers, supervisor need, organizer status page.
+-- Run the first statement on its own (Postgres cannot add an enum value and use it in the same transaction), then the rest.
+
+alter type request_status add value if not exists 'tentative';
+
+-- ---------------------------------------------------------------
+-- Weekend availability declared by referees (Saturday date identifies the weekend)
+-- ---------------------------------------------------------------
+create table if not exists public.weekend_availability (
+  referee_id uuid not null references public.referees(id) on delete cascade,
+  weekend date not null,                 -- the Saturday
+  status text not null default 'available' check (status in ('available','unavailable','tentative')),
+  note text,
+  updated_at timestamptz not null default now(),
+  primary key (referee_id, weekend)
+);
+alter table public.weekend_availability enable row level security;
+drop policy if exists wa_own on public.weekend_availability;
+create policy wa_own on public.weekend_availability for all
+  using (public.is_admin() or referee_id in (select id from public.referees where user_id = auth.uid()))
+  with check (public.is_admin() or referee_id in (select id from public.referees where user_id = auth.uid()));
+grant select, insert, update, delete on public.weekend_availability to authenticated;
+
+-- ---------------------------------------------------------------
+-- Tournament request: supervisor need, organizer access token
+-- ---------------------------------------------------------------
+alter table public.tournaments add column if not exists supervisor_needed boolean not null default false;
+alter table public.tournaments add column if not exists supervisor_notes text;
+alter table public.tournaments add column if not exists organizer_token uuid not null default gen_random_uuid();
+alter table public.tournaments add column if not exists organizer_notified_at timestamptz;
