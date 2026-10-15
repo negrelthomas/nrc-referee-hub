@@ -53,17 +53,20 @@
   };
 
   // ---------- auth ----------
-  let _user = null, _userLoaded = false;
-  NRC.currentUser = async function () {
-    if (_userLoaded) return _user;
-    _userLoaded = true;
-    if (!NRC.sb) return null;
-    const { data } = await NRC.sb.auth.getSession();
-    const s = data && data.session;
-    if (!s) return null;
-    const { data: p } = await NRC.sb.from("profiles").select("id,email,role,full_name").eq("id", s.user.id).maybeSingle();
-    _user = { id: s.user.id, email: s.user.email, role: (p && p.role) || "referee", full_name: p && p.full_name };
-    return _user;
+  // One shared lookup per page load: concurrent callers (nav and page) await the same promise,
+  // so the second caller never sees a stale null while the first is still in flight.
+  let _userPromise = null;
+  NRC.currentUser = function () {
+    if (_userPromise) return _userPromise;
+    _userPromise = (async () => {
+      if (!NRC.sb) return null;
+      const { data } = await NRC.sb.auth.getSession();
+      const s = data && data.session;
+      if (!s) return null;
+      const { data: p } = await NRC.sb.from("profiles").select("id,email,role,full_name").eq("id", s.user.id).maybeSingle();
+      return { id: s.user.id, email: s.user.email, role: (p && p.role) || "referee", full_name: p && p.full_name };
+    })();
+    return _userPromise;
   };
   NRC.requireUser = async function (role) {
     const u = await NRC.currentUser();
