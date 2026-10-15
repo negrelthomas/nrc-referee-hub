@@ -19,7 +19,7 @@
     <div>
       <p class="kicker">USA Team Handball, National Referee Committee</p>
       <h1>No referee, no game.</h1>
-      <p class="sub">Every handball match in the United States depends on two people with a whistle. The NRC recruits, trains and supports them. This is where it happens.</p>
+      <p class="sub">Two people with a whistle make every match possible. The NRC recruits them, trains them and puts them on the court. Start here.</p>
       <div class="actions">
         <a class="btn" href="become-a-referee.html">Become a referee</a>
         <a class="btn yellow" href="training.html">Train on the rules</a>
@@ -33,35 +33,46 @@
 <div id="config-banner" class="notice hidden" style="margin-top:16px">Supabase is not configured yet. Public pages and the training module work; sign in, profiles and the admin area need <code>js/config.js</code> filled in.</div>
 
 <section>
-  <h2>Why referees matter</h2>
-  <div class="grid c3">
-    <div class="card">
-      <h3>The game only exists with them</h3>
-      <p>Tournaments, leagues, collegiate championships and national team preparation all need certified pairs on the court. When a region has no referees, it has no sanctioned competition, and players stop progressing.</p>
-    </div>
-    <div class="card">
-      <h3>Quality on the court starts with the whistle</h3>
-      <p>Fair, consistent and safe games come from referees who know the IHF rules, manage the game well and work as a pair. That standard is what the NRC trains, observes and certifies.</p>
-    </div>
-    <div class="card">
-      <h3>A real path, up to the international level</h3>
-      <p>USATH certifies referees at Level 1, 2 and 3. The best go on to the continental level with NACHC and to the IHF. Every tournament you work is a step on that path, with feedback from the committee.</p>
-    </div>
+  <div class="band">
+    <div><div class="n" id="st-refs">&nbsp;</div><div class="l">Certified referees on the roster</div></div>
+    <div><div class="n" id="st-clubs">&nbsp;</div><div class="l">Active USATH clubs</div></div>
+    <div><div class="n" id="st-with-pair">&nbsp;</div><div class="l">Clubs with their own certified pair</div></div>
+    <div><div class="n" id="st-questions">545</div><div class="l">Rules questions to train on</div></div>
   </div>
 </section>
 
 <section>
-  <h2>What the hub does</h2>
-  <div class="grid c2">
-    <div class="card">
-      <h3>For referees</h3>
-      <p>Keep your profile current (club, home base, airport, certification), train on the IHF rules in a few minutes a day, see your games and the feedback from observers, and respond to tournament assignments.</p>
-      <p><a href="login.html">Sign in</a> or <a href="become-a-referee.html">start the certification path</a>.</p>
+  <h2>Why it matters</h2>
+  <div class="grid c3">
+    <div class="icard"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M7 5.5c3 2 7 2 10 0M5.5 15c3-2 10-2 13 0M12 3v18"/></svg></div><h3>No pair, no sanctioned game</h3><p>Leagues, tournaments and championships only run with certified referees on the court.</p></div>
+    <div class="icard"><div class="ico"><svg viewBox="0 0 24 24"><path d="M14 4h6v4h-6zM14 6H9a6 6 0 0 0 0 12h1l3 3"/><circle cx="9" cy="12" r="2"/></svg></div><h3>Quality starts with the whistle</h3><p>Fair, safe and consistent games come from referees who know the IHF rules and work as a pair.</p></div>
+    <div class="icard"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 20 10 14l4 4 6-8"/><path d="M16 10h4v4"/></svg></div><h3>A path to the top</h3><p>Level 1 to Level 3, then NACHC and the IHF. Every game you work is a step, with feedback recorded here.</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>From first contact to first game</h2>
+  <div class="strip">
+    <div><div class="k">1</div><h3>Tell the NRC</h3><p>A short form. A committee member calls you back.</p></div>
+    <div><div class="k">2</div><h3>Learn the rules</h3><p>Six online modules on your phone, ten minutes at a time.</p></div>
+    <div><div class="k">3</div><h3>Pass the test</h3><p>Level 1 is recorded on your profile the moment you pass.</p></div>
+    <div><div class="k">4</div><h3>Whistle your first game</h3><p>Paired with an experienced referee, observed, supported.</p></div>
+  </div>
+  <p style="margin-top:14px" class="cta-row"><a class="btn" href="become-a-referee.html">See the full path</a> <a class="btn secondary" href="training.html#program">Open the Level 1 course</a></p>
+</section>
+
+<section>
+  <h2>Already a referee, or running an event?</h2>
+  <div class="split2">
+    <div class="panel">
+      <h3>Referees</h3>
+      <p>Your profile, the weekends you can work, your assignments, the feedback from observers and your training results by rule. A 50 question assessment at first sign in builds your personal program.</p>
+      <p class="cta-row"><a class="btn secondary" href="login.html">Sign in</a></p>
     </div>
-    <div class="card">
-      <h3>For tournament organizers</h3>
-      <p>Submit your referee request once, with dates, venue and what you cover. The NRC selects the pairs and confirms them with you.</p>
-      <p><a href="request-referees.html">Request referees for a tournament</a></p>
+    <div class="panel yellow">
+      <h3>Tournament organizers</h3>
+      <p>One request with dates, venue and what you cover. The NRC proposes the pairs, confirms them and sends you the designated list with their travel details.</p>
+      <p class="cta-row"><a class="btn" href="request-referees.html">Request referees for a tournament</a></p>
     </div>
   </div>
 </section>
@@ -69,25 +80,23 @@
 <section>
   <h2>One certified pair in every club</h2>
   <div class="card">
-    <p>The NRC's goal is simple to state: every active USATH club should have at least one certified referee pair of its own. Clubs nominate two members, the NRC assigns a mentor and the training path, and the pair gets observed at a tournament before certification. The club coverage map on this site shows where we stand.</p>
-    <div class="grid c4" id="coverage-stats">
-      <div class="stat"><div class="n" id="st-clubs">&nbsp;</div><div class="l">Active clubs</div></div>
-      <div class="stat good"><div class="n" id="st-with-pair">&nbsp;</div><div class="l">Clubs with a certified pair</div></div>
+    <p style="margin-bottom:12px">The NRC's goal: every active USATH club with a certified pair of its own. Clubs nominate two members, the NRC assigns a mentor and the training path, and the pair gets observed at a tournament before certification.</p>
+    <div class="grid c3" id="coverage-stats">
+      <div class="stat good"><div class="n" id="st-with-pair-2">&nbsp;</div><div class="l">Clubs with a certified pair</div></div>
       <div class="stat"><div class="n" id="st-with-ref">&nbsp;</div><div class="l">Clubs with at least one referee</div></div>
-      <div class="stat bad"><div class="n" id="st-none">&nbsp;</div><div class="l">Clubs with no referee</div></div>
+      <div class="stat bad"><div class="n" id="st-none">&nbsp;</div><div class="l">Clubs with no referee yet</div></div>
     </div>
-    <p class="small muted" style="margin-top:12px">Clubs: <a href="referees.html">see the full coverage list</a>. Is your club missing a referee? Write to <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>.</p>
+    <p class="small muted" style="margin:12px 0 0">Is your club on the wrong side of this? Write to <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>.</p>
   </div>
 </section>
 
 <section>
-  <h2>Reference documents</h2>
-  <div class="card">
-    <ul>
-      <li><a href="https://www.usateamhandball.org/refereeing" target="_blank" rel="noopener">USATH Refereeing page</a>: NRC constitution, guidance to event organizers, competition rulebook</li>
-      <li><a href="https://www.usateamhandball.org/refereeing/refereeing-general-certification" target="_blank" rel="noopener">USATH referee certification requirements</a></li>
-      <li>IHF Rules of the Game (2024) and the IHF Catalogue of Rules Questions (2025): linked from the USATH Refereeing page</li>
-    </ul>
+  <h2>Reference</h2>
+  <div class="links">
+    <a href="https://www.usateamhandball.org/refereeing" target="_blank" rel="noopener">USATH Refereeing</a>
+    <a href="https://www.usateamhandball.org/refereeing/refereeing-general-certification" target="_blank" rel="noopener">Certification requirements</a>
+    <a href="https://www.ihf.info/regulations-documents" target="_blank" rel="noopener">IHF Rules of the Game</a>
+    <a href="training.html">Catalogue of Rules Questions, in the training module</a>
   </div>
 </section>
 </div>
@@ -99,10 +108,12 @@
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
   if (!NRC.sb) return;
-  const { data } = await NRC.sb.from("club_coverage").select("*");
+  const [{ data }, { count }] = await Promise.all([NRC.sb.from("club_coverage").select("*"), NRC.sb.from("referee_directory").select("id", { count: "exact", head: true })]);
   if (!data) return;
+  NRC.$("#st-refs").textContent = count == null ? "" : count;
   NRC.$("#st-clubs").textContent = data.length;
-  NRC.$("#st-with-pair").textContent = data.filter(c => c.has_certified_pair).length;
+  const pairs = data.filter(c => c.has_certified_pair).length;
+  NRC.$("#st-with-pair").textContent = pairs; NRC.$("#st-with-pair-2").textContent = pairs;
   NRC.$("#st-with-ref").textContent = data.filter(c => c.referee_count > 0).length;
   NRC.$("#st-none").textContent = data.filter(c => c.referee_count == 0).length;
 });
