@@ -12,9 +12,9 @@
   NRC.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   NRC.fmtDate = (d) => (d ? new Date(d + (String(d).length === 10 ? "T00:00:00" : "")).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "");
   NRC.levelLabel = (l) => ({ candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3 (National)", nachc: "NACHC Continental", ihf: "IHF International" }[l] || l || "");
-  NRC.levelPill = (l) => {
+  NRC.levelPill = (l, confirmed) => {
     const cls = l === "candidate" ? "amber" : l === "level_1" ? "" : "green";
-    return `<span class="pill ${cls}">${NRC.esc(NRC.levelLabel(l))}</span>`;
+    return `<span class="pill ${cls}">${NRC.esc(NRC.levelLabel(l))}</span>` + (confirmed === false ? ' <span class="pill amber" title="Level entered from correspondence, not yet confirmed by the NRC">NRC to confirm</span>' : "");
   };
   NRC.notice = (el, msg, kind) => { if (!el) return; el.className = "notice " + (kind || ""); el.innerHTML = msg; el.classList.remove("hidden"); };
   NRC.shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };

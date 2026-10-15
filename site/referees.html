@@ -54,7 +54,7 @@ function render() {
     : sort === "since" ? String(a.certified_since || "9").localeCompare(String(b.certified_since || "9"))
     : sort === "last" ? String(b.last_certified_on || "").localeCompare(String(a.last_certified_on || ""))
     : a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
-  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level)}</td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
+  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}</td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
   if (!list.length) tb.innerHTML = '<tr><td colspan="6">No referee matches.</td></tr>';
 }
 document.addEventListener("DOMContentLoaded", async () => {

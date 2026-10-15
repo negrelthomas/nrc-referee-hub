@@ -127,7 +127,7 @@ async function load() {
   if (ref) {
     ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
     if (ref.photo_url) $("#photo").src = ref.photo_url;
-    $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", "");
+    $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", "") + (ref.level1_theory_passed_on && ref.cert_level === "candidate" ? ", theory passed" : "");
     const today = new Date().toISOString().slice(0, 10);
     const item = (l, d) => `<div>${l}: ${d ? (d >= today ? '<span class="pill green">valid to ' + NRC.fmtDate(d) + '</span>' : '<span class="pill red">expired ' + NRC.fmtDate(d) + '</span>') : '<span class="pill amber">not on file</span>'}</div>`;
     $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);

@@ -31,7 +31,8 @@ supabase/
   training_sessions.sql    training_sessions table (also included at the end of schema.sql)
   level1_pathway.sql       public referee list view, contact requests, Level 1 course and test, baseline assessment and programs (also in schema.sql)
   staffing_v2.sql          weekend availability, tentative answers, supervisor need, organizer token (also in schema.sql; run its first line alone)
-  update_real_referees.sql real emails for the three CalCup referees
+  update_real_referees.sql real emails for the three CalCup referees and the CalCup 2027 respondents
+  confirm_and_theory.sql   level_confirmed badge, level1_theory_passed_on, award function records theory passed only
 netlify/functions/        mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data)
 netlify.toml, package.json
 ```

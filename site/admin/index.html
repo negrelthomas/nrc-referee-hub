@@ -153,7 +153,7 @@
 
         <div class="card"><h3 style="margin-top:0">8. Programs</h3>
           <p>Two tracks run automatically on the training page, under My program:</p>
-          <p><strong>Candidates</strong> (level candidate) follow the Level 1 online course: six modules by rule group, each with study cards and a module test, a study plan they can push to their calendar, then a timed final test. A pass records the Level 1 certification on their profile with the date; the NRC then schedules the practical parts (signals, whistle, physical test) at a clinic.</p>
+          <p><strong>Candidates</strong> (level candidate) follow the Level 1 online course: six modules by rule group, each with study cards and a module test, a study plan they can push to their calendar, then a timed final test. A pass records "theory passed" with the date on their profile (visible in the Referees list); the NRC schedules the practical part (signals, whistle, physical test) at a clinic and then sets the level to Level 1 on the record. Referees whose level was entered from correspondence carry an "NRC to confirm" badge until you tick "Level confirmed" on their record.</p>
           <p><strong>Certified referees</strong> take a baseline assessment at first sign in: 50 questions at their level by default. At or above the hurdle, they are cleared. Below, the hub builds a program on every rule they scored under the threshold, due in 12 weeks, with study sessions exported to their calendar and a module test per rule, then a re-test; a re-test below the hurdle builds a new program. The Programs page shows every referee's state (signed in or not, baseline date, last score, program status, modules done, due date) and lets you change the parameters of both tracks.</p></div>
 
         <div class="card"><h3 style="margin-top:0">9. Imports</h3>
@@ -219,6 +219,7 @@
     <div class="row"><div><label>USATH member ID</label><input name="usath_member_id"></div><div><label>Membership valid until</label><input name="usath_membership_valid_until" type="date"></div></div>
     <div class="row"><div><label>SafeSport valid until</label><input name="safesport_valid_until" type="date"></div><div><label>Background check valid until</label><input name="background_check_valid_until" type="date"></div></div>
     <label>Admin notes (not visible to the referee)</label><textarea name="admin_notes"></textarea>
+    <label><input type="checkbox" name="level_confirmed" style="width:auto" checked> Level confirmed by the NRC (untick to show an "NRC to confirm" badge)</label>
     <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
     <div id="ref-extra"></div>
     <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-ref').close()">Cancel</button><button class="btn ghost" type="button" id="btn-eval" onclick="openEval()">Add evaluation</button><button class="btn ghost" type="button" id="btn-game" onclick="openGame()">Log game</button></p>

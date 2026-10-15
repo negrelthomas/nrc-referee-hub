@@ -29,7 +29,7 @@ let rows = [];
 function render() {
   const q = NRC.$("#q").value.toLowerCase(), l = NRC.$("#f-level").value;
   NRC.$("#list").innerHTML = rows.filter(r => (!l || r.cert_level === l) && (!q || [r.first_name, r.last_name, r.club_name, r.home_city, r.home_state, r.home_airport_iata].join(" ").toLowerCase().includes(q)))
-    .map(r => `<div class="card" style="display:flex;gap:14px;align-items:center"><img class="avatar lg" src="${r.photo_url ? NRC.esc(r.photo_url) : 'assets/avatar.svg'}" alt=""><div><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong><br>${NRC.levelPill(r.cert_level)}<div class="small muted" style="margin-top:6px">${NRC.esc(r.club_name || "No club")}<br>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " &middot; " + NRC.esc(r.home_airport_iata) : ""}</div></div></div>`).join("") || '<div class="card">No referee matches.</div>';
+    .map(r => `<div class="card" style="display:flex;gap:14px;align-items:center"><img class="avatar lg" src="${r.photo_url ? NRC.esc(r.photo_url) : 'assets/avatar.svg'}" alt=""><div><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong><br>${NRC.levelPill(r.cert_level, r.level_confirmed)}<div class="small muted" style="margin-top:6px">${NRC.esc(r.club_name || "No club")}<br>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " &middot; " + NRC.esc(r.home_airport_iata) : ""}</div></div></div>`).join("") || '<div class="card">No referee matches.</div>';
 }
 document.addEventListener("DOMContentLoaded", async () => {
   if (!await NRC.requireUser()) return;
