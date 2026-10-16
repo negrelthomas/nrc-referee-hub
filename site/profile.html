@@ -216,8 +216,10 @@ async function loadHome() {
     : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC confirms you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`) + travelHtml;
   // alerts
   const alerts = [];
-  const { data: pend } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,start_date)").eq("referee_id", ref.id).eq("status", "sent");
-  (pend || []).forEach(p => alerts.push(`<div class="alert"><div><div class="t">Invitation waiting for your answer</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}</div></div><a class="btn sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Respond</a></div>`));
+  const { data: pend } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,start_date)").eq("referee_id", ref.id).in("status", ["sent", "tentative"]).gte("tournaments.start_date", today);
+  (pend || []).filter(p => p.tournaments).forEach(p => alerts.push(p.status === "sent"
+    ? `<div class="alert warn"><div><div class="t">Invitation waiting for your answer</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}. Accept, tentative or decline; the NRC confirms the final selection.</div></div><span><button class="btn sm" onclick="respond('${p.id}','accepted')">Accept</button> <button class="btn sm secondary" onclick="respond('${p.id}','tentative')">Tentative</button> <button class="btn sm ghost" onclick="respond('${p.id}','declined')">Decline</button></span></div>`
+    : `<div class="alert"><div><div class="t">You answered tentative</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}. Confirm or decline when you know; the NRC cannot designate you until then.</div></div><span><button class="btn sm" onclick="respond('${p.id}','accepted')">Confirm now</button> <button class="btn sm ghost" onclick="respond('${p.id}','declined')">Decline</button></span></div>`));
   const soon = d => d && new Date(d) - Date.now() < 60 * 864e5;
   [["USATH membership", ref.usath_membership_valid_until], ["SafeSport certificate", ref.safesport_valid_until], ["Background check", ref.background_check_valid_until]].forEach(([l, d]) => {
     if (!d) alerts.push(`<div class="alert warn"><div><div class="t">${l} not on file</div><div class="small">Ask the NRC to record it, or it will block assignments.</div></div></div>`);

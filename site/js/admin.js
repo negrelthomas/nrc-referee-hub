@@ -14,6 +14,8 @@
     NRC.$$("#panes > div").forEach(p => p.classList.toggle("hidden", p.id !== "pane-" + h));
   }
   window.addEventListener("hashchange", route);
+  // <base href="../"> makes "#pane" links resolve to the site root; keep them on this page
+  document.addEventListener("click", e => { const a = e.target.closest('a[href^="#"]'); if (!a || a.getAttribute("href") === "#" || a.onclick) return; e.preventDefault(); location.hash = a.getAttribute("href"); });
 
   // ---------- load ----------
   async function loadAll() {
@@ -322,7 +324,7 @@
     const ids = (asg || []).map(a => a.id);
     const { data: claims } = ids.length ? await sb().from("expense_claims").select("*").in("assignment_id", ids).order("created_at") : { data: [] };
     const F = fin || {};
-    $("#money-summary").innerHTML = `<span class="chip">NRC paid bookings: $${Number(F.nrc_paid_bookings || 0).toFixed(0)}</span><span class="chip">Organizer paid bookings: $${Number(F.organizer_paid_bookings || 0).toFixed(0)}</span><span class="chip ${Number(F.claims_submitted) ? "on" : ""}">Claims to review: $${Number(F.claims_submitted || 0).toFixed(0)}</span><span class="chip">Approved: $${Number(F.claims_approved || 0).toFixed(0)}</span><span class="chip">Reimbursed: $${Number(F.claims_reimbursed || 0).toFixed(0)}</span>`;
+    $("#money-summary").innerHTML = `<span class="chip">NRC paid bookings: $${Number(F.nrc_paid_bookings || 0).toFixed(0)}</span><span class="chip">Organizer paid bookings: $${Number(F.organizer_paid_bookings || 0).toFixed(0)}</span><span class="chip ${Number(F.referee_paid_bookings) ? "on" : ""}">Referee paid bookings: $${Number(F.referee_paid_bookings || 0).toFixed(0)}</span><span class="chip ${Number(F.claims_submitted) ? "on" : ""}">Claims to review: $${Number(F.claims_submitted || 0).toFixed(0)}</span><span class="chip">Approved: $${Number(F.claims_approved || 0).toFixed(0)}</span><span class="chip">Reimbursed: $${Number(F.claims_reimbursed || 0).toFixed(0)}</span>`;
     $("#claims tbody").innerHTML = (claims || []).map(c => { const a = (asg || []).find(x => x.id === c.assignment_id) || {}; return `<tr><td>${NRC.esc(refName(a.referee_id))}</td><td>${CK[c.kind] || c.kind}</td><td class="small">${NRC.esc(c.description || "")}</td><td><strong>$${Number(c.amount).toFixed(2)}</strong></td><td>${c.receipt_url ? `<a href="#" onclick="openReceipt('${c.receipt_url}');return false">view</a>` : '<span class="muted">none</span>'}</td><td><span class="pill ${c.status === "reimbursed" || c.status === "approved" ? "green" : c.status === "rejected" ? "red" : "amber"}">${c.status}</span></td><td><select onchange="setClaim('${c.id}',{reimbursed_by:this.value})"><option value="organizer" ${c.reimbursed_by === "organizer" ? "selected" : ""}>Organizer</option><option value="nrc" ${c.reimbursed_by === "nrc" ? "selected" : ""}>NRC</option></select></td><td><input value="${NRC.esc(c.review_note || "")}" placeholder="note" onchange="setClaim('${c.id}',{review_note:this.value})" style="min-width:120px"></td><td style="white-space:nowrap"><button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'approved'})">Approve</button> <button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'rejected'})">Reject</button> <button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'reimbursed',paid_at:new Date().toISOString()})">Reimbursed</button></td></tr>`; }).join("") || '<tr><td colspan="9">No expense claim yet. Referees submit them from their home after the event.</td></tr>';
     $("#report-view").innerHTML = rep ? `<div class="card"><h3 style="margin-top:0">Organizer report, ${NRC.fmtDate(rep.submitted_at)}</h3><p class="small">Games played: ${rep.games_played ?? "not given"}. Referee team ${rep.referee_rating ? rep.referee_rating + "/5" : "not rated"}${rep.supervisor_rating ? ", supervisor " + rep.supervisor_rating + "/5" : ""}. Would request again: ${rep.would_request_again ? "yes" : "no"}.</p>${rep.highlights ? "<p class='small'><strong>Went well:</strong> " + NRC.esc(rep.highlights) + "</p>" : ""}${rep.incidents ? "<p class='small'><strong>Incidents:</strong> " + NRC.esc(rep.incidents) + "</p>" : ""}</div>` : '<p class="small muted">No organizer report yet. The organizer is reminded three days after the event.</p>';
   }
@@ -335,7 +337,9 @@
   }
   window.setTourStatus = async function (id, status) { await sb().from("tournaments").update({ status }).eq("id", id); };
   let currentTour = null, pairsCache = [], availCache = [];
-  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "designated", "money", "officiated"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab)); });
+  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "designated", "money", "officiated"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab));
+    // each tab reads fresh data when opened, so a confirmation on one tab shows on the next
+    ({ invites: renderInvites, candidates: renderCandidates, designated: renderDesignated, money: renderMoney, officiated: renderTourAsg }[b.dataset.ttab] || (() => {}))(); });
   window.openTour = async function (id) {
     currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour");
     $("#dlg-tour-title").textContent = currentTour.name;
@@ -389,10 +393,21 @@
     const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, request_ids: ids, kind }) });
     const d = await res.json();
     if (!res.ok) { alert("Failed: " + (d.error || res.status)); return; }
-    if (kind === "confirm") { for (const id of ids) { const i = invites.find(x => x.id === id); await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: i.referee_id, role: "referee" }, { onConflict: "tournament_id,referee_id" }); } if (currentTour.status === "submitted" || currentTour.status === "reviewing") await sb().from("tournaments").update({ status: "staffed" }).eq("id", currentTour.id); }
+    let released = 0;
+    if (kind === "confirm") {
+      for (const id of ids) { const i = invites.find(x => x.id === id); await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: i.referee_id, role: "referee" }, { onConflict: "tournament_id,referee_id" }); }
+      if (currentTour.status === "submitted" || currentTour.status === "reviewing") await sb().from("tournaments").update({ status: "staffed" }).eq("id", currentTour.id);
+      // team complete: close the invitations still open and tell those referees, so nobody waits for an answer that will not come
+      const confirmedNow = invites.filter(i => i.status === "confirmed").length + ids.length;
+      const open = invites.filter(i => ["sent", "tentative"].includes(i.status) && !ids.includes(i.id)).map(i => i.id);
+      if (confirmedNow >= currentTour.pairs_needed * 2 && open.length && confirm(`The team is complete. Close the ${open.length} invitation${open.length > 1 ? "s" : ""} still open and tell those referees they are released?`)) {
+        const r2 = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, request_ids: open, kind: "release" }) });
+        const d2 = await r2.json(); released = r2.ok ? d2.results.filter(r => r.sent).length : 0;
+      }
+    }
     const failed = d.results.filter(r => !r.sent);
-    alert(`${d.results.length - failed.length} email${d.results.length - failed.length === 1 ? "" : "s"} sent.` + (failed.length ? ` ${failed.length} not sent: ` + failed.map(f => f.email + " (" + (f.error || "").slice(0, 80) + ")").join("; ") : ""));
-    renderInvites(); renderTourAsg();
+    alert(`${d.results.length - failed.length} email${d.results.length - failed.length === 1 ? "" : "s"} sent.` + (failed.length ? ` ${failed.length} not sent: ` + failed.map(f => f.email + " (" + (f.error || "").slice(0, 80) + ")").join("; ") : "") + (released ? ` ${released} referee${released > 1 ? "s" : ""} released.` : ""));
+    renderInvites(); renderTourAsg(); renderDesignated();
   };
   window.notifyOrganizer = async function () {
     const { data: asg } = await sb().from("assignments").select("id").eq("tournament_id", currentTour.id);

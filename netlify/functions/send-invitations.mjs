@@ -79,7 +79,8 @@ export default async (req) => {
     const subject = `Referees designated for ${t.name}, ${fmtDate(t.start_date)}`;
     const html = `<p>Hi ${esc(t.organizer_name)},</p><p>The National Referee Committee has designated the referees for <strong>${esc(t.name)}</strong>, ${when}, at ${esc(where)}.</p>
       <table style="border-collapse:collapse;font-size:14px">${rows}</table>
-      <p>Names, contact details and travel information are on your tournament page, which only you have the link to:<br><a href="${link}">${link}</a></p>
+      <p>Names, contact details, travel bookings and expenses are on your organizer page: <a href="${base}/login.html?next=organizer.html">${base}/organizer.html</a> (sign in with this email address, link and code, no password). You can also edit the request, report after the event and duplicate it for next year from there.</p>
+      <p>No account needed for a quick look: <a href="${link}">${link}</a> (keep this link private).</p>
       <p>What the referees have been told you cover:<br>${covers.map(esc).join("<br>")}</p>
       <p>Questions or changes: ${contact}.</p><p>National Referee Committee</p>`;
     const r = await sendMail({ to: t.organizer_email, subject, html });
@@ -91,7 +92,11 @@ export default async (req) => {
   if (!Array.isArray(request_ids) || !request_ids.length) return json(400, { error: "request_ids required" });
   const { data: reqs } = await admin.from("assignment_requests").select("*, referees(*)").in("id", request_ids).eq("tournament_id", tournament_id);
   const { data: pairs } = await admin.from("pairs").select("*").is("valid_until", null);
+  if (kind === "confirm") (reqs || []).forEach(r => { if (r.referees && !designated.find(d => d.id === r.referees.id)) designated.push({ role: "referee", ...r.referees }); });
   const partnerOf = id => { const p = (pairs || []).find(p => p.referee_a === id || p.referee_b === id); if (!p) return null; const pid = p.referee_a === id ? p.referee_b : p.referee_a; return designated.find(d => d.id === pid) || null; };
+  const travelLine = t.travel_managed_by === "nrc"
+    ? `The NRC books your flights and hotel and you see each booking on your referee home as it is made; do not book anything yourself unless the NRC asks you to.`
+    : `The organizer books travel directly with you within what they cover above; send them your travel details and copy ${contact}. Record what gets booked on your referee home so the NRC sees it.`;
 
   const results = [];
   for (const r of reqs || []) {
@@ -113,7 +118,11 @@ export default async (req) => {
         <strong>Organizer:</strong> ${esc(t.organizer_name)}, ${esc(t.organizer_email)}${t.organizer_phone ? ", " + esc(t.organizer_phone) : ""}</p>
         <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}</p>
         ${t.notes ? "<p><strong>From the organizer:</strong> " + esc(t.notes) + "</p>" : ""}
-        <p>Your assignment and travel notes are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>. Send travel details to the organizer and copy ${contact}.</p><p>National Referee Committee</p>`;
+        <p><strong>Travel:</strong> ${travelLine}</p>
+        <p>Your assignment, trip details and the calendar file are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p><p>National Referee Committee</p>`;
+    } else if (kind === "release") {
+      subject = `${t.name}: the referee team is complete`;
+      html = `<p>Hi ${esc(ref.first_name)},</p><p>Thank you for considering <strong>${esc(t.name)}</strong>, ${when}. The NRC has completed the referee team for this event, so your invitation is closed and nothing is expected from you.</p><p>Your availability stays on file for the next events. Questions: ${contact}.</p><p>National Referee Committee</p>`;
     } else {
       const again = kind === "reminder" ? "<p>This is a reminder; the NRC has not received your answer yet.</p>" : "";
       subject = `${kind === "reminder" ? "Reminder: " : ""}Referee invitation, ${t.name}, ${fmtDate(t.start_date)}`;
@@ -124,7 +133,7 @@ export default async (req) => {
         <p>Please answer within 7 days. Nothing to book until the NRC confirms the final selection. Questions: ${contact}.</p><p>National Referee Committee</p>`;
     }
     const r2 = await sendMail({ to: ref.email, subject, html });
-    const patch = kind === "confirm" ? { status: "confirmed" } : kind === "reminder" ? { reminder_count: (r.reminder_count || 0) + 1 } : { status: "sent", sent_at: new Date().toISOString() };
+    const patch = kind === "confirm" ? { status: "confirmed" } : kind === "release" ? { status: "cancelled" } : kind === "reminder" ? { reminder_count: (r.reminder_count || 0) + 1 } : { status: "sent", sent_at: new Date().toISOString() };
     if (r2.sent) await admin.from("assignment_requests").update(patch).eq("id", r.id);
     await admin.from("email_log").insert({ request_id: r.id, to_email: ref.email, subject, kind, sent: r2.sent, error: r2.error });
     results.push({ request_id: r.id, email: ref.email, sent: r2.sent, error: r2.error });

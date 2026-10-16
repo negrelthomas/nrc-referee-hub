@@ -20,6 +20,7 @@
     <div><a class="btn sm" href="request-referees.html">New request</a> <button class="btn ghost sm" onclick="NRC.signOut()">Sign out</button></div>
   </div>
   <p class="muted" style="margin-top:8px">Every request you submitted, where it stands, who is designated and, when the NRC books travel, the bookings made. Changes or questions: <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>.</p>
+  <div id="msg" class="notice hidden" style="margin-top:10px"></div>
   <div id="list"><p class="muted">Loading.</p></div>
 </section>
 </div>
@@ -99,7 +100,7 @@ async function load() {
       ${cancelled ? '<p class="notice error">Cancelled.</p>' : '<div class="progress">' + STEPS.map((s, i) => `<div class="${i < idx ? "done" : i === idx ? "now" : ""}">${s[1]}</div>`).join("") + "</div>"}
       <div class="grid c3"><div class="stat ${d.filter(x => x.role === "referee").length >= t.pairs_needed * 2 ? "good" : ""}"><div class="n">${d.filter(x => x.role === "referee").length}/${t.pairs_needed * 2}</div><div class="l">Referees designated</div></div><div class="stat"><div class="n">${d.filter(x => x.role !== "referee").length}${t.supervisor_needed ? "/1" : ""}</div><div class="l">Supervisor or observer</div></div><div class="stat"><div class="n" style="font-size:22px;padding-top:8px">${t.travel_managed_by === "nrc" ? "NRC" : "You"}</div><div class="l">Books travel</div></div></div>
       <p class="cta-row" style="margin:4px 0 10px">${cancelled || t.status === "completed" ? "" : `<button class="btn sm secondary" type="button" onclick="editTour('${t.id}')">Edit the request</button> <button class="btn sm ghost" type="button" onclick="cancelTour('${t.id}')">Cancel the event</button>`}${t.end_date < today && !cancelled ? ` <button class="btn sm ${R[t.id] ? "ghost" : ""}" type="button" onclick="openReport('${t.id}')">${R[t.id] ? "Edit the post event report" : "Post event report"}</button>` : ""} <button class="btn sm ghost" type="button" onclick="duplicateTour('${t.id}')">Duplicate as a new request</button></p>
-      ${F[t.id] ? `<p class="small muted" style="margin:0 0 8px">Money: bookings paid by the NRC to reimburse $${Number(F[t.id].nrc_paid_bookings).toFixed(0)}, bookings you paid $${Number(F[t.id].organizer_paid_bookings).toFixed(0)}, expense claims submitted $${Number(F[t.id].claims_submitted).toFixed(0)}, approved $${Number(F[t.id].claims_approved).toFixed(0)}, reimbursed $${Number(F[t.id].claims_reimbursed).toFixed(0)}.</p>` : ""}
+      ${F[t.id] ? `<p class="small muted" style="margin:0 0 8px">Money: bookings paid by the NRC to reimburse $${Number(F[t.id].nrc_paid_bookings).toFixed(0)}, bookings you paid $${Number(F[t.id].organizer_paid_bookings).toFixed(0)}, bookings paid by referees to reimburse $${Number(F[t.id].referee_paid_bookings || 0).toFixed(0)}, expense claims submitted $${Number(F[t.id].claims_submitted).toFixed(0)}, approved $${Number(F[t.id].claims_approved).toFixed(0)}, reimbursed $${Number(F[t.id].claims_reimbursed).toFixed(0)}.</p>` : ""}
       <h3 style="margin-top:16px">Designated officials</h3>
       ${d.length ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Level</th><th>Club</th><th>From</th><th>Contact</th><th>Travel</th></tr></thead><tbody>' + d.map(r => { const bk = B.filter(b => b.assignment_id === r.assignment_id); return `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.esc(r.role)}</td><td>${LEVEL[r.cert_level] || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small"><a href="mailto:${NRC.esc(r.email)}">${NRC.esc(r.email)}</a>${r.phone ? "<br>" + NRC.esc(r.phone) : ""}</td><td class="small">${bk.length ? bk.map(b => `${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span> <span class="muted">(${b.entered_by || "nrc"})</span>`).join("<br>") : '<span class="muted">' + (t.travel_managed_by === "nrc" ? "NRC booking in progress" : "Nothing recorded yet") + "</span>"}${r.travel_notes ? "<br>" + NRC.esc(r.travel_notes) : ""}${!cancelled ? `<br><button class="btn sm ghost" type="button" style="margin-top:4px" onclick="openObook('${r.assignment_id}','${NRC.esc(r.first_name + " " + r.last_name)}')">Add a booking we made</button>` : ""}</td></tr>`; }).join("") + "</tbody></table></div>" : '<p class="muted">Nobody confirmed yet. The NRC is working on it; names appear here as they are confirmed.</p>'}
       <p class="small muted" style="margin:12px 0 0">You committed to: ${covers.map(NRC.esc).join(", ")}.${t.supervisor_needed ? " Supervisor requested." : ""}</p>
@@ -122,25 +123,26 @@ $("#form-edit").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const row = {};
   FIELDS.forEach(k => { if (!f[k]) return; let v = f[k].value.trim(); if (v === "") { row[k] = null; return; } if (["supervisor_needed", "flights_covered", "airport_transfers_covered"].includes(k)) v = v === "true"; else if (["pairs_needed", "games_expected", "hotel_nights_covered"].includes(k)) v = parseInt(v, 10); else if (k === "food_stipend_per_day") v = parseFloat(v); else if (["nearest_airport_iata", "venue_state"].includes(k)) v = v.toUpperCase(); row[k] = v; });
   const { error } = await NRC.sb.from("tournaments").update(row).eq("id", f.id.value);
-  if (error) { alert("Could not save: " + error.message); return; }
+  if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); $("#dlg-edit").close(); return; }
   $("#dlg-edit").close();
+  NRC.notice($("#msg"), "Saved. Notifying the NRC and the designated officials...", "ok");
   const d = await notify(f.id.value, "changes");
-  alert(d ? "Saved. " + d.results.filter(r => r.sent).length + " notification(s) sent." : "Saved. Notifications could not be sent; the NRC sees the change on the hub.");
+  NRC.notice($("#msg"), d ? "Saved. " + d.results.filter(r => r.sent).length + " notification(s) sent to the NRC" + (d.results.length > 2 ? " and the designated officials" : "") + "." : "Saved. Notifications could not be sent; the NRC sees the change on the hub.", "ok");
   load();
 });
 window.cancelTour = async function (id) {
   const t = TOURS.find(x => x.id === id); if (!t || !confirm("Cancel " + t.name + "? The NRC and every designated official are notified. This cannot be undone from this page.")) return;
   const { error } = await NRC.sb.from("tournaments").update({ status: "cancelled" }).eq("id", id);
-  if (error) { alert("Could not cancel: " + error.message); return; }
-  await notify(id, "cancel"); load();
+  if (error) { NRC.notice($("#msg"), "Could not cancel: " + NRC.esc(error.message), "error"); return; }
+  await notify(id, "cancel"); NRC.notice($("#msg"), NRC.esc(t.name) + " is cancelled. The NRC and the designated officials have been notified.", "ok"); load();
 };
 window.openObook = (aid, name) => { const f = $("#form-obook"); f.reset(); f.assignment_id.value = aid; $("#obook-title").textContent = "Booking for " + name; $("#dlg-obook").showModal(); };
 $("#form-obook").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
   const row = { assignment_id: f.assignment_id.value, kind: f.kind.value, status: "booked", provider: f.provider.value.trim() || null, reference: f.reference.value.trim() || null, cost: f.cost.value === "" ? null : parseFloat(f.cost.value), start_at: f.start_at.value ? new Date(f.start_at.value).toISOString() : null, end_at: f.end_at.value ? new Date(f.end_at.value).toISOString() : null, from_place: f.from_place.value.trim() || null, to_place: f.to_place.value.trim() || null, notes: f.notes.value.trim() || null, paid_by: "organizer", entered_by: "organizer" };
   const { error } = await NRC.sb.from("travel_bookings").insert(row);
-  if (error) { alert("Could not save: " + error.message); return; }
-  $("#dlg-obook").close(); load();
+  if (error) { NRC.notice($("#msg"), "Could not save the booking: " + NRC.esc(error.message), "error"); $("#dlg-obook").close(); return; }
+  $("#dlg-obook").close(); NRC.notice($("#msg"), "Booking saved.", "ok"); load();
 });
 window.openReport = (id) => {
   const f = $("#form-report"); f.reset(); f.tournament_id.value = id; const r = R[id] || {};
@@ -154,9 +156,9 @@ $("#form-report").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const id = f.tournament_id.value;
   const row = { tournament_id: id, games_played: f.games_played.value === "" ? null : parseInt(f.games_played.value, 10), referee_rating: f.referee_rating.value ? parseInt(f.referee_rating.value, 10) : null, supervisor_rating: f.supervisor_rating.value ? parseInt(f.supervisor_rating.value, 10) : null, highlights: f.highlights.value.trim() || null, incidents: f.incidents.value.trim() || null, would_request_again: f.would_request_again.value === "true", submitted_by: (await NRC.currentUser()).id, submitted_at: new Date().toISOString() };
   const { error } = await NRC.sb.from("tournament_reports").upsert(row, { onConflict: "tournament_id" });
-  if (error) { alert("Could not save: " + error.message); return; }
+  if (error) { NRC.notice($("#msg"), "Could not save the report: " + NRC.esc(error.message), "error"); $("#dlg-report").close(); return; }
   for (const inp of NRC.$$("#report-officials input[data-asg]")) { if (inp.value !== "") await NRC.sb.from("assignments").update({ games_officiated: parseInt(inp.value, 10) }).eq("id", inp.dataset.asg); }
-  $("#dlg-report").close(); alert("Report sent. Thank you."); load();
+  $("#dlg-report").close(); NRC.notice($("#msg"), "Report sent. Thank you.", "ok"); load();
 });
 window.duplicateTour = (id) => { const t = TOURS.find(x => x.id === id); if (!t) return; const copy = {}; ["name", "sanction", "region", "pairs_needed", "games_expected", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport", "meals_provided", "earliest_return_last_day", "supervisor_needed", "supervisor_notes", "travel_managed_by", "organizer_name", "organizer_email", "organizer_phone", "budget_owner", "notes"].forEach(k => { if (t[k] != null) copy[k] = t[k]; }); try { sessionStorage.setItem("nrc_prefill_request", JSON.stringify(copy)); } catch (e) { } location.href = "request-referees.html?prefill=1"; };
 document.addEventListener("DOMContentLoaded", load);
