@@ -101,7 +101,7 @@
     session.answers.push({ id: q.id, rule: q.rule, correct: ok });
     const ex = $("#quiz-explain");
     ex.className = "notice " + (ok ? "ok" : "error");
-    ex.innerHTML = (ok ? "<strong>Correct.</strong> " : idx === -1 ? "<strong>Time is up.</strong> " : "<strong>Not this one.</strong> ") + NRC.esc(q.a) + (q.rr && !/Rule reference/i.test(q.a) ? ` <span class="small muted">(${NRC.esc(q.rr)})</span>` : "");
+    ex.innerHTML = (ok ? "<strong>Correct.</strong> " : idx === -1 ? "<strong>Time is up.</strong> " : "<strong>Not this one.</strong> ") + NRC.explain(q);
     ex.classList.remove("hidden");
     $("#quiz-next").disabled = false;
     $("#quiz-next").textContent = session.i + 1 >= session.qs.length ? "See results" : "Next";
@@ -116,7 +116,7 @@
     const dur = Math.round((Date.now() - s.started) / 1000);
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.remove("hidden");
     $("#result-text").textContent = `${s.correct} of ${total} correct (${Math.round(s.correct / total * 100)}%) in ${dur} seconds.`;
-    $("#result-missed").innerHTML = s.missed.length ? "<h3 style='margin-top:14px'>Review</h3>" + s.missed.map(q => `<div class="notice error" style="margin-bottom:8px"><strong>${NRC.esc(q.q)}</strong><br>${NRC.esc(q.a)} <span class="small muted">(${NRC.esc(q.rr || "")})</span></div>`).join("") : "<p>Nothing missed.</p>";
+    $("#result-missed").innerHTML = s.missed.length ? "<h3 style='margin-top:14px'>Review</h3>" + s.missed.map(q => `<div class="notice error" style="margin-bottom:8px"><strong>${NRC.esc(q.q)}</strong><br>${NRC.explain(q, true)}</div>`).join("") : "<p>Nothing missed.</p>";
     // save
     const rec = { mode: s.mode, difficulty: diff || null, rule_number: rule ? parseInt(rule, 10) : null, total, correct: s.correct, duration_seconds: dur, created_at: new Date().toISOString() };
     const d = local(); d.sessions.unshift(rec); s.answers.forEach(a => { const k = a.rule || "0"; d.answers[k] = d.answers[k] || { n: 0, c: 0 }; d.answers[k].n++; if (a.correct) d.answers[k].c++; }); d.sessions = d.sessions.slice(0, 100); saveLocal(d);

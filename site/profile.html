@@ -100,6 +100,7 @@
   <div id="tab-evals" class="hidden"></div>
   <div id="tab-assignments" class="card hidden"><div class="table-wrap"><table id="asg"><thead><tr><th>Tournament</th><th>Dates</th><th>Venue</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
   <div id="tab-training" class="hidden">
+    <div class="card" id="train-program" style="margin-bottom:12px"></div>
     <div class="grid c3" style="margin-bottom:12px" id="train-stats"></div>
     <div class="card"><h3>Score by rule</h3><p class="small muted">Where to focus: rules below 70% are highlighted. Practice a single rule from the <a href="training.html">training page</a>.</p><div class="table-wrap"><table id="train-rules"><thead><tr><th>Rule</th><th>Answered</th><th>Score</th><th></th></tr></thead><tbody></tbody></table></div></div>
     <div class="card"><h3>Score by level</h3><div class="table-wrap"><table id="train-levels"><thead><tr><th>Level</th><th>Answered</th><th>Score</th></tr></thead><tbody></tbody></table></div></div>
@@ -150,7 +151,7 @@ async function load() {
   if (ref) {
     ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
     if (ref.photo_url) $("#photo").src = ref.photo_url;
-    $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", "") + (ref.level1_theory_passed_on && ref.cert_level === "candidate" ? ", theory passed" : "");
+    $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", ""); if (ref.level1_theory_passed_on && ref.cert_level === "candidate") $("#st-level").insertAdjacentHTML("afterend", '<span class="pill green" style="margin-top:4px;display:inline-block">Theory passed</span>');
     const today = new Date().toISOString().slice(0, 10);
     const item = (l, d) => `<div>${l}: ${d ? (d >= today ? '<span class="pill green">valid to ' + NRC.fmtDate(d) + '</span>' : '<span class="pill red">expired ' + NRC.fmtDate(d) + '</span>') : '<span class="pill amber">not on file</span>'}</div>`;
     $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);
@@ -231,8 +232,14 @@ async function loadHome() {
   if (certified && !(asmt && asmt.length)) alerts.unshift(`<div class="alert warn"><div><div class="t">Take your baseline assessment</div><div class="small">50 questions at your level. It measures your strength rule by rule and builds your program for the next 12 weeks.</div></div><a class="btn sm" href="training.html#program">Start</a></div>`);
   else if (certified && pr && pr.status === "active") alerts.unshift(`<div class="alert ${pr.due_on < today ? "" : "info"}"><div><div class="t">${pr.due_on < today ? "Program overdue" : "Program in progress"}</div><div class="small">${pr.weak_rules.length} rules to clear, due ${NRC.fmtDate(pr.due_on)}.</div></div><a class="btn sm" href="training.html#program">Continue</a></div>`);
   else if (certified && pr && pr.status === "ready_for_retest") alerts.unshift(`<div class="alert warn"><div><div class="t">Modules done, re-test open</div><div class="small">Clear the hurdle to close your program.</div></div><a class="btn sm" href="training.html#program">Re-test</a></div>`);
-  else if (!certified) alerts.unshift(`<div class="alert info"><div><div class="t">Level 1 online course</div><div class="small">Six modules, then the final test. Pass it and Level 1 is recorded here.</div></div><a class="btn sm" href="training.html#program">Open</a></div>`);
+  else if (!certified && ref.level1_theory_passed_on) alerts.unshift(`<div class="alert ok"><div><div class="t">Level 1 theory passed on ${NRC.fmtDate(ref.level1_theory_passed_on)}</div><div class="small">Next step: the practical part (signals, whistle, physical test) at a clinic. The NRC contacts you and awards Level 1 after it. Keep practising on the Training page meanwhile.</div></div><a class="btn sm secondary" href="training.html">Training</a></div>`);
+  else if (!certified) alerts.unshift(`<div class="alert info"><div><div class="t">Level 1 online course</div><div class="small">Six modules, then the final test. Pass it and "theory passed" is recorded here; the NRC awards Level 1 after the practical part.</div></div><a class="btn sm" href="training.html#program">Open</a></div>`);
+  if (!certified) { const w = document.querySelector("#weekends").closest(".card"); if (w) w.innerHTML = `<h3>Availability</h3><p class="small muted">Weekend availability and blocked dates open once you are certified; the NRC staffs tournaments with certified referees only.</p>`; }
   if (!ref.home_airport_iata || !ref.photo_url) alerts.push(`<div class="alert info"><div><div class="t">Complete your profile</div><div class="small">${!ref.photo_url ? "Add a photo. " : ""}${!ref.home_airport_iata ? "Add your home airport so travel can be planned." : ""}</div></div><a class="btn sm secondary" href="#" onclick="document.querySelector('[data-tab=profile]').click();return false">Edit</a></div>`);
+  $("#train-program").innerHTML = "<h3>My program</h3>" + (certified
+    ? (asmt && asmt.length ? `<p>Last assessment ${NRC.fmtDate(asmt[0].created_at)}: <strong>${asmt[0].pct}%</strong>${asmt[0].passed ? " (hurdle cleared)" : ""}. ${pr ? "Program " + pr.status.replace(/_/g, " ") + (pr.status === "active" || pr.status === "ready_for_retest" ? ", " + pr.weak_rules.length + " rules, due " + NRC.fmtDate(pr.due_on) : "") + "." : ""}</p>` : "<p>Baseline assessment not taken yet.</p>")
+    : (ref.level1_theory_passed_on ? `<p>Level 1 theory passed on ${NRC.fmtDate(ref.level1_theory_passed_on)}. Practical part with the NRC next.</p>` : "<p>Level 1 online course in progress.</p>"))
+    + `<p><a class="btn sm" href="training.html#program">Open my program</a></p>`;
   $("#home-alerts").innerHTML = alerts.join("") || `<div class="alert ok"><div><div class="t">Everything is in order</div><div class="small">Membership, SafeSport and background check are current.</div></div></div>`;
   loadAvail();
   // training nudge
@@ -257,6 +264,7 @@ async function loadWeekends() {
   }
 }
 async function loadAvail() {
+  if (!$("#weekends")) return;
   loadWeekends();
   const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", new Date().toISOString().slice(0, 10)).order("start_date");
   $("#avail-list").innerHTML = (data || []).map(b => `<div><span>${NRC.fmtDate(b.start_date)}${b.end_date !== b.start_date ? " to " + NRC.fmtDate(b.end_date) : ""}${b.note ? ' <span class="small muted">' + NRC.esc(b.note) + "</span>" : ""}</span><button class="btn ghost sm" onclick="delAvail('${b.id}')">Remove</button></div>`).join("") || '<div class="small muted">No blocked dates. You are shown as available.</div>';

@@ -14,7 +14,7 @@ site/                      published folder (Netlify publish = site)
   organizer.html           organizer page: progress of each request, designated officials, travel bookings
   referees.html            public list of certified referees (name, level, dates, club; no contact details)
   directory.html           referee directory (signed in)
-  login.html               magic link sign in, with a 6 digit code fallback
+  login.html               magic link sign in, with a one time code fallback
   auth.html                exchanges the token from the email link (not consumed by mail scanners)
   profile.html             referee profile, games, evaluations, assignments
   admin/index.html         NRC admin: dashboard, tasks, referees, clubs, requests, questions, imports
@@ -44,7 +44,7 @@ netlify.toml, package.json
 ## Setup (one time, about 20 minutes)
 
 1. Supabase: create a project. In the SQL editor run, in this order: `supabase/schema.sql`, `supabase/seed_clubs.sql`, `supabase/seed_questions.sql`, `supabase/seed_questions_ihf.sql`, and optionally `supabase/seed_demo.sql` (demo profiles use placeholder emails ending in @demo.nrc; edit them to real emails to let those referees sign in, or delete the rows later).
-2. Supabase > Authentication > URL configuration: set the Site URL to the Netlify URL and add `<netlify url>/**` to the redirect allow list. Authentication > Emails > Magic Link template: link to `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` and include `{{ .Token }}` as a 6 digit code (mail scanners otherwise consume the default link before the user clicks). Optional: custom SMTP later when the sender moves to USATH.
+2. Supabase > Authentication > URL configuration: set the Site URL to the Netlify URL and add `<netlify url>/**` to the redirect allow list. Authentication > Emails > Magic Link template: link to `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=magiclink` and include `{{ .Token }}` as a one time code (mail scanners otherwise consume the default link before the user clicks). Optional: custom SMTP later when the sender moves to USATH.
 3. Copy Project settings > API > Project URL and anon public key into `site/js/config.js`.
 4. Netlify: new site from the GitHub repo, publish directory `site`, no build command. Deploy.
 5. Sign in once on the deployed site with negrel.thomas@gmail.com (pre-invited as admin in schema.sql). The nav shows Admin. To add another admin: `insert into public.admin_invites (email) values ('x@y.org');` before they sign in.

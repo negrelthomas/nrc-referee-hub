@@ -97,6 +97,23 @@
     return (window.NRC_QUESTIONS || []).slice();
   };
 
+  // Explanation text for a question. The IHF catalogue answers read "Correct option: a. Rule reference: 1:1", which is not
+  // helpful on screen: show the correct answer text instead, then the rule reference once.
+  NRC.explain = function (q, full) {
+    const a = q.a || "";
+    const m = /^correct options?:\s*([a-z](?:\s*,\s*[a-z])*)/i.exec(a);
+    let text = a;
+    if (m && q.options) {
+      const letters = m[1].toLowerCase().split(/\s*,\s*/);
+      const picks = letters.map(l => q.options[l.charCodeAt(0) - 97]).filter(Boolean);
+      if (picks.length === 1) text = "Correct answer: " + picks[0] + ".";
+      else if (full) text = "Correct answers: " + letters.map((l, i) => l + ") " + picks[i]).join(" ") ;
+      else text = "Correct answers: " + letters.join(", ") + " (shown in green).";
+    }
+    const ref = q.rr && !new RegExp(q.rr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(text) ? ` <span class="small muted">(Rule ${NRC.esc(q.rr)})</span>` : "";
+    return NRC.esc(text) + ref;
+  };
+
   NRC.RULES = {
     1: "Playing court", 2: "Playing time, final signal, time-out", 3: "The ball", 4: "The team, substitutions, equipment, injuries",
     5: "The goalkeeper", 6: "The goal area", 7: "Playing the ball, passive play", 8: "Fouls and unsportsmanlike conduct",

@@ -26,7 +26,7 @@
 <script src="js/app.js"></script>
 <script>
 // The sign in email links here with a token_hash. The token is exchanged only when this script runs,
-// so a mail scanner that opens the link does not consume it. The 6 digit code in the same email is the fallback.
+// so a mail scanner that opens the link does not consume it. The code in the same email is the fallback.
 document.addEventListener("DOMContentLoaded", async () => {
   const q = new URLSearchParams(location.search);
   const next = q.get("next") || "";
@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tokenHash = q.get("token_hash");
   if (tokenHash) {
     const { error } = await NRC.sb.auth.verifyOtp({ token_hash: tokenHash, type: q.get("type") || "magiclink" });
-    if (error) { fail("This link is no longer valid: " + error.message + ". Request a new one and use the 6 digit code from the email if the link fails again."); return; }
+    if (error) { fail("This link is no longer valid: " + error.message + ". Request a new one and use the code from the email if the link fails again."); return; }
     await go(); return;
   }
   // Legacy link format (token in the URL fragment): supabase-js reads it on load.
