@@ -97,7 +97,8 @@
     <div class="row"><div><label>First name</label><input name="first_name" required></div><div><label>Last name</label><input name="last_name" required></div></div>
     <div class="row"><div><label>Email</label><input name="email" type="email" required></div><div><label>Phone (optional)</label><input name="phone"></div></div>
     <div class="row"><div><label>City</label><input name="city" required></div><div><label>State</label><input name="state" maxlength="2" style="text-transform:uppercase" required></div></div>
-    <label>Club, if any</label><input name="club_name" placeholder="Club name, or none">
+    <label>Are you connected to a handball club?</label><select name="club_affiliation" id="aff" required><option value="">Choose one</option><option value="member">Yes, I am a member of a club</option><option value="volunteer">Yes, I volunteer or help a club, without being a member</option><option value="none">No club for now</option></select>
+    <div id="club-pick" class="hidden"><label>Which club?</label><select name="club_id" id="club-sel"><option value="">Choose your club</option></select><input name="club_name" id="club-other" class="hidden" placeholder="Club name" style="margin-top:6px"></div>
     <label>Your handball background</label><select name="background" required><option value="">Choose one</option><option>Current player</option><option>Former player</option><option>Coach</option><option>Parent or club volunteer</option><option>Referee in another sport</option><option>New to handball</option></select>
     <label>When could you train and referee?</label><select name="availability" required><option value="">Choose one</option><option>Weekends</option><option>Weekday evenings and weekends</option><option>A few weekends per season</option><option>Not sure yet</option></select>
     <label>Anything the NRC should know (optional)</label><textarea name="message" placeholder="Questions, prior officiating experience, a tournament you would like to referee..."></textarea>
@@ -109,12 +110,26 @@
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
+(async function () {
+  const aff = document.getElementById("aff"), pick = document.getElementById("club-pick"), sel = document.getElementById("club-sel"), other = document.getElementById("club-other");
+  aff.addEventListener("change", () => pick.classList.toggle("hidden", !aff.value || aff.value === "none"));
+  sel.addEventListener("change", () => other.classList.toggle("hidden", sel.value !== "other"));
+  let list = [];
+  if (NRC.sb) { const { data } = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).order("name"); list = data || []; }
+  sel.innerHTML = '<option value="">Choose your club</option>' + list.map(c => `<option value="${c.id}" data-name="${NRC.esc(c.name)}">${NRC.esc(c.name)}${c.state ? " (" + NRC.esc(c.state) + ")" : ""}</option>`).join("") + '<option value="other">Other, not listed</option>';
+})();
 document.getElementById("contact-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target, msg = document.getElementById("contact-msg");
   if (!NRC.sb) { NRC.notice(msg, "The form is not connected yet. Email referee@handballusa.org instead.", "error"); return; }
   const row = {};
-  ["first_name", "last_name", "email", "phone", "city", "state", "club_name", "background", "availability", "message"].forEach(k => row[k] = f[k].value.trim() || null);
+  ["first_name", "last_name", "email", "phone", "city", "state", "club_affiliation", "background", "availability", "message"].forEach(k => row[k] = f[k].value.trim() || null);
+  if (row.club_affiliation && row.club_affiliation !== "none") {
+    const v = f.club_id.value;
+    if (!v) { NRC.notice(msg, "Choose your club, or Other if it is not listed.", "error"); return; }
+    if (v === "other") row.club_name = f.club_name.value.trim() || null;
+    else { row.club_id = v; row.club_name = f.club_id.options[f.club_id.selectedIndex].dataset.name; }
+  }
   if (row.state) row.state = row.state.toUpperCase();
   document.getElementById("contact-btn").disabled = true;
   const { error } = await NRC.sb.from("referee_inquiries").insert(row);

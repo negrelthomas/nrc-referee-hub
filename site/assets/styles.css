@@ -244,11 +244,11 @@ footer .wrap{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
 footer img{height:36px}
 
 /* Admin */
-.admin-layout{display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start}
+.admin-layout{display:grid;grid-template-columns:220px minmax(0,1fr);gap:20px;align-items:start}
 .admin-nav{position:sticky;top:84px;display:flex;flex-direction:column;gap:2px}
 .admin-nav a{padding:9px 12px;border-radius:8px;font-weight:600;color:var(--ink)}
 .admin-nav a.active,.admin-nav a:hover{background:#E8EDF5;text-decoration:none}
-@media (max-width:820px){.admin-layout{grid-template-columns:1fr}.admin-nav{position:static;flex-direction:row;flex-wrap:wrap}}
+@media (max-width:820px){.admin-layout{grid-template-columns:minmax(0,1fr)}.admin-nav{position:static;flex-direction:row;flex-wrap:wrap}}
 .task{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:8px;background:#fff}
 .task.overdue{border-color:var(--red);background:var(--red-tint)}
 .task .t{font-weight:700}

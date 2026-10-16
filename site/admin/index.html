@@ -48,6 +48,9 @@
           <div class="stat"><div class="n" id="k-inprog">&nbsp;</div><div class="l">Programs in progress</div></div>
           <div class="stat bad"><div class="n" id="k-overdue">&nbsp;</div><div class="l">Programs overdue</div></div>
         </div>
+        <h2>Action plan to grow the referee pool</h2>
+        <p class="small muted">Recommended in priority order, recalculated from the roster, the clubs, contact requests and tournament requests each time the page loads. Prepare message opens a draft for the clubs concerned; nothing is sent until you press Send.</p>
+        <div id="plan" style="display:grid;gap:8px"></div>
         <h2>Club coverage</h2>
         <div class="table-wrap"><table id="cov"><thead><tr><th>Club</th><th>City</th><th>Referees</th><th>Certified</th><th>Pair</th><th>Program status</th></tr></thead><tbody></tbody></table></div>
         <h2>Training: weakest rules across the pool</h2>
@@ -67,8 +70,39 @@
 
       <!-- Clubs -->
       <div id="pane-clubs" class="hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Clubs</h1><button class="btn sm" onclick="openClub(null)">Add club</button></div>
-        <div class="table-wrap" style="margin-top:12px"><table id="clubs"><thead><tr><th>Club</th><th>Type</th><th>City</th><th>Airport</th><th>Pair program</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Clubs</h1><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="btn-club-email" onclick="emailSelectedClubs()" disabled>Email selected</button><button class="btn sm ghost" onclick="openClub(null)">Add club</button></div></div>
+        <div class="toolbar" style="margin-top:12px"><input id="c-q" placeholder="Search club, city, state"></div>
+        <div class="chips" id="club-filter"><span class="chip on" data-v="all">All</span><span class="chip" data-v="noref">No referee</span><span class="chip" data-v="nopair">No certified pair</span><span class="chip" data-v="training">Referees in training</span><span class="chip" data-v="host">Requested a tournament</span><span class="chip" data-v="adult">Adult</span><span class="chip" data-v="college">Collegiate</span><span class="chip" data-v="nocontact">No contact on file</span></div>
+        <div class="table-wrap"><table id="clubs"><thead><tr><th><input type="checkbox" id="club-all" style="width:auto" title="Select all shown"></th><th>Club</th><th>City</th><th>Referees</th><th>Certified</th><th>In training</th><th>Interest</th><th>Tournaments</th><th>Pair program</th><th>Contacts</th><th></th></tr></thead><tbody></tbody></table></div>
+        <p class="small muted">Referees: active on the roster with this club. In training: candidates working toward Level 1 (certified referees on a retraining program show on the club page). Interest: contact requests naming the club that are not closed. Contacts are visible to admins only.</p>
+      </div>
+
+      <!-- Club page -->
+      <div id="pane-club" class="hidden">
+        <p class="small"><a href="#clubs">All clubs</a></p>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px">
+          <div><h1 style="margin:0" id="cp-name">Club</h1><div class="small muted" id="cp-sub"></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" onclick="emailClub()">Email this club</button><button class="btn sm ghost" onclick="openClub(currentClubPage)">Edit club</button></div>
+        </div>
+        <div class="grid c4" style="margin-top:14px">
+          <div class="stat"><div class="n" id="cp-refs">&nbsp;</div><div class="l">Active referees</div></div>
+          <div class="stat good"><div class="n" id="cp-cert">&nbsp;</div><div class="l">Certified (L1 and above)</div></div>
+          <div class="stat"><div class="n" id="cp-train">&nbsp;</div><div class="l">Candidates in training</div></div>
+          <div class="stat"><div class="n" id="cp-tour">&nbsp;</div><div class="l">Tournament requests</div></div>
+        </div>
+        <div id="cp-actions" style="display:grid;gap:8px;margin-top:14px"></div>
+        <div class="grid c2" style="margin-top:6px">
+          <div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">Contacts</h3><button class="btn sm ghost" onclick="openContact(null)">Add contact</button></div><div id="cp-contacts" class="small" style="margin-top:8px"></div></div>
+          <div class="card"><h3 style="margin-top:0">Pair program</h3><div id="cp-pair" class="small"></div></div>
+        </div>
+        <h2>Referees</h2>
+        <div class="table-wrap"><table id="cp-reftable"><thead><tr><th>Referee</th><th>Level</th><th>Training</th><th>Games this season</th><th>Last evaluation</th><th></th></tr></thead><tbody></tbody></table></div>
+        <h2>Interest from the club</h2>
+        <div class="table-wrap"><table id="cp-inq"><thead><tr><th>When</th><th>Name</th><th>Affiliation</th><th>Background</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+        <h2>Tournament requests</h2>
+        <div class="table-wrap"><table id="cp-tours"><thead><tr><th>Tournament</th><th>Dates</th><th>Pairs</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+        <h2>Messages sent by the NRC</h2>
+        <div class="table-wrap"><table id="cp-msgs"><thead><tr><th>When</th><th>Subject</th><th>Sent to</th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Staffing cards -->
@@ -97,7 +131,7 @@
       <div id="pane-inquiries" class="hidden">
         <h1>Contact requests</h1>
         <p class="muted small">People who asked to be contacted from the Become a referee page. Set the status as you work them; "Invited" means you added them as a candidate on the roster.</p>
-        <div class="table-wrap"><table id="inq"><thead><tr><th>When</th><th>Name</th><th>Contact</th><th>Where</th><th>Club</th><th>Background</th><th>Availability</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="inq"><thead><tr><th>When</th><th>Name</th><th>Contact</th><th>Where</th><th>Club</th><th>Club link</th><th>Background</th><th>Availability</th><th>Message</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Programs -->
@@ -140,7 +174,10 @@
           <p>People who pressed "I want to be contacted" on the public Become a referee page. Each row carries their answers: where they are, club if any, background, availability, message. Work them in order: contact the person, then "Add to roster" when they are ready (it opens a prefilled candidate record; save it and they can sign in), set the status to invited. The dashboard counts the new ones.</p></div>
 
         <div class="card"><h3 style="margin-top:0">4. Clubs</h3>
-          <p>The USATH club list with city, state and nearest airport, used for coverage statistics and for travel planning. Each club has a pair program status (not started, nominated, mentor assigned, in training, observed, certified pair) that you update as the club progresses. Correct airports and cities here; they drive the "local" flag when staffing.</p></div>
+          <p>The USATH club list with city, state, nearest airport and pair program status, plus the contacts the NRC holds for each club (taken from the CalCup 2027 registration list to start; admins only). Filter the list (no referee, no certified pair, referees in training, requested a tournament, no contact), tick clubs and press Email selected to send them one message.</p>
+          <p>Open a club for its page: referees and their level, who is in training (Level 1 course or an open program), contact requests from its members and volunteers, tournament requests it made, messages already sent, the pair program, and the actions recommended for that club. Edit contacts there; untick "Receives NRC messages" to keep someone on file without emailing them.</p>
+          <p><strong>Messages.</strong> Pick a template or write your own. Each contact receives a separate email with their club's figures filled in. Send yourself a test first; every email is logged and shows on the club page. "Copy addresses" gives the list for your own mailbox if you prefer to write from there.</p>
+          <p><strong>Action plan.</strong> The dashboard ranks what to do next to grow the pool: prospects to introduce to their club, clubs hosting tournaments without a local referee, clubs one referee short of a pair, clubs with none, regional clinics where several clubs share a state, candidates to push through Level 1, and clubs with no contact on file. Each line opens a prepared draft for the clubs concerned.</p></div>
 
         <div class="card"><h3 style="margin-top:0">5. Staffing, tournament requests and travel</h3>
           <p>Organizers submit a request on the public page: dates, venue, pairs needed, whether a supervisor is needed, who books travel (the organizer, or the NRC with the organizer reimbursing), and what they cover (hotel nights, flights, transfers, food, earliest departure). The request arrives with status submitted. The organizer can sign in with the email of the request and follow it on their own page: progress, designated officials with contact details, and travel bookings when the NRC books. The Staffing page shows one card per event to staff with progress; a card opens the full dashboard. The intended flow:</p>
@@ -283,6 +320,7 @@
     <div><label>Pairs</label><input name="pairs_needed" type="number" min="1"></div>
     <div><label>Travel booked by</label><select name="travel_managed_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option></select></div>
     <div><button class="btn sm ghost" type="button" onclick="notifyChanges()">Notify changes</button></div>
+    <div style="grid-column:span 2"><label>Hosting club</label><select name="club_id"></select></div>
   </form>
 
   <div class="tabs" style="margin-top:14px">
@@ -347,6 +385,33 @@
     <label>Program notes</label><textarea name="pair_program_notes"></textarea>
     <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
     <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-club').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<!-- Club contact editor -->
+<dialog id="dlg-cc"><div class="body">
+  <h3 style="margin-top:0">Club contact</h3>
+  <form id="form-cc">
+    <div class="row"><div><label>Name</label><input name="name"></div><div><label>Role</label><input name="role" placeholder="President, coach, club mailbox..."></div></div>
+    <div class="row"><div><label>Email</label><input name="email" type="email"></div><div><label>Phone</label><input name="phone"></div></div>
+    <label>Notes</label><input name="notes">
+    <label><input type="checkbox" name="is_primary" style="width:auto"> Primary contact</label>
+    <label><input type="checkbox" name="receives_messages" style="width:auto" checked> Receives NRC messages</label>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" id="btn-cc-delete">Delete</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-cc').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<!-- Message to clubs -->
+<dialog id="dlg-msg" style="max-width:760px"><div class="body">
+  <h3 style="margin-top:0">Message to clubs</h3>
+  <div id="msg-to" class="small"></div>
+  <form id="form-msg">
+    <label>Template</label><select name="template" id="msg-template"></select>
+    <label>Subject</label><input name="subject" required>
+    <label>Message</label><textarea name="body" required style="min-height:220px"></textarea>
+    <p class="small muted" style="margin:4px 0 0">Each contact receives their own email. Fields filled per club: {club} {first_name} {referees} {certified} {in_training} {prospects} {state} {pair_status} {hub_url} {contact_email}. Replies go to the NRC address.</p>
+    <div id="msg-preview" class="card small" style="margin-top:10px;white-space:pre-wrap"></div>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="btn-msg-send">Send</button><button class="btn ghost" type="button" onclick="sendClubMessage(true)">Send me a test</button><button class="btn ghost" type="button" onclick="copyClubEmails()">Copy addresses</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-msg').close()">Cancel</button></p>
   </form>
 </div></dialog>
 
