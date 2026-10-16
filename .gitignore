@@ -1,3 +1,7 @@
 node_modules/
 .DS_Store
 .netlify/
+
+# transfer archives from Claude sessions
+_to_delete/
+*.tgz
