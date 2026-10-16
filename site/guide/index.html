@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How to use the hub | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+<base href="../">
+</head>
+<body data-page="guide">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+<section class="hero">
+  <div class="wrap">
+    <div class="kicker">User guide</div>
+    <h1>How to use the hub</h1>
+    <p class="sub">Three guides, one per role, each written click by click with screenshots. Pick yours. Every page can be read in ten minutes.</p>
+  </div>
+</section>
+<div class="wrap guide" id="main">
+<section>
+  <div class="guide-cards">
+    <a class="card" href="guide/referees.html"><h3>Referees</h3><p class="small">Sign in, keep your availability current, answer invitations, follow your trip, submit expenses, train and complete your program. Candidates: the Level 1 online course.</p></a>
+    <a class="card" href="guide/organizers.html"><h3>Tournament organizers</h3><p class="small">Request referees, follow the request from your own page, see who is designated and what was booked, edit or cancel, and report after the event.</p></a>
+    <a class="card" href="guide/admin.html"><h3>NRC administrators</h3><p class="small">Roster, contact requests, staffing from invitation to confirmation, travel bookings, expenses, programs, training sessions, question bank and imports.</p></a>
+  </div>
+
+  <h2>How a tournament gets staffed</h2>
+  <p>The same sequence every time. Each arrow is one click or one email; nothing happens without someone deciding it.</p>
+  <div class="flow">
+    <span>Organizer submits the request</span><i>&rarr;</i>
+    <span>NRC finds referees who are qualified and available</span><i>&rarr;</i>
+    <span>Referees get an invitation: accept, tentative, decline</span><i>&rarr;</i>
+    <span>NRC confirms the pairs</span><i>&rarr;</i>
+    <span>Referees get the brief, the organizer gets the list</span><i>&rarr;</i>
+    <span>Travel booked and tracked</span><i>&rarr;</i>
+    <span>Event, then expenses and the organizer report</span>
+  </div>
+
+  <h2>Signing in, for everyone</h2>
+  <p>There is no password. Enter your email on the <a href="login.html">sign in page</a>; the hub sends a link and a one time code. Click the link, or type the code on the sign in page if your mail app opened the link before you did. Both expire after one hour. Referees, organizers and NRC administrators use the same door and land on their own page.</p>
+  <div class="walk" data-steps='[
+    {"img":"guide/img/signin-form.jpg","cap":"Type the email the NRC has on file and press Send me a link."},
+    {"img":"guide/img/signin-code.jpg","cap":"Check your inbox. Click the link, or type the code from the email here."}
+  ]'></div>
+  <p class="small muted">Access is by invitation: referees are added to the roster by the NRC, organizers are known from the request they submitted, administrators are invited by the NRC. An email that is none of these gets a clear message and the NRC contact address.</p>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/guide.js"></script>
+</body>
+</html>

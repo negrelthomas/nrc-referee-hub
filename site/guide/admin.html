@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Administrator guide | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../assets/styles.css">
+<base href="../">
+</head>
+<body data-page="guide">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+<section class="hero">
+  <div class="wrap">
+    <div class="kicker">User guide</div>
+    <h1>NRC administrators</h1>
+    <p class="sub">Click by click through the admin area: roster, contact requests, staffing from the first invitation to the expense report, programs, sessions, questions and imports. The reference text for each pane is in the admin area under Guide.</p>
+  </div>
+</section>
+<div class="wrap guide" id="main">
+<section>
+  <div class="guide-toc">
+    <a href="#dashboard">Dashboard</a><a href="#roster">Roster and inquiries</a><a href="#staffing">Staffing an event</a><a href="#travel">Designated and travel</a><a href="#money">Expenses and report</a><a href="#programs">Programs</a><a href="#sessions">Training sessions</a><a href="#questions">Questions</a><a href="#imports">Imports</a><a href="#emails">Emails the hub sends</a><a href="#daily">Automatic reminders</a>
+  </div>
+
+  <h2 id="dashboard">1. Dashboard</h2>
+  <ol class="steps">
+    <li>Sign in with your NRC email; you land on <strong>Admin</strong>. The red Admin button in the top bar brings you back from any page.</li>
+    <li>The task band at the top lists what is due: the Sport80 export every 30 days, overdue programs, new contact requests.</li>
+    <li>The figures: active referees, certified, clubs without a referee, clubs with a certified pair, new contact requests, referees without a baseline, programs in progress, programs overdue. Below, club coverage one row per club.</li>
+    <li>The left menu is the map of the admin area. On a phone it becomes a row of buttons under the top bar.</li>
+  </ol>
+  <div class="walk" data-steps='[
+    {"img":"guide/img/admin-dashboard.jpg","cap":"Dashboard: tasks due, roster figures, club coverage."}
+  ]'></div>
+
+  <h2 id="roster">2. Roster and contact requests</h2>
+  <ol class="steps">
+    <li><strong>Referees</strong> lists everyone. Search by name, club or airport; press <strong>Open</strong> on a row to edit the record: identity, club, airports, level and certification date, Sport80 ID, compliance dates, admin notes, the <strong>Level confirmed by the NRC</strong> box (unticked shows an "NRC to confirm" badge on the public list) and <strong>Active</strong>.</li>
+    <li>From the record you also add a certification, log an evaluation with the IHF observer criteria, or log a game from the game sheet.</li>
+    <li>Press <strong>Add referee</strong> for a new record. The email is the person's sign in; they can sign in the moment the record exists. Candidates start at level Candidate and get the Level 1 course automatically.</li>
+    <li><strong>Inquiries</strong> are the people who pressed "I want to be contacted" on the public page. Set the status as you work them (new, contacted, invited, closed). <strong>Add to roster</strong> opens the new referee form prefilled with their answers; saving it marks the inquiry invited.</li>
+    <li>To remove someone, untick Active rather than deleting: their history and evaluations stay attached.</li>
+  </ol>
+
+  <h2 id="staffing">3. Staffing an event</h2>
+  <p>Organizers submit the public request form; the NRC is emailed and the request appears as a card under <strong>Staffing</strong> (newest event last) and in the <strong>Tournament requests</strong> list. One card, one event, one dialog with five tabs.</p>
+  <ol class="steps">
+    <li>Open <strong>Staffing</strong>. The <strong>To staff</strong> filter hides completed and cancelled events; <strong>All</strong> shows everything. Each card gives the progress bar, counts (confirmed, accepted, waiting), whether a supervisor is needed, and the travel bookings status.</li>
+    <li>Click the card. The header is editable: sanction, region, dates, venue, city, pairs, who books travel. <strong>Save</strong> stores it; <strong>Notify changes</strong> emails the designated officials and the organizer what changed (every change is logged).</li>
+    <li><strong>Find referees</strong>: certified referees ranked best first by declared availability for the event weekends (available, tentative, not declared; unavailable hidden by default), local airport, then level. Each row shows club, airport, games this season and an established partner. Tick the ones you want and press <strong>Add selected as draft invitations</strong>.</li>
+    <li><strong>Invitations</strong>: the drafts. Tick them and press <strong>Send invitations to selected</strong>. Each referee gets the email with accept, tentative and decline, and the same proposal on their home. The chips count draft, waiting, tentative, accepted, declined, confirmed against the number needed. <strong>Send reminder</strong> nudges the waiting ones (the hub also reminds automatically after 7 and 14 days). <strong>Remove draft</strong> deletes drafts not yet sent.</li>
+    <li>Answers arrive by themselves with the date and the referee's note. Tentative referees can confirm from their home; you see it here.</li>
+    <li><strong>Confirm selected (accepted only)</strong>: tick the accepted referees and confirm. The hub checks the count against the pairs requested and that an established pair stays together, and warns before going on. Confirming creates the assignment, emails each referee the full brief, moves the event to staffed, and offers to close the invitations still open with a short email to those referees.</li>
+    <li><strong>Notify organizer</strong> emails the organizer the designated list with a link to their organizer page and a private read only link.</li>
+  </ol>
+  <div class="walk" data-steps='[
+    {"img":"guide/img/admin-staffing-cards.jpg","cap":"Staffing: one card per event with progress, counts and travel status."},
+    {"img":"guide/img/admin-tournament-dialog.jpg","cap":"The event dialog: editable header, then the Invitations tab."},
+    {"img":"guide/img/admin-find-referees.jpg","cap":"Find referees: ranked by declared availability, local airport and level; tick and add as drafts."},
+    {"img":"guide/img/admin-invitations.jpg","cap":"Invitations: waiting, tentative with a note, accepted with a note. Confirm the accepted ones."}
+  ]'></div>
+
+  <h2 id="travel">4. Designated and travel</h2>
+  <ol class="steps">
+    <li>The <strong>Designated and travel</strong> tab lists the team with email, phone, home city and airport. The chips show referees designated against the need, supervisor or observer, and who books travel. Referees who answered accepted or tentative but are not designated are listed as open to officiate, in case of a withdrawal.</li>
+    <li><strong>Add an official directly</strong>: pick a name and a role (referee, supervisor, observer) and press Add. Use it for the supervisor the organizer asked for, an observer, or a last minute replacement.</li>
+    <li><strong>Add booking</strong> under an official records a flight, hotel, car or train: status, provider, reference, times, from, to, cost, who paid. The referee sees it on their home at once and can export it to their calendar; the organizer sees it on their page. Edit a booking with the edit link; delete it from the booking dialog.</li>
+    <li>When the organizer books, they record their own bookings from their page; referees record what they booked themselves. Everything lands in the same table.</li>
+    <li><strong>Send brief to all designated</strong> sends the role specific confirmation (referee, supervisor with duties, observer) with the full event details and the travel arrangement. Send it again after a change.</li>
+    <li><strong>Remove</strong> takes someone off the team and reopens their invitation as declined, so you can pick a replacement from Find referees.</li>
+  </ol>
+  <div class="walk" data-steps='[
+    {"img":"guide/img/admin-designated.jpg","cap":"Designated and travel: the pair, a hotel and a flight booked for one of them, add an official directly."},
+    {"img":"guide/img/organizer-page-designated.jpg","cap":"What the organizer sees after Notify organizer: the same team and bookings."},
+    {"img":"guide/img/referee-home-trip.jpg","cap":"What the referee sees: the trip card with bookings, calendar file and expenses."}
+  ]'></div>
+
+  <h2 id="money">5. Expenses and the organizer report</h2>
+  <ol class="steps">
+    <li><strong>Expenses</strong> tab: the chips total bookings paid by the NRC, by the organizer, by referees, and claims submitted, approved and reimbursed. Each claim shows the official, type, description, amount, receipt (opens in a new tab), status and who reimburses (NRC or organizer).</li>
+    <li>Press <strong>Approve</strong> or <strong>Reject</strong>, then <strong>Reimbursed</strong> when the money has gone out. The referee sees each status on their home; the organizer sees the totals.</li>
+    <li>The organizer's post event report shows below the claims once filed: games played, ratings, highlights, incidents, would request again. Games per official feed the <strong>Officiated and games</strong> tab, which you can also fill or correct by hand.</li>
+  </ol>
+
+  <h2 id="programs">6. Programs</h2>
+  <ol class="steps">
+    <li><strong>Programs</strong> holds the two settings cards. Certified referees: assessment questions (50), hurdle (80%), the per rule threshold that puts a rule into the program (80%), program length (12 weeks), study sessions per week, time limit, module questions and pass mark. Level 1 course: final test questions (30), pass mark (80%), time limit, question pool level, module questions and pass mark. Press <strong>Save</strong> on each card.</li>
+    <li>The hurdle is cleared when the overall mark is reached and no rule sits below the per rule threshold; otherwise the hub builds a program on the weak rules and the referee re-tests at the end.</li>
+    <li><strong>Status by referee</strong> shows, for everyone on the roster: signed in or not, baseline taken, last score, program status and due date, modules done. Candidates show the Level 1 course progress and the theory passed date; you award Level 1 on the referee record after the practical part.</li>
+  </ol>
+  <div class="walk" data-steps='[
+    {"img":"guide/img/admin-programs.jpg","cap":"Programs: the two settings cards, then the status by referee."},
+    {"img":"guide/img/candidate-course.jpg","cap":"What a candidate sees: the Level 1 course with modules, study plan and final test."}
+  ]'></div>
+
+  <h2 id="sessions">7. Training sessions</h2>
+  <ol class="steps">
+    <li>Press <strong>Add session</strong>: title, type (online, clinic, course), audience, start and end, time zone, location, description, registration link, published.</li>
+    <li>Published sessions appear on the public Training page under <strong>Next training sessions</strong> until they are past. Open a session to edit or delete it.</li>
+  </ol>
+
+  <h2 id="questions">8. Questions</h2>
+  <ol class="steps">
+    <li>The bank behind every quiz, course, assessment and program: the IHF Catalogue of Rules Questions 2025 plus the game situations deck. Filter by rule, level, source or text.</li>
+    <li>Open a question to edit the wording, options, correct answers, explanation, rule reference or level, or set it inactive. <strong>Add question</strong> creates a new one. The Level 1 course and the Level 1 final test draw on Level 1 questions first and widen to the other levels when a rule has too few; adding Level 1 questions on rules 1, 3, 8, 9 and 11 is the fastest way to make that course feel right.</li>
+  </ol>
+
+  <h2 id="imports">9. Imports</h2>
+  <ol class="steps">
+    <li><strong>Referee roster (CSV)</strong>: a spreadsheet saved as CSV with columns such as first name, last name, email, phone, club, city, state, airport, level, certified since, member ID, membership, SafeSport and background check dates. Rows match on email, then on name; new emails create a candidate record; empty cells keep the current value. The result lists created, updated and skipped rows.</li>
+    <li><strong>Sport80 membership export</strong>: the monthly export refreshes membership validity dates for every referee and clears the dashboard task.</li>
+    <li><strong>Import history</strong> keeps every run with its counts and skipped rows.</li>
+  </ol>
+
+  <h2 id="emails">10. Emails the hub sends</h2>
+  <div class="table-wrap"><table class="mail-table"><thead><tr><th>Email</th><th>To</th><th>Sent when</th></tr></thead><tbody>
+    <tr><td>Sign in link and code</td><td>Anyone signing in</td><td>On request from the sign in page</td></tr>
+    <tr><td>Referee invitation</td><td>Referee</td><td>Send invitations to selected</td></tr>
+    <tr><td>Reminder: your answer</td><td>Referee</td><td>Send reminder, or automatically after 7 and 14 days</td></tr>
+    <tr><td>Confirmed</td><td>Referee</td><td>Confirm selected</td></tr>
+    <tr><td>The referee team is complete</td><td>Referees still waiting</td><td>Offered after a confirmation that completes the team</td></tr>
+    <tr><td>Confirmed as referee, supervisor or observer</td><td>Each designated official</td><td>Send brief to all designated</td></tr>
+    <tr><td>Referees designated</td><td>Organizer</td><td>Notify organizer</td></tr>
+    <tr><td>Update or Cancelled</td><td>Designated officials, organizer, NRC</td><td>Notify changes, or the organizer's Save and notify or Cancel</td></tr>
+    <tr><td>After the event: your two minute report</td><td>Organizer</td><td>Automatically three days after the end date, once</td></tr>
+    <tr><td>Your training program is overdue</td><td>Referee</td><td>Automatically after the due date, once</td></tr>
+    <tr><td>NRC hub: items today</td><td>NRC contact address</td><td>Automatically each morning when there is something to report</td></tr>
+  </tbody></table></div>
+  <p class="small muted">Every send is logged with its result. The NRC contact address is set on the hosting side (CONTACT_EMAIL); the sender is the NRC Referee Hub account configured there.</p>
+
+  <h2 id="daily">11. Automatic reminders</h2>
+  <p>Every morning at 8am Pacific the hub checks: invitations unanswered for 7 days (one reminder, then one more a week later), designated officials without a booked flight or hotel within 21 days of an event the NRC books, organizers without a report three days after their event, and overdue programs. Referees and organizers get their reminder once; the NRC gets one digest listing everything still open.</p>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/guide.js"></script>
+</body>
+</html>

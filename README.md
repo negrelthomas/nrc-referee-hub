@@ -15,6 +15,7 @@ site/                      published folder (Netlify publish = site)
   referees.html            public list of certified referees (name, level, dates, club; no contact details)
   directory.html           referee directory (signed in)
   login.html               magic link sign in, with a one time code fallback
+  guide/                   user guides (index, referees, organizers, admin) with click by click walkthroughs; images in guide/img
   auth.html                exchanges the token from the email link (not consumed by mail scanners)
   profile.html             referee profile, games, evaluations, assignments
   admin/index.html         NRC admin: dashboard, tasks, referees, clubs, requests, questions, imports
@@ -89,3 +90,9 @@ Observer accounts, season reports, exports, organizer accounts with their own re
 ## Local preview
 
 Any static server works: `python -m http.server 8765` inside `site/`, then open http://localhost:8765. Without Supabase configured, the training module runs from `data/questions.js`.
+
+## Test identities (October 2026 test run)
+
+Gmail plus addresses on Thomas's inbox, so every email the hub sends can be read: negrel.thomas+candidate (Casey Nguyen, candidate), +referee (Marcus Oyelaran, Level 2), +referee2 (Ingrid Solheim, Level 3), +sam (Sam Prospect, candidate from the contact form), +organizer (Olivia Test, Test Bay Open 2027), +admin (admin invite), +nrc (CONTACT_EMAIL on Netlify, so NRC digests and copies do not reach the real NRC address during testing). Switch CONTACT_EMAIL back to referee@handballusa.org when the NRC takes over.
+
+Supabase email templates: both "Magic link" and "Confirm sign up" must use `{{ .RedirectTo }}&token_hash={{ .TokenHash }}&type=...` plus `{{ .Token }}`; a first time user receives the sign up template, so the two must match.

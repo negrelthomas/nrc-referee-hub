@@ -48,7 +48,7 @@
     const host = document.getElementById("site-footer");
     if (!host) return;
     host.innerHTML = `<div class="wrap">
-      <div>USA Team Handball, National Referee Committee. Questions: <a href="mailto:${NRC.esc(C.CONTACT_EMAIL)}">${NRC.esc(C.CONTACT_EMAIL)}</a></div>
+      <div>USA Team Handball, National Referee Committee. Questions: <a href="mailto:${NRC.esc(C.CONTACT_EMAIL)}">${NRC.esc(C.CONTACT_EMAIL)}</a> &middot; <a href="guide/index.html">How to use the hub</a></div>
       <img src="assets/usath-logo.png" alt="USA Team Handball"></div>`;
   };
 
