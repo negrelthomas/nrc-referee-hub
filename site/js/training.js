@@ -11,7 +11,7 @@
   const saveLocal = (d) => { try { localStorage.setItem(LKEY, JSON.stringify(d)); } catch (e) { } };
 
   function pool(forCards) {
-    return ALL.filter(q => (!diff || q.diff === diff) && (!rule || String(q.rule) === rule) && (!src || (src === "ihf" ? q.src === "ihf" : q.src !== "ihf")) && (forCards ? true : (q.options && q.options.length)));
+    return ALL.filter(q => (!diff || q.diff === diff) && (!rule || String(q.rule) === rule) && (!src || (src === "ihf" ? q.src === "ihf" : src === "nrc_level1" ? q.src === "nrc_level1" : (q.src !== "ihf" && q.src !== "nrc_level1"))) && (forCards ? true : (q.options && q.options.length)));
   }
   function updatePoolCount() {
     const n = tab === "cards" ? pool(true).length : pool(false).length;
