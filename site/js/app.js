@@ -62,7 +62,8 @@
   <p class="small muted">Anything: a bug, a confusing screen, a missing feature, a word to change. It goes directly to the person building the site; no email or text needed.</p>
   <form id="fb-form">
     <label>Your message</label><textarea name="message" required minlength="3" rows="5" placeholder="What you were trying to do, what happened, what you expected..."></textarea>
-    <label>Your email (so we can follow up)</label><input name="email" type="email" placeholder="you@example.com">
+    <div id="fb-email-wrap"><label>Your email (so we can follow up)</label><input name="email" type="email" placeholder="you@example.com"></div>
+    <p class="small muted hidden" id="fb-as"></p>
     <div id="fb-msg" class="notice hidden" style="margin-top:10px"></div>
     <p style="margin-top:14px"><button class="btn" type="submit">Send</button> <button class="btn ghost" type="button" id="fb-cancel">Cancel</button></p>
   </form>
@@ -70,7 +71,11 @@
     const dlg = document.getElementById("dlg-feedback"), form = document.getElementById("fb-form"), msg = document.getElementById("fb-msg");
     document.getElementById("fb-btn").onclick = async () => {
       const u = await NRC.currentUser().catch(() => null);
-      if (u && u.email && !form.email.value) form.email.value = u.email;
+      const signed = !!(u && u.email);
+      if (signed) form.email.value = u.email;
+      document.getElementById("fb-email-wrap").classList.toggle("hidden", signed);
+      const as = document.getElementById("fb-as"); as.classList.toggle("hidden", !signed);
+      if (signed) as.textContent = "Sent as " + u.email + ", so we can follow up with you directly.";
       msg.classList.add("hidden"); dlg.showModal(); form.message.focus();
     };
     document.getElementById("fb-cancel").onclick = () => dlg.close();
