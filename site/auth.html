@@ -40,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const tokenHash = q.get("token_hash");
   if (tokenHash) {
     const { error } = await NRC.sb.auth.verifyOtp({ token_hash: tokenHash, type: q.get("type") || "magiclink" });
-    if (error) { fail("This link is no longer valid: " + error.message + ". Request a new one and use the code from the email if the link fails again."); return; }
+    if (error) { fail("This link is no longer valid. Each link works once and only the most recent one counts: if you asked for a link more than once, open the newest email, or type the code from it on the sign in page. (" + error.message + ")"); return; }
     await go(); return;
   }
   // Legacy link format (token in the URL fragment): supabase-js reads it on load.

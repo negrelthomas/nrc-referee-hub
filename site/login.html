@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { error } = await NRC.sb.auth.signInWithOtp({ email, options: { emailRedirectTo: redirect } });
     NRC.$("#btn").disabled = false;
     if (error) { NRC.notice(msg, /roster/i.test(error.message) ? "This email is not on the NRC referee roster. Write to referee@handballusa.org to be invited." : "Could not send the link: " + NRC.esc(error.message), "error"); return; }
-    NRC.notice(msg, "Check your inbox. Click the link, or enter the code below. Both are valid for one hour.", "ok");
+    NRC.notice(msg, "Check your inbox. Click the link in the newest email, or enter its code below. Both are valid for one hour and work once; asking again replaces them.", "ok");
     pendingEmail = email;
     document.getElementById("login-form").classList.add("hidden");
     document.getElementById("code-form").classList.remove("hidden");
