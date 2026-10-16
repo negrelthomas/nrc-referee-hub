@@ -10,11 +10,15 @@
   // ---------- routing ----------
   function route() {
     const [h, arg] = (location.hash || "#dashboard").slice(1).split("/");
-    NRC.$$(".admin-nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + (h === "club" ? "clubs" : h)));
-    NRC.$$("#panes > div").forEach(p => p.classList.toggle("hidden", p.id !== "pane-" + h));
+    const pane = h === "club" ? "clubs" : h === "referee" ? "referees" : h;
+    NRC.$$(".admin-nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + pane));
+    NRC.$$("#panes > div").forEach(p => p.classList.toggle("hidden", p.id !== "pane-" + pane));
+    if (h === "referee" && arg && refs.length) openRefFromLink(arg);
     if (h === "club" && arg && clubs.length) renderClubPage(arg);
     window.scrollTo(0, 0);
   }
+  // admin/index.html#referee/<id> (Edit profile on the public Referees page) opens the editor once
+  function openRefFromLink(id) { history.replaceState(null, "", "#referees"); openRef(id); }
   window.addEventListener("hashchange", route);
   // <base href="../"> makes "#pane" links resolve to the site root; keep them on this page
   document.addEventListener("click", e => { const a = e.target.closest('a[href^="#"]'); if (!a || a.getAttribute("href") === "#" || a.onclick) return; e.preventDefault(); location.hash = a.getAttribute("href"); });
@@ -46,6 +50,7 @@
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
     fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); renderPlan(); loadTasks(); loadImportLog();
     const [h, arg] = (location.hash || "").slice(1).split("/"); if (h === "club" && arg) renderClubPage(arg);
+    if (h === "referee" && arg) openRefFromLink(arg);
   }
   function fillSelects() {
     NRC.$$("select[name=club_id]").forEach(s => { s.innerHTML = '<option value="">No club</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join(""); });
@@ -100,7 +105,7 @@
     const q = $("#r-q").value.toLowerCase(), l = $("#r-level").value, inc = $("#r-inactive").checked;
     const club = id => (clubs.find(c => c.id === id) || {}).name || "";
     $("#refs tbody").innerHTML = refs.filter(r => (inc || r.active) && (!l || r.cert_level === l) && (!q || [r.first_name, r.last_name, r.email, club(r.club_id), r.home_city, r.home_state, r.home_airport_iata].join(" ").toLowerCase().includes(q)))
-      .map(r => `<tr><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt=""></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.active ? "" : ' <span class="pill">inactive</span>'}<br><span class="small muted">${NRC.esc(r.email)}</span></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}${r.level1_theory_passed_on ? ' <span class="pill green">theory passed ' + NRC.fmtDate(r.level1_theory_passed_on) + "</span>" : ""}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.departure_airport_iata ? " / " + NRC.esc(r.departure_airport_iata) : ""}</td><td>${r._games}</td><td>${r._lastEval ? NRC.fmtDate(r._lastEval) : '<span class="muted">none</span>'}</td><td><button class="btn sm ghost" onclick="openRef('${r.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="9">No referee yet. Add one or import.</td></tr>';
+      .map(r => `<tr class="clickable" onclick="openRef('${r.id}')"><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt=""></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.active ? "" : ' <span class="pill">inactive</span>'}<br><span class="small muted">${NRC.esc(r.email)}</span></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}${r.level1_theory_passed_on ? ' <span class="pill green">theory passed ' + NRC.fmtDate(r.level1_theory_passed_on) + "</span>" : ""}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.departure_airport_iata ? " / " + NRC.esc(r.departure_airport_iata) : ""}</td><td>${r._games}</td><td>${r._lastEval ? NRC.fmtDate(r._lastEval) : '<span class="muted">none</span>'}</td><td><button class="btn sm ghost" onclick="event.stopPropagation();openRef('${r.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="9">No referee yet. Add one or import.</td></tr>';
   }
   ["#r-q", "#r-level", "#r-inactive"].forEach(s => $(s).addEventListener("input", renderRefs));
   window.exportCsv = function () {
@@ -115,7 +120,10 @@
     const f = $("#form-ref"); f.reset();
     $("#dlg-ref-title").textContent = currentRef ? currentRef.first_name + " " + currentRef.last_name : "New referee";
     $("#btn-eval").classList.toggle("hidden", !currentRef); $("#btn-game").classList.toggle("hidden", !currentRef);
-    if (currentRef) { Object.keys(currentRef).forEach(k => { if (f[k] && f[k].type !== "checkbox") f[k].value = currentRef[k] == null ? "" : currentRef[k]; }); f.active.checked = currentRef.active; if (f.level_confirmed) f.level_confirmed.checked = currentRef.level_confirmed !== false; }
+    if (id && !currentRef) { alert("Referee not found."); return; }
+    $("#ref-photo").src = (currentRef && currentRef.photo_url) || "assets/avatar.svg";
+    $("#ref-photo-remove").classList.toggle("hidden", !(currentRef && currentRef.photo_url));
+    if (currentRef) { Object.keys(currentRef).forEach(k => { if (f[k] && f[k].type !== "checkbox" && f[k].type !== "file") f[k].value = currentRef[k] == null ? "" : currentRef[k]; }); f.active.checked = currentRef.active; if (f.level_confirmed) f.level_confirmed.checked = currentRef.level_confirmed !== false; }
     // history
     const ex = $("#ref-extra"); ex.innerHTML = "";
     if (currentRef) {
@@ -146,6 +154,13 @@
     if (currentRef) res = await sb().from("referees").update(row).eq("id", currentRef.id).select().single();
     else res = await sb().from("referees").insert(row).select().single();
     if (res.error) { alert("Save failed: " + res.error.message); return; }
+    const file = f.photo.files[0];
+    if (file) {
+      const ext = (file.name.split(".").pop() || "jpg").toLowerCase(), path = `${res.data.id}/photo-${Date.now()}.${ext}`;
+      const up = await sb().storage.from("referee-photos").upload(path, file, { upsert: true, contentType: file.type });
+      if (up.error) alert("Profile saved, photo upload failed: " + up.error.message);
+      else await sb().from("referees").update({ photo_url: sb().storage.from("referee-photos").getPublicUrl(path).data.publicUrl }).eq("id", res.data.id);
+    } else if (f.remove_photo.checked) await sb().from("referees").update({ photo_url: null }).eq("id", res.data.id);
     if (!currentRef || currentRef.cert_level !== row.cert_level) await sb().from("certifications").insert({ referee_id: res.data.id, level: row.cert_level, obtained_on: row.cert_date || today(), certified_by: row.cert_by });
     if (!currentRef) alert("Referee added. " + row.email + " can now sign in on the Sign in page with a magic link; send them the site address.");
     $("#dlg-ref").close(); loadAll();

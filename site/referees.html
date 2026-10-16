@@ -35,17 +35,27 @@
     <select id="f-level"><option value="">All levels</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3 (National)</option><option value="nachc">NACHC Continental</option><option value="ihf">IHF International</option></select>
     <select id="f-sort"><option value="name">Sort by name</option><option value="level">Sort by level</option><option value="since">Sort by certified since</option><option value="last">Sort by last certification</option></select>
   </div>
-  <div class="table-wrap"><table id="tbl"><thead><tr><th>Referee</th><th>Current level</th><th>Certified since</th><th>Last certification</th><th>Club</th><th>State</th></tr></thead><tbody></tbody></table></div>
+  <div class="table-wrap"><table id="tbl"><thead><tr><th></th><th>Referee</th><th>Current level</th><th>Certified since</th><th>Last certification</th><th>Club</th><th>State</th></tr></thead><tbody></tbody></table></div>
   <p class="small muted" style="margin-top:10px">To request referees for an event, use the <a href="request-referees.html">tournament request page</a>. For anything else, write to the NRC at <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>. Signed in referees can open the <a href="directory.html">referee directory</a>.</p>
 </section>
 </div>
+
+<dialog id="dlg-prof"><div class="body">
+  <div class="prof-head">
+    <img id="p-photo" class="avatar xl" src="assets/avatar.svg" alt="">
+    <div><h3 id="p-name" style="margin:0"></h3><div id="p-level" style="margin-top:6px"></div></div>
+  </div>
+  <dl class="prof-facts" id="p-facts"></dl>
+  <p class="small muted" id="p-contact">Contact goes through the NRC at <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>.</p>
+  <p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><a class="btn hidden" id="p-edit" href="#">Edit profile</a><button class="btn ghost" type="button" onclick="document.getElementById('dlg-prof').close()">Close</button></p>
+</div></dialog>
 
 <footer id="site-footer"></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
-let rows = [];
+let rows = [], isAdmin = false;
 const RANK = { level_1: 1, level_2: 2, level_3: 3, nachc: 4, ihf: 5 };
 function render() {
   const q = NRC.$("#q").value.toLowerCase(), lv = NRC.$("#f-level").value, sort = NRC.$("#f-sort").value;
@@ -55,13 +65,26 @@ function render() {
     : sort === "since" ? String(a.certified_since || "9").localeCompare(String(b.certified_since || "9"))
     : sort === "last" ? String(b.last_certified_on || "").localeCompare(String(a.last_certified_on || ""))
     : a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
-  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}</td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
-  if (!list.length) tb.innerHTML = '<tr><td colspan="6">No referee matches.</td></tr>';
+  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr class="clickable" tabindex="0" data-id="${r.id}"><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" loading="lazy"></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}</td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
+  if (!list.length) tb.innerHTML = '<tr><td colspan="7">No referee matches.</td></tr>';
+}
+function openProfile(id) {
+  const r = rows.find(x => x.id === id); if (!r) return;
+  NRC.$("#p-photo").src = r.photo_url || "assets/avatar.svg";
+  NRC.$("#p-name").textContent = r.first_name + " " + r.last_name;
+  NRC.$("#p-level").innerHTML = NRC.levelPill(r.cert_level, r.level_confirmed);
+  const facts = [["Club", r.club_name], ["Home", [r.home_city, r.home_state].filter(Boolean).join(", ")], ["Certified since", NRC.fmtDate(r.certified_since) || "On file with the NRC"], ["Last certification", NRC.fmtDate(r.last_certified_on)]].filter(f => f[1]);
+  NRC.$("#p-facts").innerHTML = facts.map(([k, v]) => `<dt>${k}</dt><dd>${NRC.esc(v)}</dd>`).join("");
+  const ed = NRC.$("#p-edit"); ed.classList.toggle("hidden", !isAdmin); ed.href = "admin/index.html#referee/" + r.id;
+  NRC.$("#dlg-prof").showModal();
 }
 document.addEventListener("DOMContentLoaded", async () => {
-  if (!NRC.sb) { NRC.$("#tbl tbody").innerHTML = '<tr><td colspan="6">Database not configured. The referee list appears here once Supabase is set up.</td></tr>'; return; }
+  NRC.$("#tbl tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr) openProfile(tr.dataset.id); });
+  NRC.$("#tbl tbody").addEventListener("keydown", e => { const tr = e.target.closest("tr[data-id]"); if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openProfile(tr.dataset.id); } });
+  if (!NRC.sb) { NRC.$("#tbl tbody").innerHTML = '<tr><td colspan="7">Database not configured. The referee list appears here once Supabase is set up.</td></tr>'; return; }
   const { data } = await NRC.sb.from("referee_directory").select("*");
   rows = data || [];
+  NRC.currentUser().then(u => { isAdmin = !!(u && u.role === "admin"); }).catch(() => {});
   NRC.$("#st-total").textContent = rows.length;
   NRC.$("#st-l1").textContent = rows.filter(r => r.cert_level === "level_1").length;
   NRC.$("#st-l2").textContent = rows.filter(r => r.cert_level === "level_2").length;

@@ -202,6 +202,15 @@ tr:hover td{background:#FAFBFD}
 .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius)}
 .avatar{width:40px;height:40px;border-radius:50%;object-fit:cover;background:#D7DEE8}
 .avatar.lg{width:96px;height:96px}
+.avatar.xl{width:128px;height:128px;border:3px solid #fff;box-shadow:0 8px 24px -12px rgba(4,35,79,.5)}
+tr.clickable{cursor:pointer}
+tr.clickable:hover td,tr.clickable:focus td{background:#F3F6FA}
+tr.clickable:focus{outline:2px solid var(--red);outline-offset:-2px}
+.prof-head{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+.prof-facts{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;margin:18px 0 6px}
+.prof-facts dt{color:var(--muted);font-size:14px}
+.prof-facts dd{margin:0;font-weight:600}
+.ref-photo-row{display:flex;gap:16px;align-items:center;margin-bottom:6px}
 
 /* Tabs */
 .tabs{display:flex;gap:4px;border-bottom:2px solid var(--line);margin-bottom:18px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;mask-image:linear-gradient(90deg,#000 92%,transparent)}
