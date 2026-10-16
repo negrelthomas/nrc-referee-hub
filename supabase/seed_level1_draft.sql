@@ -1,5 +1,5 @@
 -- Level 1 question drafts for the rules where the catalogue is thin (1, 3, 8, 9, 11).
--- Written from the IHF Rules of the Game; loaded inactive with source 'nrc_level1' so the NRC reviews each one
+-- Written from the IHF Rules of the Game; loaded with source 'nrc_level1'; activated for the demo, the NRC can review and correct them
 -- in Admin > Questions and ticks it active. Single correct answer, index 0 based.
 insert into public.quiz_questions (source, source_ref, rule_number, category, difficulty, question, options, correct_index, answer, rule_ref, active)
 values
