@@ -17,7 +17,7 @@
 <section>
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
     <h1 style="margin:0" id="hello">My referee home</h1>
-    <div><a class="btn ghost sm" href="directory.html">Directory</a> <a class="btn ghost sm" href="guide/referees.html">How it works</a> <button class="btn ghost sm" onclick="NRC.signOut()">Sign out</button></div>
+    <div><a class="btn ghost sm" href="directory.html">Directory</a> <a class="btn ghost sm" href="guide/referees.html">How it works</a> <button class="btn ghost sm" type="button" onclick="startTour(true)">Welcome tour</button> <button class="btn ghost sm" onclick="NRC.signOut()">Sign out</button></div>
   </div>
   <div id="msg" class="notice hidden" style="margin-top:12px"></div>
 
@@ -131,6 +131,60 @@
     <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-mybooking').close()">Cancel</button></p>
   </form>
 </div></dialog>
+<dialog id="dlg-tour"><div class="body tour">
+  <div class="steps-dots" id="tour-dots"><span class="on"></span><span></span><span></span><span></span><span></span></div>
+  <div class="screen on" data-s="1">
+    <h3 style="margin:0 0 6px" id="tour-hello">Welcome to the NRC Referee Hub</h3>
+    <p>This is where the National Referee Committee staffs tournaments and where you keep what the NRC needs from you. Five short screens, about two minutes.</p>
+    <ul>
+      <li>Tell the NRC which weekends you can referee</li>
+      <li>Answer invitations and follow your trip, bookings and expenses</li>
+      <li>Train on the IHF rules and keep your certification current</li>
+    </ul>
+  </div>
+  <div class="screen" data-s="2">
+    <h3 style="margin:0 0 6px">Your details</h3>
+    <p class="small muted">USATH does not have these. They let the NRC plan travel and find referees close to an event. You can change them later on the Profile tab.</p>
+    <form id="tour-form">
+      <div class="row">
+        <div><label>Phone</label><input name="phone" autocomplete="tel"></div>
+        <div><label>Club</label><select name="club_id"><option value="">No club</option></select></div>
+      </div>
+      <div class="row">
+        <div><label>Home city</label><input name="home_city"></div>
+        <div><label>Home state</label><input name="home_state" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="row">
+        <div><label>Closest airport to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="SFO" style="text-transform:uppercase"></div>
+        <div><label>Usual departure airport, if different</label><input name="departure_airport_iata" maxlength="3" placeholder="OAK" style="text-transform:uppercase"></div>
+      </div>
+      <div class="row">
+        <div><label>USATH member ID (Sport80)</label><input name="usath_member_id"></div>
+        <div><label>Photo (square headshot)</label><input type="file" name="photo" accept="image/*"></div>
+      </div>
+      <div id="tour-msg" class="notice error hidden" style="margin-top:8px"></div>
+    </form>
+  </div>
+  <div class="screen" data-s="3">
+    <h3 style="margin:0 0 6px">Your weekends</h3>
+    <p>On your home, tap a weekend to cycle it: available, tentative, unavailable. It saves on each tap. Weekends left blank count as unknown, and the NRC considers declared weekends first. Longer periods go under Blocked dates.</p>
+    <img src="guide/img/referee-home-weekends.jpg" alt="The weekend grid on the referee home">
+  </div>
+  <div class="screen" data-s="4">
+    <h3 style="margin:0 0 6px">Invitations and trips</h3>
+    <p>When the NRC proposes you for an event you get an email with the dates, what the organizer covers and three buttons: Accept, Tentative, Decline. The same buttons sit on your home. Once the NRC confirms the pairs, your trip card shows the venue, the bookings, a calendar file, and where to submit expenses.</p>
+    <img src="guide/img/referee-respond.jpg" alt="Answering an invitation">
+  </div>
+  <div class="screen" data-s="5">
+    <h3 style="margin:0 0 6px" id="tour-train-title">Training</h3>
+    <p id="tour-train-text"></p>
+    <img id="tour-train-img" src="guide/img/training-quiz-setup.jpg" alt="The training page">
+  </div>
+  <div class="nav">
+    <button class="btn ghost sm" type="button" id="tour-skip">Skip for now</button>
+    <div><button class="btn ghost sm" type="button" id="tour-prev">Back</button> <button class="btn sm" type="button" id="tour-next">Next</button></div>
+  </div>
+</div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
@@ -157,6 +211,7 @@ async function load() {
     $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);
     $("#hello").textContent = "Hello " + ref.first_name;
     loadHome(); loadTournaments(); loadGames(); loadEvals(); loadAssignments(); loadTraining();
+    if (!ref.onboarded_at) startTour(false);
   } else {
     NRC.notice($("#msg"), "Your account is not linked to a referee record. Write to referee@handballusa.org.", "error");
     $("#form").classList.add("hidden");
@@ -248,7 +303,7 @@ async function loadHome() {
   const { data: ans } = await NRC.sb.from("quiz_answers").select("correct,quiz_questions(rule_number),quiz_attempts!inner(user_id,created_at)").eq("quiz_attempts.user_id", user.id);
   const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; });
   const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n)[0];
-  $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way and counts on the <a href="training.html#board">leaderboard</a>.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
+  $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way and counts on the <a href=\"training.html#board\">leaderboard</a>.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
 }
 let WA = {};
 function saturday(d) { const x = new Date(d); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); x.setHours(12, 0, 0, 0); return x; }
@@ -346,6 +401,60 @@ $("#form-mybooking").addEventListener("submit", async (e) => {
   if (error) { alert("Could not save: " + error.message); return; }
   $("#dlg-mybooking").close(); loadHome();
 });
+
+// ---------- welcome tour: five screens at the first sign in, replayable from the header ----------
+let tourStep = 1;
+function tourShow(n) {
+  tourStep = n;
+  NRC.$$("#dlg-tour .screen").forEach(sc => sc.classList.toggle("on", +sc.dataset.s === n));
+  NRC.$$("#tour-dots span").forEach((d, i) => d.classList.toggle("on", i + 1 === n));
+  $("#tour-prev").style.visibility = n === 1 ? "hidden" : "visible";
+  $("#tour-next").textContent = n === 2 ? "Save and continue" : n === 5 ? "Go to my home" : "Next";
+}
+window.startTour = function (replay) {
+  if (!ref) return;
+  const f = $("#tour-form");
+  const sel = f.club_id; if (sel.options.length <= 1) NRC.$$("#form select[name=club_id] option").forEach(o => { if (o.value) sel.appendChild(o.cloneNode(true)); });
+  ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","usath_member_id"].forEach(k => f[k].value = ref[k] || "");
+  $("#tour-hello").textContent = "Welcome to the NRC Referee Hub, " + ref.first_name;
+  const cand = ref.cert_level === "candidate";
+  $("#tour-train-title").textContent = cand ? "Your Level 1 course" : "Training and your assessment";
+  $("#tour-train-text").textContent = cand
+    ? "Your home shows the Level 1 online course: six modules by rule group, each with study cards and a 10 question test, then a final test. Pass it and the NRC contacts you for the practical part. The quiz, flashcards and leaderboard are open to you too."
+    : "Your first task is the baseline assessment: 50 questions at your level, 60 minutes. Clear it and nothing more is required this season; otherwise the hub builds a 12 week program on the rules you missed. The quiz, with or without the clock, and the timed challenge leaderboard are there all year.";
+  $("#tour-train-img").src = cand ? "guide/img/candidate-course.jpg" : "guide/img/training-quiz-setup.jpg";
+  $("#tour-skip").classList.toggle("hidden", !!replay);
+  tourShow(1); $("#dlg-tour").showModal();
+};
+async function tourSaveDetails() {
+  const f = $("#tour-form"); const row = {};
+  ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","usath_member_id"].forEach(k => row[k] = f[k].value.trim() || null);
+  ["home_state","home_airport_iata","departure_airport_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
+  row.updated_at = new Date().toISOString();
+  const res = await NRC.sb.from("referees").update(row).eq("id", ref.id).select().single();
+  if (res.error) { NRC.notice($("#tour-msg"), "Could not save: " + NRC.esc(res.error.message), "error"); return false; }
+  ref = res.data;
+  const file = f.photo.files[0];
+  if (file) {
+    const ext = (file.name.split(".").pop() || "jpg").toLowerCase(); const path = `${user.id}/photo.${ext}`;
+    const up = await NRC.sb.storage.from("referee-photos").upload(path, file, { upsert: true, contentType: file.type });
+    if (!up.error) { const url = NRC.sb.storage.from("referee-photos").getPublicUrl(path).data.publicUrl + "?v=" + Date.now(); await NRC.sb.from("referees").update({ photo_url: url }).eq("id", ref.id); ref.photo_url = url; $("#photo").src = url; }
+  }
+  const pf = $("#form"); ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","usath_member_id"].forEach(k => pf[k].value = ref[k] || "");
+  return true;
+}
+async function tourFinish() {
+  $("#dlg-tour").close();
+  if (!ref.onboarded_at) { const now = new Date().toISOString(); await NRC.sb.from("referees").update({ onboarded_at: now }).eq("id", ref.id); ref.onboarded_at = now; }
+  loadHome();
+}
+$("#tour-next").onclick = async () => {
+  if (tourStep === 2) { $("#tour-next").disabled = true; const ok = await tourSaveDetails(); $("#tour-next").disabled = false; if (!ok) return; }
+  if (tourStep === 5) { tourFinish(); return; }
+  tourShow(tourStep + 1);
+};
+$("#tour-prev").onclick = () => tourShow(Math.max(1, tourStep - 1));
+$("#tour-skip").onclick = tourFinish;
 document.addEventListener("DOMContentLoaded", load);
 </script>
 </body>

@@ -50,6 +50,43 @@
     host.innerHTML = `<div class="wrap">
       <div>USA Team Handball, National Referee Committee. Questions: <a href="mailto:${NRC.esc(C.CONTACT_EMAIL)}">${NRC.esc(C.CONTACT_EMAIL)}</a> &middot; <a href="guide/index.html">How to use the hub</a></div>
       <img src="assets/usath-logo.png" alt="USA Team Handball"></div>`;
+    NRC.renderFeedback();
+  };
+
+  // ---------- "Give feedback" button, every page. Goes straight to the hub owner by email. ----------
+  NRC.renderFeedback = function () {
+    if (document.getElementById("fb-btn")) return;
+    document.body.insertAdjacentHTML("beforeend", `<button type="button" class="fb-btn" id="fb-btn" aria-haspopup="dialog">Give feedback</button>
+<dialog id="dlg-feedback"><div class="body">
+  <h3 style="margin-top:0">Feedback on the hub</h3>
+  <p class="small muted">Anything: a bug, a confusing screen, a missing feature, a word to change. It goes directly to the person building the site; no email or text needed.</p>
+  <form id="fb-form">
+    <label>Your message</label><textarea name="message" required minlength="3" rows="5" placeholder="What you were trying to do, what happened, what you expected..."></textarea>
+    <label>Your email (so we can follow up)</label><input name="email" type="email" placeholder="you@example.com">
+    <div id="fb-msg" class="notice hidden" style="margin-top:10px"></div>
+    <p style="margin-top:14px"><button class="btn" type="submit">Send</button> <button class="btn ghost" type="button" id="fb-cancel">Cancel</button></p>
+  </form>
+</div></dialog>`);
+    const dlg = document.getElementById("dlg-feedback"), form = document.getElementById("fb-form"), msg = document.getElementById("fb-msg");
+    document.getElementById("fb-btn").onclick = async () => {
+      const u = await NRC.currentUser().catch(() => null);
+      if (u && u.email && !form.email.value) form.email.value = u.email;
+      msg.classList.add("hidden"); dlg.showModal(); form.message.focus();
+    };
+    document.getElementById("fb-cancel").onclick = () => dlg.close();
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const btn = form.querySelector("button[type=submit]"); btn.disabled = true;
+      const u = await NRC.currentUser().catch(() => null);
+      try {
+        const r = await fetch("/api/feedback", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: form.message.value, email: form.email.value, page: location.pathname + location.hash, role: u ? u.role : "visitor" }) });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || "Could not send.");
+        msg.className = "notice ok"; msg.textContent = "Sent. Thank you."; form.message.value = "";
+        setTimeout(() => dlg.close(), 1400);
+      } catch (err) { msg.className = "notice error"; msg.textContent = err.message || "Could not send. Try again in a minute."; }
+      btn.disabled = false;
+    };
   };
 
   // ---------- auth ----------

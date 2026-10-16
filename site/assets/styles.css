@@ -319,3 +319,19 @@ dialog .body{padding:22px}
 .icard .cta-row .btn{flex:1 1 0;min-width:0;padding-left:8px;padding-right:8px;font-size:14px;white-space:nowrap}
 .grid > .card + .card,.facts > .card + .card,.guide-cards > .card + .card{margin-top:0}
 .card > h3:first-child,.icard > h3:first-child{margin-top:0}
+
+/* Give feedback button (prototype; every page) */
+.fb-btn{position:fixed;right:16px;bottom:16px;z-index:50;background:var(--yellow);color:var(--yellow-ink);border:0;border-radius:999px;padding:10px 16px;font:inherit;font-weight:700;font-size:14px;box-shadow:var(--shadow);cursor:pointer}
+.fb-btn:hover{filter:brightness(.95)}
+@media(max-width:640px){.fb-btn{padding:9px 13px;font-size:13px;bottom:12px;right:12px}}
+/* Welcome tour (first sign in) */
+.tour{display:grid;gap:12px}
+.tour .steps-dots{display:flex;gap:6px;justify-content:center}
+.tour .steps-dots span{width:10px;height:10px;border-radius:50%;background:var(--line)}
+.tour .steps-dots span.on{background:var(--red)}
+.tour .screen{display:none}
+.tour .screen.on{display:block}
+.tour .screen img{width:100%;border:1px solid var(--line);border-radius:8px;margin-top:10px}
+.tour .screen ul{margin:8px 0 0;padding-left:20px}
+.tour .screen li{margin:4px 0}
+.tour .nav{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px}
