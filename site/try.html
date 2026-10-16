@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Could you referee? | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+.score-big{font-family:var(--display);font-size:64px;line-height:1;color:var(--navy);margin:6px 0}
+.bar{height:12px;border-radius:6px;background:var(--line);position:relative;overflow:hidden;margin:10px 0 4px}
+.bar>div{height:100%;background:var(--red);border-radius:6px}
+.bar .mark{position:absolute;top:-4px;width:2px;height:20px;background:var(--navy)}
+</style>
+</head>
+<body data-page="try.html">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+
+<section class="hero compact" id="main">
+  <div class="court"></div><div class="glow"></div>
+  <div class="wrap">
+    <p class="kicker">For everyone in the stands</p>
+    <h1>Could you referee?</h1>
+    <p class="sub">Ten Level 1 questions from the official IHF rules, 20 seconds each, no second chance. Level 1 referees pass their theory test at 80%. Nothing is saved; this is between you and the whistle.</p>
+  </div>
+</section>
+
+<div class="wrap">
+<section>
+  <div class="card" id="start">
+    <h3>How it works</h3>
+    <ul class="plain">
+      <li>10 multiple choice questions, one correct answer each</li>
+      <li>20 seconds per question, the clock does not wait for you</li>
+      <li>Your score against the Level 1 bar at the end, with the answers you missed</li>
+    </ul>
+    <p style="margin-top:14px" class="cta-row"><button class="btn lg" id="btn-start">Start the 10 questions</button></p>
+    <p class="small muted" style="margin-top:10px">Already a referee? <a href="login.html?next=training.html">Sign in</a>: on the training page your sessions are saved and the timed challenge counts for the leaderboard.</p>
+  </div>
+
+  <div class="card hidden" id="quiz">
+    <div class="timer" id="timer"><div></div></div>
+    <div class="small muted" id="quiz-meta"></div>
+    <div class="quiz-q" id="quiz-q"></div>
+    <div class="quiz-opts" id="quiz-opts"></div>
+  </div>
+
+  <div class="card hidden" id="result">
+    <div class="small muted">Your score</div>
+    <div class="score-big"><span id="r-score"></span> / 10</div>
+    <div class="bar"><div id="r-bar" style="width:0"></div><span class="mark" style="left:80%"></span></div>
+    <div class="small muted">The line is the Level 1 theory bar, 80%.</div>
+    <h3 style="margin-top:16px" id="r-title"></h3>
+    <p id="r-text"></p>
+    <p class="cta-row" style="margin-top:14px"><a class="btn" href="become-a-referee.html">What Level 1 takes</a><a class="btn secondary" href="training.html">Train on the full question bank</a><button class="btn ghost" id="btn-again">Again, ten new ones</button></p>
+    <div id="r-missed" style="margin-top:18px"></div>
+  </div>
+</section>
+</div>
+
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="data/questions.js"></script>
+<script src="js/app.js"></script>
+<script>
+(function () {
+  const $ = NRC.$;
+  const SECS = 20, N = 10;
+  let ALL = [], qs = [], i = 0, correct = 0, missed = [], timerId = null;
+  const VERDICT = [
+    [10, "Suspiciously good", "Ten out of ten. Either you have refereed before or you read the rulebook for fun. The NRC would like a word."],
+    [8, "You would pass the Level 1 theory test today", "The whistle and the signals are the only things left to learn. The clinic takes half a day."],
+    [6, "Closer than most of the stands", "Spectators argue with this score. Referees train it away: six online modules, about five hours."],
+    [4, "About what the bench thinks it knows", "Every call looked wrong from the stands, did it? Now you know why. Two evenings on the rules course fix this."],
+    [0, "Good news: it only goes up from here", "Nobody is born knowing rule 8. Candidates start at zero and the course walks them to 80%."]
+  ];
+  function pool() { return ALL.filter(q => q.diff === "level_1" && q.options && q.options.length && !(q.cis && q.cis.length > 1) && q.ci != null); }
+  function start() {
+    qs = NRC.shuffle(pool()).slice(0, N); if (qs.length < N) { alert("Not enough questions loaded yet. Try again in a moment."); return; }
+    i = 0; correct = 0; missed = [];
+    $("#start").classList.add("hidden"); $("#result").classList.add("hidden"); $("#quiz").classList.remove("hidden");
+    show();
+  }
+  function show() {
+    const q = qs[i];
+    $("#quiz-meta").textContent = `Question ${i + 1} of ${N}` + (q.rule ? `, Rule ${q.rule}` : "");
+    $("#quiz-q").textContent = q.q;
+    const opts = $("#quiz-opts"); opts.innerHTML = "";
+    q.options.forEach((o, idx) => { const b = document.createElement("button"); b.textContent = o; b.onclick = () => answer(idx); opts.appendChild(b); });
+    const bar = $("#timer > div"); let left = SECS; bar.style.width = "100%";
+    clearInterval(timerId);
+    timerId = setInterval(() => { left -= 0.25; bar.style.width = Math.max(0, left / SECS * 100) + "%"; if (left <= 0) { clearInterval(timerId); answer(-1); } }, 250);
+  }
+  function answer(idx) {
+    clearInterval(timerId);
+    const q = qs[i]; const ok = idx === q.ci;
+    NRC.$$("#quiz-opts button").forEach((b, k) => { b.disabled = true; if (k === q.ci) b.classList.add("correct"); else if (k === idx) b.classList.add("wrong"); });
+    if (ok) correct++; else missed.push({ q, idx });
+    setTimeout(() => { i++; if (i >= N) finish(); else show(); }, 700);
+  }
+  function finish() {
+    $("#quiz").classList.add("hidden"); $("#result").classList.remove("hidden");
+    $("#r-score").textContent = correct; $("#r-bar").style.width = (correct * 10) + "%";
+    const v = VERDICT.find(x => correct >= x[0]);
+    $("#r-title").textContent = v[1]; $("#r-text").textContent = v[2];
+    $("#r-missed").innerHTML = missed.length ? "<h3>What you missed</h3>" + missed.map(m => `<div class="notice error" style="margin-bottom:8px"><strong>${NRC.esc(m.q.q)}</strong><br>${m.idx === -1 ? "<em>Time ran out.</em> " : ""}${NRC.explain(m.q, true)}</div>`).join("") : "";
+    window.scrollTo({ top: $("#result").offsetTop - 80, behavior: "smooth" });
+  }
+  $("#btn-start").onclick = start; $("#btn-again").onclick = start;
+  document.addEventListener("DOMContentLoaded", async () => { ALL = await NRC.loadQuestions(); });
+})();
+</script>
+</body>
+</html>

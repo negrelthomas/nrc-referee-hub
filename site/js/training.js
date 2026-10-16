@@ -201,6 +201,7 @@
     const sl = $("#secs"), out = $("#secs-out");
     if (sl) { try { const v = parseInt(localStorage.getItem(SKEY), 10); if (v >= 10 && v <= 30) sl.value = v; } catch (e) { } out.textContent = sl.value + " s"; sl.oninput = () => out.textContent = sl.value + " s"; }
     user = await NRC.currentUser();
+    if (!user) { const b = $("#signin-banner"); b.classList.remove("hidden"); b.style.display = "flex"; }
     ALL = await NRC.loadQuestions();
     buildFilters(); updatePoolCount();
     let m = "practice"; try { m = localStorage.getItem("nrc_quiz_mode") || "practice"; } catch (e) { }
