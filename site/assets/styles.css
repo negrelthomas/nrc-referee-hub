@@ -227,6 +227,13 @@ tr:hover td{background:#FAFBFD}
 .flash .face.back{transform:rotateY(180deg);background:#F7F9FC}
 .flash .rule{margin-top:12px;font-size:12px;font-weight:700;color:var(--navy-2)}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
+.mode-switch .mode{text-align:left;border:2px solid var(--line);background:#fff;border-radius:8px;padding:12px 14px;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:4px;color:var(--ink,#13213A)}
+.mode-switch .mode strong{font-size:16px}
+.mode-switch .mode span{font-size:13px;color:var(--muted);font-weight:400;line-height:1.4}
+.mode-switch .mode.on{border-color:var(--red);background:#FFF4F5}
+.mode-switch .mode.on strong::before{content:"\2713  ";color:var(--red)}
+@media(max-width:640px){.mode-switch{grid-template-columns:1fr}}
 .chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 11px;font-size:13px;cursor:pointer}
 .chip.on{background:var(--navy);color:#fff;border-color:var(--navy)}
 

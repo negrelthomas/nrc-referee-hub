@@ -1272,3 +1272,28 @@ values
 ('nrc_level1','NRC L1 11.08',11,'The throw-in','level_1','After taking the throw in, the thrower picks up the ball again before anyone else touched it. Decision?','["Retake the throw in", "Play on", "Goalkeeper throw", "Free throw for the opponents"]',3,'The thrower may not touch the ball again until it has touched another player or the goal. A violation is punished with a free throw for the opponents.','15:7 and 15:8',false),
 ('nrc_level1','NRC L1 11.09',11,'The throw-in','level_1','The ball goes over the outer goal line after the goalkeeper was the last to touch it. Decision?','["Throw in from the corner", "Free throw", "7 metre throw", "Goalkeeper throw"]',3,'When the goalkeeper of the defending team last touched the ball before it crossed the outer goal line, the restart is a goalkeeper throw, not a throw in.','12:1',false),
 ('nrc_level1','NRC L1 11.10',11,'The throw-in','level_1','The ball hits the ceiling of the hall. Decision?','["Throw off", "Free throw where the ball was last played", "Referee throw", "Throw in for the opponents of the team that last touched the ball, from the nearest point on the side line"]',3,'When the ball touches the ceiling or a fixture above the court, the opponents of the team that last touched the ball take a throw in from the point on the nearer side line closest to where the ball touched the ceiling.','11:1 and 11:3',false);
+-- Timed challenge leaderboard. Run after schema.sql. Safe to re-run.
+-- Points: correct answers in timed sessions of 10 questions or more, per calendar year (the season).
+-- Visible to every signed in user (referees and admins); anonymous visitors do not see it.
+-- The view runs as its owner, so it reads quiz_attempts across users; it exposes no email or phone.
+create or replace view public.quiz_leaderboard as
+select r.id as referee_id,
+       r.first_name,
+       r.last_name,
+       r.photo_url,
+       r.cert_level,
+       r.home_city,
+       r.home_state,
+       extract(year from a.created_at)::int as season,
+       count(*)::int as sessions,
+       sum(a.total)::int as questions,
+       sum(a.correct)::int as points,
+       round(sum(a.correct)::numeric / nullif(sum(a.total), 0) * 100)::int as accuracy,
+       max(round(a.correct::numeric / nullif(a.total, 0) * 100))::int as best_pct,
+       max(a.created_at) as last_played
+from public.quiz_attempts a
+join public.referees r on r.user_id = a.user_id
+where a.mode = 'timed' and a.total >= 10 and r.active
+group by r.id, r.first_name, r.last_name, r.photo_url, r.cert_level, r.home_city, r.home_state, extract(year from a.created_at);
+revoke all on public.quiz_leaderboard from anon;
+grant select on public.quiz_leaderboard to authenticated;

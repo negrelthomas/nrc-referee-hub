@@ -205,7 +205,7 @@ async function loadHome() {
   const { data: ans } = await NRC.sb.from("quiz_answers").select("correct,quiz_questions(rule_number),quiz_attempts!inner(user_id,created_at)").eq("quiz_attempts.user_id", user.id);
   const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; });
   const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n)[0];
-  $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
+  $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way and counts on the <a href="training.html#board">leaderboard</a>.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
 }
 async function loadAvail() {
   const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", new Date().toISOString().slice(0, 10)).order("start_date");

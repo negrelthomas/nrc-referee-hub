@@ -18,7 +18,7 @@
   <div class="wrap">
     <p class="kicker">Training, IHF rules only</p>
     <h1>Training on the IHF rules</h1>
-    <p class="sub">Practice quiz, timed challenge and flashcards, by rule and by level. Signed in, your results are saved on your profile; otherwise they stay on this device.</p>
+    <p class="sub">Quiz, with or without the clock, and flashcards, by rule and by level. Signed in, your results are saved on your profile and timed sessions count for the leaderboard; otherwise they stay on this device.</p>
   </div>
 </section>
 
@@ -31,9 +31,9 @@
 <section>
   <div class="tabs">
     <button data-tab="program">My program</button>
-    <button data-tab="practice" class="active">Practice quiz</button>
-    <button data-tab="timed">Timed challenge</button>
+    <button data-tab="practice" class="active">Quiz</button>
     <button data-tab="cards">Flashcards</button>
+    <button data-tab="board">Leaderboard</button>
     <button data-tab="progress">My progress</button>
   </div>
 
@@ -60,14 +60,17 @@
     <p style="margin-top:14px"><button class="btn secondary hidden" id="quiz-check">Check answer</button> <button class="btn" id="quiz-next">Next</button> <button class="btn ghost" id="quiz-stop">End session</button></p>
   </div>
   <div class="card" id="quiz-start">
-    <h3 id="start-title">Practice quiz</h3>
-    <p id="start-text">Multiple choice, no clock, explanation after each answer with the rule reference.</p>
+    <h3>Quiz</h3>
+    <p class="small muted" style="margin:0 0 10px">Pick how you want to play. Same questions, same filters above.</p>
+    <div class="mode-switch" id="mode-switch">
+      <button type="button" class="mode on" data-mode="practice"><strong>Practice</strong><span>No clock. The explanation and the rule reference show after each answer. Nothing is ranked.</span></button>
+      <button type="button" class="mode" data-mode="timed"><strong>Timed challenge</strong><span>A clock on every question, the next one comes by itself. Signed in, it counts for the leaderboard.</span></button>
+    </div>
     <div class="row" style="align-items:end">
       <div><label>Questions per session</label><select id="n-q" style="width:auto"><option>10</option><option selected>15</option><option>25</option><option>50</option></select></div>
-      <div><label>Seconds per question (10 to 30, reading time included)</label><div style="display:flex;align-items:center;gap:10px"><input id="secs" type="range" min="10" max="30" step="1" value="20" style="width:160px"><strong id="secs-out">20 s</strong></div></div>
+      <div id="secs-wrap" class="hidden"><label>Seconds per question (10 to 30, reading time included)</label><div style="display:flex;align-items:center;gap:10px"><input id="secs" type="range" min="10" max="30" step="1" value="20" style="width:160px"><strong id="secs-out">20 s</strong></div></div>
     </div>
-    <p id="clock-opt"><label style="font-weight:400;display:inline-flex;align-items:center;gap:8px"><input type="checkbox" id="clock-on" style="width:auto"> Clock per question. It stops while you read the explanation.</label></p>
-    <button class="btn" id="btn-start">Start</button>
+    <button class="btn" id="btn-start">Start the practice</button>
   </div>
   <div class="card hidden" id="quiz-result">
     <h3>Session complete</h3>
@@ -92,6 +95,18 @@
       <button class="btn secondary" id="fc-missed">Missed</button><button class="btn" id="fc-knew">Knew it</button>
       <button class="btn ghost" id="fc-shuffle">Shuffle</button><button class="btn ghost" id="fc-review">Review missed</button>
     </p>
+  </div>
+
+  <!-- Leaderboard -->
+  <div id="board-ui" class="hidden">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+        <h3 style="margin:0">Timed challenge, season <span id="board-season"></span></h3>
+        <div class="chips" id="chips-board"><span class="chip on" data-v="">All</span><span class="chip" data-v="level_1">Level 1</span><span class="chip" data-v="level_2">Level 2</span><span class="chip" data-v="level_3">Level 3</span></div>
+      </div>
+      <p class="small muted">Points are the correct answers in timed sessions of 10 questions or more this season. The overall ranking is the one that counts; the level views show where you stand among your peers.</p>
+      <div class="table-wrap"><table id="board"><thead><tr><th>#</th><th>Referee</th><th>Level</th><th>Hometown</th><th>Points</th><th>Sessions</th><th>Accuracy</th><th>Best session</th></tr></thead><tbody></tbody></table></div>
+    </div>
   </div>
 
   <!-- Progress -->

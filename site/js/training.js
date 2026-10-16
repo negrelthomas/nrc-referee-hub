@@ -1,7 +1,7 @@
 /* Training module: practice quiz, timed challenge, flashcards, progress */
 (function () {
   const $ = NRC.$;
-  let ALL = [], user = null, tab = "practice", diff = "", rule = "", src = "";
+  let ALL = [], user = null, tab = "practice", mode = "practice", diff = "", rule = "", src = "", boardLevel = "";
   const secsPerQ = () => Math.min(30, Math.max(10, parseInt(($("#secs") || {}).value, 10) || 20));
   const SKEY = "nrc_quiz_secs";
   const LKEY = "nrc_training_v1";
@@ -33,22 +33,31 @@
   function showTab(t) {
     tab = t; clearInterval(timerId);
     NRC.$$(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === t));
-    const quizTabs = t === "practice" || t === "timed";
-    $("#filters").classList.toggle("hidden", t === "progress" || t === "program");
+    const quizTabs = t === "practice";
+    $("#filters").classList.toggle("hidden", t === "progress" || t === "program" || t === "board");
     $("#program-ui").classList.toggle("hidden", t !== "program");
     if (t === "program" && NRC.renderProgram) NRC.renderProgram();
     $("#quiz-start").classList.toggle("hidden", !quizTabs);
-    $("#pool-count").classList.toggle("hidden", t === "program");
+    $("#pool-count").classList.toggle("hidden", t === "program" || t === "board");
+    $("#board-ui").classList.toggle("hidden", t !== "board");
+    if (t === "board") renderBoard();
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.add("hidden");
     $("#cards-ui").classList.toggle("hidden", t !== "cards");
     $("#progress-ui").classList.toggle("hidden", t !== "progress");
-    if (t === "practice") { $("#start-title").textContent = "Practice quiz"; $("#start-text").textContent = "Multiple choice, explanation after each answer with the rule reference. Add a clock if you want to train the speed too."; }
-    if (t === "timed") { $("#start-title").textContent = "Timed challenge"; $("#start-text").textContent = "A clock on every question, no second chance, next question comes by itself. The format used on the court."; }
-    $("#clock-opt").classList.toggle("hidden", t !== "practice");
     if (t === "cards") startCards();
     if (t === "progress") renderProgress();
     updatePoolCount();
   }
+
+  // ---------- quiz mode: practice or timed ----------
+  function setMode(m) {
+    mode = m;
+    NRC.$$("#mode-switch .mode").forEach(b => b.classList.toggle("on", b.dataset.mode === m));
+    $("#secs-wrap").classList.toggle("hidden", m !== "timed");
+    $("#btn-start").textContent = m === "timed" ? "Start the timed challenge" : "Start the practice";
+    try { localStorage.setItem("nrc_quiz_mode", m); } catch (e) { }
+  }
+  NRC.$$("#mode-switch .mode").forEach(b => b.onclick = () => setMode(b.dataset.mode));
 
   // ---------- quiz ----------
   let session = null, timerId = null;
@@ -62,7 +71,7 @@
     const n = parseInt($("#n-q").value, 10);
     const qs = NRC.shuffle(pool(false)).slice(0, n);
     if (!qs.length) { alert("No questions match these filters."); return; }
-    session = { mode: tab, qs, i: 0, correct: 0, missed: [], answers: [], started: Date.now(), secs: secsPerQ(), clock: tab === "timed" || $("#clock-on").checked };
+    session = { mode, qs, i: 0, correct: 0, missed: [], answers: [], started: Date.now(), secs: secsPerQ(), clock: mode === "timed" };
     try { localStorage.setItem(SKEY, String(session.secs)); } catch (e) { }
     $("#quiz-start").classList.add("hidden"); $("#quiz-result").classList.add("hidden"); $("#quiz").classList.remove("hidden");
     showQuestion();
@@ -115,7 +124,7 @@
     const total = s.answers.length; if (!total) { showTab(tab); return; }
     const dur = Math.round((Date.now() - s.started) / 1000);
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.remove("hidden");
-    $("#result-text").textContent = `${s.correct} of ${total} correct (${Math.round(s.correct / total * 100)}%) in ${dur} seconds.`;
+    $("#result-text").textContent = `${s.correct} of ${total} correct (${Math.round(s.correct / total * 100)}%) in ${dur} seconds.` + (s.mode === "timed" ? (user ? (total >= 10 ? ` ${s.correct} points added to your season on the leaderboard.` : " Sessions of fewer than 10 questions do not count for the leaderboard.") : " Sign in for timed sessions to count on the leaderboard.") : "");
     $("#result-missed").innerHTML = s.missed.length ? "<h3 style='margin-top:14px'>Review</h3>" + s.missed.map(q => `<div class="notice error" style="margin-bottom:8px"><strong>${NRC.esc(q.q)}</strong><br>${NRC.explain(q, true)}</div>`).join("") : "<p>Nothing missed.</p>";
     // save
     const rec = { mode: s.mode, difficulty: diff || null, rule_number: rule ? parseInt(rule, 10) : null, total, correct: s.correct, duration_seconds: dur, created_at: new Date().toISOString() };
@@ -151,6 +160,28 @@
   $("#fc-shuffle").onclick = () => startCards(false);
   $("#fc-review").onclick = () => startCards(true);
 
+  // ---------- leaderboard ----------
+  NRC.$$("#chips-board .chip").forEach(c => c.onclick = () => { NRC.$$("#chips-board .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); boardLevel = c.dataset.v; renderBoard(); });
+  async function renderBoard() {
+    const season = new Date().getFullYear(); $("#board-season").textContent = season;
+    const tb = $("#board tbody");
+    if (!user || !NRC.sb) { tb.innerHTML = '<tr><td colspan="8">The leaderboard is for signed in referees. <a href="login.html?next=training.html%23board">Sign in</a> to see it, and to have your timed sessions count.</td></tr>'; return; }
+    tb.innerHTML = '<tr><td colspan="8" class="muted">Loading.</td></tr>';
+    const { data, error } = await NRC.sb.from("quiz_leaderboard").select("*").eq("season", season).order("points", { ascending: false }).order("accuracy", { ascending: false }).order("last_played", { ascending: true });
+    if (error) { tb.innerHTML = '<tr><td colspan="8">The leaderboard could not be loaded.</td></tr>'; return; }
+    const rows = (data || []).filter(r => !boardLevel || r.cert_level === boardLevel);
+    if (!rows.length) { tb.innerHTML = `<tr><td colspan="8">No timed session yet this season${boardLevel ? " at this level" : ""}. Play a timed challenge of 10 questions or more to open the ranking.</td></tr>`; return; }
+    const me = await myRefereeId();
+    tb.innerHTML = rows.map((r, i) => `<tr${r.referee_id === me ? ' style="background:#FFF9D6"' : ""}><td><strong>${i + 1}</strong></td><td style="white-space:nowrap"><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" style="width:32px;height:32px;vertical-align:middle;margin-right:8px"><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.referee_id === me ? ' <span class="pill amber">you</span>' : ""}</td><td>${NRC.levelPill(r.cert_level)}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td><strong>${r.points}</strong></td><td>${r.sessions}</td><td>${r.accuracy}%</td><td>${r.best_pct}%</td></tr>`).join("");
+  }
+  let myRef = null;
+  async function myRefereeId() {
+    if (myRef !== null) return myRef;
+    const { data } = await NRC.sb.from("referees").select("id").eq("user_id", user.id).maybeSingle();
+    myRef = data ? data.id : "";
+    return myRef;
+  }
+
   // ---------- progress ----------
   async function renderProgress() {
     let sessions = local().sessions, byRule = local().answers;
@@ -172,5 +203,8 @@
     user = await NRC.currentUser();
     ALL = await NRC.loadQuestions();
     buildFilters(); updatePoolCount();
+    let m = "practice"; try { m = localStorage.getItem("nrc_quiz_mode") || "practice"; } catch (e) { }
+    setMode(m === "timed" ? "timed" : "practice");
+    if (location.hash === "#board") showTab("board");
   });
 })();
