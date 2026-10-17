@@ -1447,3 +1447,4 @@ grant select on public.referee_directory to anon, authenticated;
 
 update public.referees set photo_url = '/assets/referees/halina-lehto.jpg' where email = 'halina.lehto@gmail.com' and photo_url is null;
 update public.referees set photo_url = '/assets/referees/azadeh-ahmadi.jpg' where email = 'azi.ahmadi91@gmail.com' and photo_url is null;
+update public.referees set photo_url = '/assets/referees/ezekiel-mcclintock.jpg' where email = 'zeekmc05@gmail.com' and (photo_url is null or photo_url like '%demo-zeke%');
