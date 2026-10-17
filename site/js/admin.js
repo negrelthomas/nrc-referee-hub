@@ -153,6 +153,18 @@
     ["first_name", "last_name", "email", "phone", "club_id", "cert_level", "cert_date", "cert_by", "home_city", "home_state", "home_airport_iata", "departure_airport_iata", "usath_member_id", "usath_membership_valid_until", "safesport_valid_until", "background_check_valid_until", "admin_notes"].forEach(k => row[k] = f[k].value.trim() || null);
     row.active = f.active.checked; row.level_confirmed = f.level_confirmed ? f.level_confirmed.checked : true; row.updated_at = new Date().toISOString();
     ["home_state", "home_airport_iata", "departure_airport_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
+    // Email change on an existing referee: the server function moves the sign in account too and tells the referee
+    let emailNote = "";
+    if (currentRef && row.email && row.email.toLowerCase() !== String(currentRef.email || "").toLowerCase()) {
+      if (!confirm(`Change ${currentRef.first_name}'s email to ${row.email}? Their sign in moves to the new address and they are emailed at both addresses.`)) return;
+      const { data: sess } = await sb().auth.getSession();
+      const r = await fetch("/api/referee-email", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ referee_id: currentRef.id, new_email: row.email }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { alert("Email not changed: " + (d.error || r.status)); return; }
+      row.email = row.email.toLowerCase();
+      const failed = (d.sent || []).filter(x => !x.sent).map(x => x.to);
+      emailNote = "Email changed" + (d.account === "updated" ? ", sign in moved to the new address" : d.account === "linked" ? ", linked to the existing account on the new address" : " (no sign in yet)") + ". " + (failed.length ? "Notification not sent to: " + failed.join(", ") + "." : "Referee notified at both addresses.");
+    }
     let res;
     if (currentRef) res = await sb().from("referees").update(row).eq("id", currentRef.id).select().single();
     else res = await sb().from("referees").insert(row).select().single();
@@ -165,6 +177,7 @@
       else await sb().from("referees").update({ photo_url: sb().storage.from("referee-photos").getPublicUrl(path).data.publicUrl }).eq("id", res.data.id);
     } else if (f.remove_photo.checked) await sb().from("referees").update({ photo_url: null }).eq("id", res.data.id);
     if (!currentRef || currentRef.cert_level !== row.cert_level) await sb().from("certifications").insert({ referee_id: res.data.id, level: row.cert_level, obtained_on: row.cert_date || today(), certified_by: row.cert_by });
+    if (emailNote) alert(emailNote);
     if (!currentRef) alert("Referee added. " + row.email + " can now sign in on the Sign in page with a magic link; send them the site address.");
     $("#dlg-ref").close(); loadAll();
   });
