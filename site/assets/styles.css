@@ -187,6 +187,8 @@ section > h2{margin-top:.2em}
 .pill.s-usath{background:var(--navy);color:#fff}
 .pill.s-club{background:#E3F1EC;color:#1D5E4A}
 .pill.s-intl{background:#EFE8FB;color:#4E2A8E}
+.report-form{display:grid;grid-template-columns:2fr 90px 1fr 1fr auto;align-items:end;gap:8px}
+@media (max-width:720px){.report-form{grid-template-columns:1fr 1fr}.report-form>div:first-of-type{grid-column:1/-1}}
 .legend{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:4px 0 10px}
 .cal-list{list-style:none;margin:0;padding:0}
 .cal-list li{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}

@@ -123,7 +123,7 @@
       <div id="pane-tournaments" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Tournaments</h1><button class="btn sm" onclick="openNewTour()">Add tournament</button></div>
         <p class="muted small">Organizer requests arrive here from the public form. Add the others yourself (nationals, international, club events). Open a tournament to record who officiated and their games: this feeds every referee's history and profile card.</p>
-        <div class="legend small"><span class="pill s-usath">USATH</span><span class="pill s-club">Club</span><span class="pill s-intl">International</span><span class="pill amber">Tentative dates</span> <span class="muted">tentative events stay out of Staffing</span></div>
+        <div class="legend small"><span class="pill s-usath">USATH</span><span class="pill s-club">Club</span><span class="pill s-intl">International</span><span class="pill amber">Tentative dates</span> <span class="muted">tentative and calendar only events stay out of Staffing</span></div>
         <div class="card" id="reports-card" style="margin:10px 0"><h3 style="margin-top:0">Games reported by referees <span class="pill amber hidden" id="reports-count"></span></h3><div class="table-wrap"><table id="reports"><thead><tr><th>Referee</th><th>Event</th><th>Games</th><th>Role</th><th>Partner</th><th>Reported</th><th></th></tr></thead><tbody></tbody></table></div><p class="small muted" style="margin-top:6px">Confirm records the referee in the event's Officiated tab with these games. Not confirmed sends the report back with your note.</p></div>
         <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Sanction</th><th>Dates</th><th>Venue</th><th>Pairs</th><th>Supervisor</th><th>Travel</th><th>Covers</th><th>Organizer</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
@@ -311,6 +311,7 @@
     <div class="row"><div><label>Venue</label><input name="venue_name"></div><div><label>City</label><input name="venue_city"></div></div>
     <div class="row"><div><label>State</label><input name="venue_state" maxlength="2"></div><div><label>Games played</label><input name="games_expected" type="number" min="0"></div></div>
     <div class="row"><div><label>Dates</label><select name="date_status"><option value="confirmed">Published by the organizer</option><option value="tentative">Tentative (projected from last edition)</option></select></div><div><label>Source link</label><input name="source_url" type="url" placeholder="https://"></div></div>
+    <label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" style="width:auto" name="nrc_staffs" checked> The NRC staffs this event (untick for calendar only events: listed so referees can report their games)</label>
     <label>Hosting club</label><select name="club_id"></select><div class="help">Events you add here (USATH nationals, international) can have no club. Organizer requests need a USATH registered club.</div>
     <label>Divisions</label><div id="newtour-div"></div>
     <p style="margin-top:14px;display:flex;gap:8px"><button class="btn" type="submit">Save and open</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-newtour').close()">Cancel</button></p>
@@ -376,6 +377,7 @@
     <div><label>Staff by</label><input name="staff_by" type="date"></div>
     <div><label>Dates</label><select name="date_status"><option value="confirmed">Published</option><option value="tentative">Tentative</option></select></div>
     <div style="grid-column:span 2"><label>Source link</label><input name="source_url" type="url" placeholder="https://"></div>
+    <div style="grid-column:span 2"><label style="display:flex;gap:8px;align-items:center;font-weight:500"><input type="checkbox" style="width:auto" name="nrc_staffs"> The NRC staffs this event</label></div>
     <div style="grid-column:1/-1"><label>Divisions</label><div id="tour-div"></div></div>
   </form>
 

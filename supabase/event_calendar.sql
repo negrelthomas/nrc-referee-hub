@@ -1,5 +1,6 @@
 -- Event calendar and games reported by referees.
--- 1. Tournaments carry a date status (confirmed or tentative) and a source link. Tentative events stay out of staffing.
+-- 1. Tournaments carry a date status (confirmed or tentative), a source link and whether the NRC staffs them.
+--    Tentative and calendar only events stay out of Staffing and its reminders.
 -- 2. Events the NRC enters itself (USATH and international events) need no host club.
 -- 3. History counts from a start date set by the NRC (July 1, 2026 until the NRC imports earlier records).
 -- 4. Referees report the games they refereed at past events; the NRC confirms, which records the assignment.
@@ -10,6 +11,8 @@ alter table public.tournaments add column if not exists date_status text not nul
 alter table public.tournaments drop constraint if exists tournaments_date_status_check;
 alter table public.tournaments add constraint tournaments_date_status_check check (date_status in ('confirmed','tentative'));
 alter table public.tournaments add column if not exists source_url text;
+-- Calendar only events (listed so referees can report games) are not staffed by the NRC
+alter table public.tournaments add column if not exists nrc_staffs boolean not null default true;
 
 alter table public.staffing_settings add column if not exists history_from date not null default '2026-07-01';
 create or replace function public.history_from() returns date
@@ -76,7 +79,7 @@ select t.id, t.name, t.sanction, t.region, t.divisions, t.start_date, t.end_date
        (select max(created_at) from public.reminder_log l where l.kind = 'staffing' and l.target_id = t.id) as last_reminder_at
 from public.tournaments t
 left join public.clubs c on c.id = t.club_id
-where t.date_status = 'confirmed';
+where t.date_status = 'confirmed' and t.nrc_staffs;
 revoke all on public.tournament_overview_service from anon, authenticated;
 create view public.tournament_overview as select * from public.tournament_overview_service where public.is_admin();
 grant select on public.tournament_overview to authenticated;
@@ -134,10 +137,16 @@ alter table public.referee_game_reports enable row level security;
 drop policy if exists rgr_read on public.referee_game_reports;
 create policy rgr_read on public.referee_game_reports for select using (public.is_admin() or referee_id = public.my_referee_id());
 drop policy if exists rgr_insert on public.referee_game_reports;
+-- Referees cannot read the tournaments table directly, so the event check runs as definer
+create or replace function public.reportable_event(p_tournament uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.tournaments t where t.id = p_tournament and t.status <> 'cancelled'
+                 and t.start_date >= public.history_from() and t.start_date <= current_date)
+$$;
+grant execute on function public.reportable_event(uuid) to authenticated;
 create policy rgr_insert on public.referee_game_reports for insert with check (
   referee_id = public.my_referee_id() and status = 'reported' and reviewed_at is null
-  and exists (select 1 from public.tournaments t where t.id = tournament_id and t.status <> 'cancelled'
-              and t.start_date >= public.history_from() and t.start_date <= current_date)
+  and public.reportable_event(tournament_id)
   and not exists (select 1 from public.assignments a where a.tournament_id = referee_game_reports.tournament_id and a.referee_id = referee_game_reports.referee_id));
 drop policy if exists rgr_update on public.referee_game_reports;
 create policy rgr_update on public.referee_game_reports for update
