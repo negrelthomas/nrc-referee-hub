@@ -34,7 +34,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const fail = (t) => { msg.textContent = t; msg.className = "notice error"; document.getElementById("fallback").classList.remove("hidden"); };
   if (!NRC.sb) { fail("Supabase is not configured yet."); return; }
   const go = async () => {
-    const u = await NRC.currentUser();
+    NRC.resetUser(); const u = await NRC.currentUser();
     location.replace(next || NRC.homeFor(u));
   };
   const tokenHash = q.get("token_hash");

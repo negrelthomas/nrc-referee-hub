@@ -10,6 +10,8 @@
   NRC.$ = (sel, root) => (root || document).querySelector(sel);
   NRC.$$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
   NRC.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  // calendar date in the viewer's time zone (toISOString would give the UTC date, a day ahead in the evening in the US)
+  NRC.localDate = (d) => { d = d || new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   NRC.fmtDate = (d) => (d ? new Date(d + (String(d).length === 10 ? "T00:00:00" : "")).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "");
   NRC.levelLabel = (l) => ({ candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3 (National)", nachc: "NACHC Continental", ihf: "IHF International" }[l] || l || "");
   NRC.levelPill = (l, confirmed) => {
@@ -23,8 +25,8 @@
   NRC.divisionPills = (arr) => (arr || []).slice().sort((x, y) => NRC.DIV_AGES.indexOf(x.split("-")[0]) - NRC.DIV_AGES.indexOf(y.split("-")[0]) || x.localeCompare(y)).map(c => `<span class="pill">${NRC.esc(NRC.divisionLabel(c))}</span>`).join(" ");
   NRC.divisionPicker = (name, selected) => {
     const sel = new Set(selected || []);
-    return `<table class="div-picker"><thead><tr><th></th>${NRC.DIV_GENDERS.map(([, l]) => `<th>${l}</th>`).join("")}</tr></thead><tbody>` +
-      NRC.DIV_AGES.map(a => `<tr><th>${a}</th>${NRC.DIV_GENDERS.map(([g, l]) => `<td><input type="checkbox" name="${name}" value="${a}-${g}" aria-label="${a} ${l}" ${sel.has(a + "-" + g) ? "checked" : ""}></td>`).join("")}</tr>`).join("") + "</tbody></table>";
+    return `<div class="div-picker-wrap"><table class="div-picker"><thead><tr><th></th>${NRC.DIV_AGES.map(a => `<th>${a}</th>`).join("")}</tr></thead><tbody>` +
+      NRC.DIV_GENDERS.map(([g, l]) => `<tr><th>${l}</th>${NRC.DIV_AGES.map(a => `<td><input type="checkbox" name="${name}" value="${a}-${g}" aria-label="${a} ${l}" ${sel.has(a + "-" + g) ? "checked" : ""}></td>`).join("")}</tr>`).join("") + "</tbody></table></div>";
   };
   NRC.divisionsFrom = (form, name) => NRC.$$(`input[name="${name}"]:checked`, form).map(i => i.value);
   // ---------- referee profile: tournament history and latest evaluations ----------
@@ -139,6 +141,7 @@
   // One shared lookup per page load: concurrent callers (nav and page) await the same promise,
   // so the second caller never sees a stale null while the first is still in flight.
   let _userPromise = null;
+  NRC.resetUser = () => { _userPromise = null; }; // after sign in, so the next currentUser() reads the new session
   NRC.currentUser = function () {
     if (_userPromise) return _userPromise;
     _userPromise = (async () => {

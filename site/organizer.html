@@ -90,7 +90,7 @@ async function load() {
   const [{ data: des }, { data: book }, { data: fin }, { data: rep }] = await Promise.all([NRC.sb.from("organizer_designations").select("*").in("tournament_id", ids), NRC.sb.from("travel_bookings").select("*").order("start_at"), NRC.sb.from("tournament_finance").select("*").in("tournament_id", ids), NRC.sb.from("tournament_reports").select("*").in("tournament_id", ids)]);
   const D = des || [], B = book || []; DES = D;
   F = {}; (fin || []).forEach(f => F[f.tournament_id] = f); R = {}; (rep || []).forEach(r => R[r.tournament_id] = r);
-  const today = new Date().toISOString().slice(0, 10);
+  const today = NRC.localDate();
   $("#list").innerHTML = T.map(t => {
     const idx = Math.max(0, STEPS.findIndex(s => s[0] === t.status));
     const cancelled = t.status === "cancelled";

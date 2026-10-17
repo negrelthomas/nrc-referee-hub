@@ -180,7 +180,7 @@
     <p id="tour-train-text"></p>
     <img id="tour-train-img" src="guide/img/training-quiz-setup.jpg" alt="The training page">
   </div>
-  <div class="nav">
+  <div class="tour-nav">
     <button class="btn ghost sm" type="button" id="tour-skip">Skip for now</button>
     <div><button class="btn ghost sm" type="button" id="tour-prev">Back</button> <button class="btn sm" type="button" id="tour-next">Next</button></div>
   </div>
@@ -219,7 +219,7 @@ async function load() {
     ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
     if (ref.photo_url) $("#photo").src = ref.photo_url;
     $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", ""); if (ref.level1_theory_passed_on && ref.cert_level === "candidate") $("#st-level").insertAdjacentHTML("afterend", '<span class="pill green" style="margin-top:4px;display:inline-block">Theory passed</span>');
-    const today = new Date().toISOString().slice(0, 10);
+    const today = NRC.localDate();
     const item = (l, d) => `<div>${l}: ${d ? (d >= today ? '<span class="pill green">valid to ' + NRC.fmtDate(d) + '</span>' : '<span class="pill red">expired ' + NRC.fmtDate(d) + '</span>') : '<span class="pill amber">not on file</span>'}</div>`;
     $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);
     $("#hello").textContent = "Hello " + ref.first_name;
@@ -262,7 +262,7 @@ $("#form").addEventListener("submit", async (e) => {
   if (!$("#compliance").textContent.includes("valid")) load();
 });
 async function loadHome() {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = NRC.localDate();
   // next confirmed assignment
   const { data: hist } = await NRC.sb.from("referee_tournament_history").select("*").eq("referee_id", ref.id).gte("end_date", today).order("start_date").limit(1);
   const n = hist && hist[0];
@@ -331,7 +331,7 @@ async function loadHome() {
 let WA = {};
 function saturday(d) { const x = new Date(d); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); x.setHours(12, 0, 0, 0); return x; }
 async function loadWeekends() {
-  const { data } = await NRC.sb.from("weekend_availability").select("*").eq("referee_id", ref.id).gte("weekend", new Date().toISOString().slice(0, 10));
+  const { data } = await NRC.sb.from("weekend_availability").select("*").eq("referee_id", ref.id).gte("weekend", NRC.localDate());
   WA = {}; (data || []).forEach(r => WA[r.weekend] = r.status);
   const host = $("#weekends"); host.innerHTML = "";
   let d = saturday(new Date());
@@ -346,7 +346,7 @@ async function loadWeekends() {
 async function loadAvail() {
   if (!$("#weekends")) return;
   loadWeekends();
-  const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", new Date().toISOString().slice(0, 10)).order("start_date");
+  const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", NRC.localDate()).order("start_date");
   $("#avail-list").innerHTML = (data || []).map(b => `<div><span>${NRC.fmtDate(b.start_date)}${b.end_date !== b.start_date ? " to " + NRC.fmtDate(b.end_date) : ""}${b.note ? ' <span class="small muted">' + NRC.esc(b.note) + "</span>" : ""}</span><button class="btn ghost sm" onclick="delAvail('${b.id}')">Remove</button></div>`).join("") || '<div class="small muted">No blocked dates. You are shown as available.</div>';
 }
 window.delAvail = async function (id) { await NRC.sb.from("availability_blocks").delete().eq("id", id); loadAvail(); };
@@ -360,7 +360,7 @@ const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", internati
 function monthYear(d) { return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" }); }
 async function loadTournaments() {
   const { data } = await NRC.sb.from("referee_tournament_history").select("*").eq("referee_id", ref.id).order("start_date", { ascending: false });
-  const h = data || []; const today = new Date().toISOString().slice(0, 10); const past = h.filter(t => t.end_date < today);
+  const h = data || []; const today = NRC.localDate(); const past = h.filter(t => t.end_date < today);
   $("#st-tours").textContent = past.length;
   const yr = String(new Date().getFullYear());
   $("#st-games").textContent = past.filter(t => t.start_date.startsWith(yr)).reduce((a, t) => a + (t.games || 0), 0);

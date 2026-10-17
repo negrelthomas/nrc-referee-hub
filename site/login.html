@@ -65,7 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const { error } = await NRC.sb.auth.verifyOtp({ email: pendingEmail, token, type: "email" });
     NRC.$("#btn-code").disabled = false;
     if (error) { NRC.notice(msg, "That code did not work: " + NRC.esc(error.message), "error"); return; }
-    const u = await NRC.currentUser();
+    NRC.resetUser(); const u = await NRC.currentUser();
     location.href = next || NRC.homeFor(u);
   });
 });

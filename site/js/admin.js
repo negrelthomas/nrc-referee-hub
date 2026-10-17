@@ -3,7 +3,7 @@
   const $ = NRC.$, sb = () => NRC.sb;
   let staffSettings = null, staffDups = [], staffView = "table";
   let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], inquiries = [], pstat = [], psettings = null, ctest = null, staffing = [], currentRef = null, contacts = [], clubMsgs = [];
-  const today = () => new Date().toISOString().slice(0, 10);
+  const today = () => NRC.localDate();
   const CRIT = [["score_rules_application", "Rules application"], ["score_game_management", "Game management"], ["score_progressive_punishment", "Progressive punishment"], ["score_positioning", "Positioning"], ["score_pair_cooperation", "Pair cooperation"], ["score_communication", "Communication"]];
   const SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
   const PROG = { none: "Not started", nominated: "Nominated", mentor_assigned: "Mentor assigned", in_training: "In training", observed: "Observed", certified_pair: "Certified pair" };
