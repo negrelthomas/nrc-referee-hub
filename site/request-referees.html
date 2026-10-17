@@ -36,6 +36,7 @@
         <div><label>Sanction</label><select name="sanction"><option value="club">Club tournament</option><option value="regional">Regional (NORCAL, SOCAL, Northeast...)</option><option value="usath">USATH sanctioned event</option><option value="international">International (NACHC, IHF)</option></select></div>
         <div><label>Region</label><input name="region" placeholder="NORCAL"></div>
       </div>
+      <label>Divisions</label><div class="help">Tick every division played at the event.</div><div id="div-host"></div>
       <div class="row">
         <div><label>Start date</label><input name="start_date" type="date" required></div>
         <div><label>End date</label><input name="end_date" type="date" required></div>
@@ -101,7 +102,8 @@
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
-(function () { try { if (new URLSearchParams(location.search).get("prefill")) { const c = JSON.parse(sessionStorage.getItem("nrc_prefill_request") || "{}"); const f = document.getElementById("req-form"); Object.keys(c).forEach(k => { if (f[k]) f[k].value = typeof c[k] === "boolean" ? String(c[k]) : c[k]; }); f.start_date.value = ""; f.end_date.value = ""; } } catch (e) { } })();
+document.getElementById("div-host").innerHTML = NRC.divisionPicker("divisions", []);
+(function () { try { if (new URLSearchParams(location.search).get("prefill")) { const c = JSON.parse(sessionStorage.getItem("nrc_prefill_request") || "{}"); const f = document.getElementById("req-form"); (c.divisions || []).forEach(v => { const i = f.querySelector(`input[name="divisions"][value="${v}"]`); if (i) i.checked = true; }); Object.keys(c).forEach(k => { if (k !== "divisions" && f[k]) f[k].value = typeof c[k] === "boolean" ? String(c[k]) : c[k]; }); f.start_date.value = ""; f.end_date.value = ""; } } catch (e) { } })();
 (async function () { if (!NRC.sb) return; const { data } = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).order("name"); document.getElementById("club-sel").innerHTML = '<option value="">Not hosted by a club, or not listed</option>' + (data || []).map(c => `<option value="${c.id}">${NRC.esc(c.name)}${c.state ? " (" + NRC.esc(c.state) + ")" : ""}</option>`).join(""); })();
 document.getElementById("req-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -114,6 +116,7 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
   if (row.food_stipend_per_day != null) row.food_stipend_per_day = parseFloat(row.food_stipend_per_day);
   if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
   if (row.venue_state) row.venue_state = row.venue_state.toUpperCase();
+  delete row.divisions; row.divisions = NRC.divisionsFrom(e.target, "divisions");
   const u = await NRC.currentUser(); if (u) row.organizer_user_id = u.id;
   const { error } = await NRC.sb.from("tournaments").insert(row);
   if (error) { NRC.notice(msg, "Could not submit: " + NRC.esc(error.message), "error"); return; }

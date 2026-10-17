@@ -58,6 +58,7 @@
     <label>Tournament name</label><input name="name" required>
     <div class="row"><div><label>Start date</label><input name="start_date" type="date" required></div><div><label>End date</label><input name="end_date" type="date" required></div></div>
     <div class="row"><div><label>Referee pairs needed</label><input name="pairs_needed" type="number" min="1" required></div><div><label>Expected games</label><input name="games_expected" type="number" min="1"></div></div>
+    <label>Divisions</label><div id="edit-div"></div>
     <div class="row"><div><label>Venue name</label><input name="venue_name" required></div><div><label>Nearest airport</label><input name="nearest_airport_iata" maxlength="3" style="text-transform:uppercase"></div></div>
     <label>Street address</label><input name="venue_address">
     <div class="row"><div><label>City</label><input name="venue_city" required></div><div><label>State</label><input name="venue_state" maxlength="2" required style="text-transform:uppercase"></div></div>
@@ -112,6 +113,7 @@ const FIELDS = ["name", "start_date", "end_date", "pairs_needed", "games_expecte
 window.editTour = function (id) {
   const t = TOURS.find(x => x.id === id); if (!t) return; const f = $("#form-edit"); f.reset(); f.id.value = id;
   FIELDS.forEach(k => { if (f[k]) f[k].value = t[k] == null ? "" : String(t[k]); });
+  $("#edit-div").innerHTML = NRC.divisionPicker("divisions", t.divisions);
   $("#dlg-edit").showModal();
 };
 async function notify(id, kind) {
@@ -122,6 +124,7 @@ async function notify(id, kind) {
 $("#form-edit").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const row = {};
   FIELDS.forEach(k => { if (!f[k]) return; let v = f[k].value.trim(); if (v === "") { row[k] = null; return; } if (["supervisor_needed", "flights_covered", "airport_transfers_covered"].includes(k)) v = v === "true"; else if (["pairs_needed", "games_expected", "hotel_nights_covered"].includes(k)) v = parseInt(v, 10); else if (k === "food_stipend_per_day") v = parseFloat(v); else if (["nearest_airport_iata", "venue_state"].includes(k)) v = v.toUpperCase(); row[k] = v; });
+  row.divisions = NRC.divisionsFrom(f, "divisions");
   const { error } = await NRC.sb.from("tournaments").update(row).eq("id", f.id.value);
   if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); $("#dlg-edit").close(); return; }
   $("#dlg-edit").close();

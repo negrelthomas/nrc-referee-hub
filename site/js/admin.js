@@ -119,7 +119,7 @@
     currentRef = id ? refs.find(r => r.id === id) : null;
     const f = $("#form-ref"); f.reset();
     $("#dlg-ref-title").textContent = currentRef ? currentRef.first_name + " " + currentRef.last_name : "New referee";
-    $("#btn-eval").classList.toggle("hidden", !currentRef); $("#btn-game").classList.toggle("hidden", !currentRef);
+    ["#btn-eval", "#btn-game", "#btn-phys", "#btn-theory"].forEach(b => $(b).classList.toggle("hidden", !currentRef));
     if (id && !currentRef) { alert("Referee not found."); return; }
     $("#ref-photo").src = (currentRef && currentRef.photo_url) || "assets/avatar.svg";
     $("#ref-photo-remove").classList.toggle("hidden", !(currentRef && currentRef.photo_url));
@@ -138,12 +138,15 @@
         const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3 && m[r].c / m[r].n < .7).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n);
         training = tot ? `${tot} questions answered, ${Math.round(ok / tot * 100)}% correct. ` + (weak.length ? "Weak rules: " + weak.map(r => `Rule ${r} (${Math.round(m[r].c / m[r].n * 100)}%)`).join(", ") + "." : "No rule below 70%.") : "No training activity yet.";
       } else training = "Has not signed in yet.";
-      ex.innerHTML = `<h3 style="margin-top:16px">Tournaments</h3>` + ((hist || []).map(t => `<div class="small">${new Date(t.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}: ${NRC.esc(t.name)} <span class="pill">${SANCTION[t.sanction] || ""}</span> ${t.games != null ? t.games + " games" : '<span class="muted">games pending</span>'}</div>`).join("") || '<div class="small muted">None recorded. Add from Tournament requests > Open.</div>')
+      const [L, { data: tests }] = await Promise.all([NRC.latestEvals(currentRef.id, currentRef.user_id), sb().from("referee_tests").select("*").eq("referee_id", currentRef.id).order("tested_on", { ascending: false })]);
+      ex.innerHTML = `<h3 style="margin-top:16px">Latest evaluations</h3>` + NRC.latestEvalsHtml(L)
+        + `<h3 style="margin-top:16px">Tournaments</h3>` + NRC.historyHtml(hist) + '<div class="small muted">Add or correct from Tournaments > Open > Officiated.</div>'
+        + `<h3 style="margin-top:16px">Physical tests and theory exams</h3>` + ((tests || []).map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${t.result ? " " + NRC.esc(t.result) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.evaluator_name ? ", " + NRC.esc(t.evaluator_name) : ""} <a href="#" onclick="delTest('${t.id}');return false" class="muted">remove</a></div>`).join("") || '<div class="small muted">None recorded.</div>')
         + `<h3 style="margin-top:16px">Training</h3><div class="small">${training}</div>`
         + `<h3 style="margin-top:16px">Certification history</h3>` + ((certs || []).map(c => `<div class="small">${NRC.fmtDate(c.obtained_on)}: ${NRC.levelLabel(c.level)}${c.certified_by ? ", by " + NRC.esc(c.certified_by) : ""}${c.event ? ", " + NRC.esc(c.event) : ""}</div>`).join("") || '<div class="small muted">No history. Saving a level change adds a row.</div>')
         + `<h3 style="margin-top:16px">Evaluations</h3>` + ((ev || []).map(e => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(e.evaluated_on)}</strong>, ${NRC.esc(e.evaluator_name)}: ${CRIT.map(([k]) => e[k] || "-").join(" / ")}${e.points_to_improve ? "<br>Improve: " + NRC.esc(e.points_to_improve) : ""}${e.shared_with_referee ? ' <span class="pill green">shared</span>' : ""}</div>`).join("") || '<div class="small muted">None yet.</div>');
     }
-    $("#dlg-ref").showModal();
+    if (!$("#dlg-ref").open) $("#dlg-ref").showModal();
   };
   $("#form-ref").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const row = {};
@@ -165,6 +168,21 @@
     if (!currentRef) alert("Referee added. " + row.email + " can now sign in on the Sign in page with a magic link; send them the site address.");
     $("#dlg-ref").close(); loadAll();
   });
+
+  // physical test or in person theory exam
+  window.openTest = function (kind) {
+    const f = $("#form-test"); f.reset(); f.kind.value = kind; f.tested_on.value = today();
+    $("#dlg-test-title").textContent = (kind === "physical" ? "Physical test" : "Theory exam") + ", " + currentRef.first_name + " " + currentRef.last_name;
+    $("#dlg-test").showModal();
+  };
+  $("#form-test").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target;
+    const row = { referee_id: currentRef.id, kind: f.kind.value, tested_on: f.tested_on.value, test_name: f.test_name.value.trim(), result: f.result.value.trim() || null, passed: f.passed.value === "" ? null : f.passed.value === "true", evaluator_name: f.evaluator_name.value.trim() || null, notes: f.notes.value.trim() || null, shared_with_referee: f.shared_with_referee.checked, entered_by: user.id };
+    const { error } = await sb().from("referee_tests").insert(row);
+    if (error) { alert("Save failed: " + error.message); return; }
+    $("#dlg-test").close(); openRef(currentRef.id);
+  });
+  window.delTest = async function (id) { if (!confirm("Remove this test record?")) return; await sb().from("referee_tests").delete().eq("id", id); openRef(currentRef.id); };
 
   // evaluation
   window.openEval = function () {
@@ -535,8 +553,27 @@
 
   // ---------- tournaments ----------
   function renderTournaments() {
-    $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td><span class="pill">${SANCTION[t.sanction] || ""}</span>${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.supervisor_needed ? "Yes" + (t.supervisor_notes ? "<br>" + NRC.esc(t.supervisor_notes) : "") : "No"}</td><td class="small">${t.travel_managed_by === "nrc" ? '<span class="pill amber">NRC books</span>' : "Organizer"}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="openTour('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="11">No requests yet.</td></tr>';
+    $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td><span class="pill">${SANCTION[t.sanction] || ""}</span>${t.created_by_nrc ? ' <span class="pill">entered by NRC</span>' : ""}${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.supervisor_needed ? "Yes" + (t.supervisor_notes ? "<br>" + NRC.esc(t.supervisor_notes) : "") : "No"}</td><td class="small">${t.travel_managed_by === "nrc" ? '<span class="pill amber">NRC books</span>' : "Organizer"}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="openTour('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="11">No requests yet.</td></tr>';
   }
+  window.openNewTour = function () {
+    const f = $("#form-newtour"); f.reset();
+    f.club_id.innerHTML = '<option value="">None</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join("");
+    $("#newtour-div").innerHTML = NRC.divisionPicker("divisions", []);
+    $("#dlg-newtour").showModal();
+  };
+  $("#form-newtour").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target;
+    const row = { name: f.name.value.trim(), sanction: f.sanction.value, region: f.region.value.trim() || null, start_date: f.start_date.value, end_date: f.end_date.value,
+      venue_name: f.venue_name.value.trim() || null, venue_city: f.venue_city.value.trim() || null, venue_state: f.venue_state.value.trim().toUpperCase() || null,
+      games_expected: f.games_expected.value === "" ? null : parseInt(f.games_expected.value, 10), club_id: f.club_id.value || null, divisions: NRC.divisionsFrom(f, "divisions"),
+      organizer_name: "NRC", organizer_email: (window.NRC_CONFIG && NRC_CONFIG.CONTACT_EMAIL) || "referee@handballusa.org", organizer_user_id: user.id,
+      created_by_nrc: true, status: f.end_date.value < today() ? "completed" : "reviewing", pairs_needed: 1 };
+    if (row.end_date < row.start_date) { alert("End date is before the start date."); return; }
+    const { data, error } = await sb().from("tournaments").insert(row).select().single();
+    if (error) { alert("Save failed: " + error.message); return; }
+    $("#dlg-newtour").close(); await loadAll(); openTour(data.id);
+    const b = NRC.$$("#dlg-tour .tabs button").find(x => x.dataset.ttab === "officiated"); if (b) b.click();
+  });
   window.setTourStatus = async function (id, status) { await sb().from("tournaments").update({ status }).eq("id", id); };
   let currentTour = null, pairsCache = [], availCache = [];
   NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "designated", "money", "officiated"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab));
@@ -547,6 +584,7 @@
     $("#dlg-tour-title").textContent = currentTour.name;
     $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs needed.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || "";
+    $("#tour-div").innerHTML = NRC.divisionPicker("divisions", currentTour.divisions);
     ["start_date", "end_date", "venue_name", "venue_city", "pairs_needed", "travel_managed_by", "club_id"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
     $("#asg-ref").innerHTML = refs.filter(r => r.active).map(r => `<option value="${r.id}">${NRC.esc(r.first_name + " " + r.last_name)}</option>`).join("");
     // weekends touched by the tournament (Saturday keys)
@@ -653,7 +691,7 @@
     if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg();
   };
   window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
-  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { sanction: f.sanction.value, region: f.region.value || null, start_date: f.start_date.value || currentTour.start_date, end_date: f.end_date.value || currentTour.end_date, venue_name: f.venue_name.value || null, venue_city: f.venue_city.value || null, pairs_needed: parseInt(f.pairs_needed.value, 10) || currentTour.pairs_needed, travel_managed_by: f.travel_managed_by.value, club_id: f.club_id.value || null }; const { error } = await sb().from("tournaments").update(row).eq("id", currentTour.id); if (error) { alert(error.message); return; } Object.assign(currentTour, row); loadAll(); alert("Saved. Use Notify changes to tell the officials and the organizer."); });
+  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { sanction: f.sanction.value, divisions: NRC.divisionsFrom(f, "divisions"), region: f.region.value || null, start_date: f.start_date.value || currentTour.start_date, end_date: f.end_date.value || currentTour.end_date, venue_name: f.venue_name.value || null, venue_city: f.venue_city.value || null, pairs_needed: parseInt(f.pairs_needed.value, 10) || currentTour.pairs_needed, travel_managed_by: f.travel_managed_by.value, club_id: f.club_id.value || null }; const { error } = await sb().from("tournaments").update(row).eq("id", currentTour.id); if (error) { alert(error.message); return; } Object.assign(currentTour, row); loadAll(); alert("Saved. Use Notify changes to tell the officials and the organizer."); });
   async function callMail(body) { const { data: sess } = await sb().auth.getSession(); const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, ...body }) }); const d = await res.json(); if (!res.ok) { alert("Failed: " + (d.error || res.status)); return null; } const ok = d.results.filter(r => r.sent).length; alert(ok + " email(s) sent." + (d.results.length - ok ? " Not sent: " + d.results.filter(r => !r.sent).map(r => r.email + " (" + (r.error || "").slice(0, 60) + ")").join("; ") : "")); return d; }
   window.notifyChanges = () => callMail({ kind: currentTour.status === "cancelled" ? "cancel" : "changes" });
   window.sendBriefs = () => { if (!desRows.length) { alert("Nobody designated yet."); return; } callMail({ kind: "brief", assignment_ids: desRows.map(a => a.id) }); };

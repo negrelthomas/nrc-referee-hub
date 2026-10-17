@@ -46,6 +46,8 @@
     <div><h3 id="p-name" style="margin:0"></h3><div id="p-level" style="margin-top:6px"></div></div>
   </div>
   <dl class="prof-facts" id="p-facts"></dl>
+  <div id="p-evals" class="hidden"><h4 style="margin:16px 0 8px">Latest evaluations <span class="pill">NRC only</span></h4><div id="p-evals-body"></div></div>
+  <h4 style="margin:16px 0 4px">Tournaments</h4><div id="p-hist" class="small muted">Loading</div>
   <p class="small muted" id="p-contact">Contact goes through the NRC at <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>.</p>
   <p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><a class="btn hidden" id="p-edit" href="#">Edit profile</a><button class="btn ghost" type="button" onclick="document.getElementById('dlg-prof').close()">Close</button></p>
 </div></dialog>
@@ -76,7 +78,10 @@ function openProfile(id) {
   const facts = [["Club", r.club_name], ["Home", [r.home_city, r.home_state].filter(Boolean).join(", ")], ["Certified since", NRC.fmtDate(r.certified_since) || "On file with the NRC"], ["Last certification", NRC.fmtDate(r.last_certified_on)]].filter(f => f[1]);
   NRC.$("#p-facts").innerHTML = facts.map(([k, v]) => `<dt>${k}</dt><dd>${NRC.esc(v)}</dd>`).join("");
   const ed = NRC.$("#p-edit"); ed.classList.toggle("hidden", !isAdmin); ed.href = "admin/index.html#referee/" + r.id;
+  NRC.$("#p-hist").innerHTML = "Loading"; NRC.$("#p-evals").classList.toggle("hidden", !isAdmin); NRC.$("#p-evals-body").innerHTML = "";
   NRC.$("#dlg-prof").showModal();
+  NRC.sb.from("referee_public_history").select("*").eq("referee_id", r.id).then(({ data, error }) => { NRC.$("#p-hist").innerHTML = error ? '<p class="small muted">Tournament history not available yet.</p>' : NRC.historyHtml(data); });
+  if (isAdmin) NRC.sb.from("referees").select("user_id").eq("id", r.id).maybeSingle().then(({ data }) => NRC.latestEvals(r.id, data && data.user_id)).then(L => { NRC.$("#p-evals-body").innerHTML = NRC.latestEvalsHtml(L); });
 }
 document.addEventListener("DOMContentLoaded", async () => {
   NRC.$("#tbl tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr) openProfile(tr.dataset.id); });
