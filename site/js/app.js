@@ -23,6 +23,10 @@
   NRC.DIV_GENDERS = [["M", "Men"], ["W", "Women"], ["X", "Mixed"]];
   NRC.divisionLabel = (code) => { const [a, g] = String(code).split("-"); return a + " " + ({ M: "Men", W: "Women", X: "Mixed" }[g] || g || ""); };
   NRC.divisionPills = (arr) => (arr || []).slice().sort((x, y) => NRC.DIV_AGES.indexOf(x.split("-")[0]) - NRC.DIV_AGES.indexOf(y.split("-")[0]) || x.localeCompare(y)).map(c => `<span class="pill">${NRC.esc(NRC.divisionLabel(c))}</span>`).join(" ");
+  // ---------- event type (colour coded) and date status ----------
+  NRC.SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
+  NRC.sanctionPill = (s) => `<span class="pill s-${s === "usath" ? "usath" : s === "international" ? "intl" : "club"}">${NRC.SANCTION[s] || "Club"}</span>`;
+  NRC.datePill = (t) => t && t.date_status === "tentative" ? ' <span class="pill amber" title="Dates projected from the last edition; not announced by the organizer yet">Tentative dates</span>' : "";
   NRC.divisionPicker = (name, selected) => {
     const sel = new Set(selected || []);
     return `<div class="div-picker-wrap"><table class="div-picker"><thead><tr><th></th>${NRC.DIV_AGES.map(a => `<th>${a}</th>`).join("")}</tr></thead><tbody>` +
@@ -36,7 +40,7 @@
     if (!rows.length) return '<p class="small muted">No tournament recorded yet.</p>';
     const yrs = {}; rows.forEach(h => { const y = String(h.start_date).slice(0, 4); yrs[y] = yrs[y] || { g: 0, t: 0 }; yrs[y].g += h.games || 0; yrs[y].t++; });
     return `<div class="hist-years">${Object.keys(yrs).sort().reverse().map(y => `<span class="chip"><strong>${y}</strong>: ${yrs[y].g} game${yrs[y].g === 1 ? "" : "s"}, ${yrs[y].t} tournament${yrs[y].t === 1 ? "" : "s"}</span>`).join("")}</div>` +
-      `<ul class="hist-list">${rows.map(h => `<li><div><strong>${NRC.esc(h.name)}</strong> <span class="small muted">${new Date(h.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}${h.region ? ", " + NRC.esc(h.region) : ""}</span><div style="margin-top:4px">${NRC.divisionPills(h.divisions)}</div></div><div class="small" style="white-space:nowrap">${h.games != null ? h.games + " games" : '<span class="muted">games pending</span>'}</div></li>`).join("")}</ul>`;
+      `<ul class="hist-list">${rows.map(h => `<li><div><strong>${NRC.esc(h.name)}</strong> ${h.sanction ? NRC.sanctionPill(h.sanction) : ""} <span class="small muted">${new Date(h.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}${h.region ? ", " + NRC.esc(h.region) : ""}</span><div style="margin-top:4px">${NRC.divisionPills(h.divisions)}</div></div><div class="small" style="white-space:nowrap">${h.games != null ? h.games + " games" : '<span class="muted">games pending</span>'}</div></li>`).join("")}</ul>`;
   };
   NRC.EVAL_CRIT = ["score_rules_application", "score_game_management", "score_progressive_punishment", "score_positioning", "score_pair_cooperation", "score_communication"];
   NRC.latestEvals = async function (refereeId, userId) {

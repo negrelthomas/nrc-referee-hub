@@ -47,7 +47,7 @@ export default async () => {
   }
 
   // 3. organizer report missing
-  const { data: ended } = await admin.from("tournaments").select("id,name,end_date,organizer_name,organizer_email,status").lte("end_date", inDays(-3)).gte("end_date", inDays(-60)).neq("status", "cancelled");
+  const { data: ended } = await admin.from("tournaments").select("id,name,end_date,organizer_name,organizer_email,status").lte("end_date", inDays(-3)).gte("end_date", inDays(-60)).neq("status", "cancelled").eq("date_status", "confirmed");
   for (const t of ended || []) {
     const { data: rep } = await admin.from("tournament_reports").select("tournament_id").eq("tournament_id", t.id).maybeSingle();
     if (rep || await already("report", t.id)) continue;
