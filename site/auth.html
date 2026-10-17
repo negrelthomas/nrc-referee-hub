@@ -41,6 +41,15 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (tokenHash) {
     const { error } = await NRC.sb.auth.verifyOtp({ token_hash: tokenHash, type: q.get("type") || "magiclink" });
     if (error) { fail("This link is no longer valid. Each link works once and only the most recent one counts: if you asked for a link more than once, open the newest email, or type the code from it on the sign in page. (" + error.message + ")"); return; }
+    if (q.get("type") === "email_change") {
+      // Secure email change needs both links: tell the referee where they stand
+      const { data: ud } = await NRC.sb.auth.getUser(); const u = ud && ud.user;
+      const done = u && !u.new_email;
+      msg.className = "notice ok";
+      msg.innerHTML = done ? "Your email is now <strong>" + NRC.esc(u.email) + "</strong>. Sign in with this address from now on." : "Confirmation received. Open the link sent to your other address to finish the change.";
+      msg.insertAdjacentHTML("afterend", '<p style="margin-top:14px"><a class="btn" href="profile.html">My profile</a></p>');
+      return;
+    }
     await go(); return;
   }
   // Legacy link format (token in the URL fragment): supabase-js reads it on load.

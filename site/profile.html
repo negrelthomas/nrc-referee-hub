@@ -67,7 +67,7 @@
         <div><label>Last name</label><input name="last_name" required></div>
       </div>
       <div class="row">
-        <div><label>Email</label><input name="email" type="email" readonly style="background:#F0F3F8"><div class="help">Your sign in. To change it, write to the NRC at referee@handballusa.org.</div></div>
+        <div><label>Email</label><input name="email" type="email" readonly style="background:#F0F3F8"><div class="help">Your sign in. <a href="#" onclick="openEmailChange();return false">Change email</a></div></div>
         <div><label>Phone</label><input name="phone"></div>
       </div>
       <div class="row">
@@ -185,6 +185,19 @@
     <div><button class="btn ghost sm" type="button" id="tour-prev">Back</button> <button class="btn sm" type="button" id="tour-next">Next</button></div>
   </div>
 </div></dialog>
+<dialog id="dlg-email"><div class="body">
+  <h3 style="margin-top:0">Change your email</h3>
+  <form id="form-email">
+    <label>New email</label><input name="new_email" type="email" required autocomplete="email">
+    <ul class="small muted" style="padding-left:18px;margin:10px 0 0">
+      <li>We send a confirmation link to your current address and to the new one.</li>
+      <li>Open both links. Your email changes once both are confirmed.</li>
+      <li>From then on you sign in, and receive invitations and briefs, at the new address.</li>
+    </ul>
+    <div id="email-msg" class="notice hidden"></div>
+    <p style="margin-top:14px;display:flex;gap:8px"><button class="btn" type="submit">Send confirmation</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-email').close()">Cancel</button></p>
+  </form>
+</div></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
@@ -217,6 +230,16 @@ async function load() {
     $("#form").classList.add("hidden");
   }
 }
+window.openEmailChange = function () { const f = $("#form-email"); f.reset(); $("#email-msg").classList.add("hidden"); f.querySelector("button[type=submit]").disabled = false; $("#dlg-email").showModal(); };
+$("#form-email").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target; const ne = f.new_email.value.trim().toLowerCase();
+  const { data: s0 } = await NRC.sb.auth.getSession(); const cur = s0 && s0.session ? s0.session.user.email : "";
+  if (ne === String(cur).toLowerCase()) { NRC.notice($("#email-msg"), "That is already your email.", "error"); return; }
+  f.querySelector("button[type=submit]").disabled = true;
+  const { error } = await NRC.sb.auth.updateUser({ email: ne }, { emailRedirectTo: location.origin + "/auth.html" });
+  if (error) { f.querySelector("button[type=submit]").disabled = false; NRC.notice($("#email-msg"), "Not sent: " + NRC.esc(error.message), "error"); return; }
+  NRC.notice($("#email-msg"), "Confirmation sent to " + NRC.esc(cur) + " and " + NRC.esc(ne) + ". Open both links to finish. Until then, keep signing in with " + NRC.esc(cur) + ".", "ok");
+});
 $("#form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target; const row = {};
