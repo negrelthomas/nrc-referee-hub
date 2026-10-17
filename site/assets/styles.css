@@ -263,6 +263,7 @@ footer img{height:36px}
 .task .t{font-weight:700}
 .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
 .toolbar input,.toolbar select{width:auto;min-width:160px}
+.toolbar input[type=checkbox],.toolbar input[type=radio]{min-width:0;width:auto}
 dialog{border:0;border-radius:12px;padding:0;max-width:640px;width:calc(100% - 32px)}
 dialog::backdrop{background:rgba(4,35,79,.5)}
 dialog .body{padding:22px}
