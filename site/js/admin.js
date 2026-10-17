@@ -1,6 +1,7 @@
 /* Admin area */
 (function () {
   const $ = NRC.$, sb = () => NRC.sb;
+  let staffSettings = null, staffDups = [], staffView = "table";
   let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], inquiries = [], pstat = [], psettings = null, ctest = null, staffing = [], currentRef = null, contacts = [], clubMsgs = [];
   const today = () => new Date().toISOString().slice(0, 10);
   const CRIT = [["score_rules_application", "Rules application"], ["score_game_management", "Game management"], ["score_progressive_punishment", "Progressive punishment"], ["score_positioning", "Positioning"], ["score_pair_cooperation", "Pair cooperation"], ["score_communication", "Communication"]];
@@ -36,9 +37,12 @@
       sb().from("referee_program_status").select("*").order("last_name"),
       sb().from("program_settings").select("*").eq("id", 1).maybeSingle(),
       sb().from("certification_tests").select("*").eq("level", "level_1").maybeSingle(),
-      sb().from("tournament_staffing").select("*").order("start_date")
+      sb().from("tournament_overview").select("*").order("start_date")
     ]);
     staffing = (st && st.data) || [];
+    if (st && st.error) { const old = await sb().from("tournament_staffing").select("*").order("start_date"); staffing = old.data || []; } // before staffing_overview.sql
+    const [{ data: ss }, { data: dd }] = await Promise.all([sb().from("staffing_settings").select("*").eq("id", 1).maybeSingle(), sb().from("tournament_duplicates").select("*")]);
+    staffSettings = ss || null; staffDups = dd || [];
     inquiries = (inq && inq.data) || []; pstat = (ps && ps.data) || []; psettings = (pse && pse.data) || null; ctest = (ct && ct.data) || null;
     clubs = c.data || []; refs = r.data || []; tournaments = t.data || []; questions = q.data || []; cov = v.data || []; sessions = ts.data || [];
     // stats per referee
@@ -222,13 +226,13 @@
   let currentClub = null;
   window.openClub = function (id) {
     currentClub = id ? clubs.find(c => c.id === id) : null; const f = $("#form-club"); f.reset();
-    if (currentClub) { Object.keys(currentClub).forEach(k => { if (f[k] && f[k].type !== "checkbox") f[k].value = currentClub[k] == null ? "" : currentClub[k]; }); f.active.checked = currentClub.active; }
+    if (currentClub) { Object.keys(currentClub).forEach(k => { if (f[k] && f[k].type !== "checkbox") f[k].value = currentClub[k] == null ? "" : currentClub[k]; }); f.active.checked = currentClub.active; f.usath_registered.checked = currentClub.usath_registered !== false; }
     $("#dlg-club").showModal();
   };
   $("#form-club").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const row = {};
     ["name", "club_type", "website", "city", "state", "nearest_airport_iata", "pair_program_status", "pair_program_notes"].forEach(k => row[k] = f[k].value.trim() || null);
-    row.active = f.active.checked; if (row.state) row.state = row.state.toUpperCase(); if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
+    row.active = f.active.checked; if (currentClub && "usath_registered" in currentClub || !currentClub) row.usath_registered = f.usath_registered.checked; if (row.state) row.state = row.state.toUpperCase(); if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
     const res = currentClub ? await sb().from("clubs").update(row).eq("id", currentClub.id) : await sb().from("clubs").insert(row);
     if (res.error) { alert(res.error.message); return; }
     $("#dlg-club").close(); loadAll();
@@ -478,9 +482,40 @@
   // ---------- staffing cards ----------
   let staffFilter = "open";
   NRC.$$("#staff-filter .chip").forEach(c => c.onclick = () => { NRC.$$("#staff-filter .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); staffFilter = c.dataset.v; renderStaffing(); });
+  NRC.$$("#staff-view .chip").forEach(c => c.onclick = () => { NRC.$$("#staff-view .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); staffView = c.dataset.v; renderStaffing(); });
+  window.openStaffSettings = function () {
+    const f = $("#form-staffset"), v = staffSettings || { staff_by_days_before: 42, remind_every_days: 7, remind_daily_within_days: 14, remind_to: "" };
+    ["staff_by_days_before", "remind_every_days", "remind_daily_within_days", "remind_to"].forEach(k => f[k].value = v[k] == null ? "" : v[k]);
+    $("#dlg-staffset").showModal();
+  };
+  $("#form-staffset").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target;
+    const row = { id: 1, staff_by_days_before: parseInt(f.staff_by_days_before.value, 10), remind_every_days: parseInt(f.remind_every_days.value, 10), remind_daily_within_days: parseInt(f.remind_daily_within_days.value, 10), remind_to: f.remind_to.value.trim() || null, updated_at: new Date().toISOString() };
+    const { error } = await sb().from("staffing_settings").upsert(row);
+    if (error) { alert("Save failed: " + error.message); return; }
+    staffSettings = row; $("#dlg-staffset").close(); renderStaffing();
+  });
   function renderStaffing() {
     const t = today();
-    const list = staffing.filter(s => staffFilter === "all" || (!["completed", "cancelled"].includes(s.status) && s.end_date >= t));
+    const v = staffSettings;
+    $("#staff-settings-line").innerHTML = v ? `Deadline to staff: ${v.staff_by_days_before} days before the event. Reminders to ${NRC.esc(v.remind_to || "the NRC contact email")}: on each new request, every ${v.remind_every_days} days while not staffed, daily in the last ${v.remind_daily_within_days} days before the deadline. <a href="#" onclick="openStaffSettings();return false">Change</a>` : "Run supabase/staffing_overview.sql to enable deadlines and reminders.";
+    $("#staff-dups").innerHTML = staffDups.length ? `<div class="alert"><div><div class="t">Possible duplicate requests (${staffDups.length})</div>${staffDups.map(d => `<div class="small"><a href="#" onclick="openTour('${d.id_a}');return false">${NRC.esc(d.name_a)}</a> (${NRC.fmtDate(d.start_a)}, ${NRC.esc(d.email_a)}) and <a href="#" onclick="openTour('${d.id_b}');return false">${NRC.esc(d.name_b)}</a> (${NRC.fmtDate(d.start_b)}, ${NRC.esc(d.email_b)}): ${NRC.esc(d.reason)}. Cancel the one to drop.</div>`).join("")}</div></div>` : "";
+    const open = s => !["completed", "cancelled"].includes(s.status) && s.end_date >= t;
+    const need = s => s.referees_needed != null ? s.referees_needed : s.pairs_needed * 2;
+    const list = staffing.filter(s => staffFilter === "all" || (staffFilter === "open" ? open(s) && s.confirmed < need(s) : staffFilter === "upcoming" ? s.end_date >= t && s.status !== "cancelled" : s.end_date < t))
+      .sort((a, b) => staffFilter === "past" ? String(b.start_date).localeCompare(String(a.start_date)) : String(a.staff_by || a.start_date).localeCompare(String(b.staff_by || b.start_date)));
+    $("#staff-table-wrap").classList.toggle("hidden", staffView !== "table"); $("#staff-cards").classList.toggle("hidden", staffView !== "cards");
+    const n = v => v == null ? '<span class="muted">-</span>' : v;
+    $("#staff-table tbody").innerHTML = list.map(s => {
+      const left = s.staff_by ? Math.round((new Date(s.staff_by + "T12:00:00") - new Date(t + "T12:00:00")) / 864e5) : null;
+      const full = s.confirmed >= need(s);
+      const dl = s.staff_by ? `${NRC.fmtDate(s.staff_by)}<br>${full ? '<span class="pill green">staffed</span>' : left < 0 ? `<span class="pill red">${-left} days late</span>` : `<span class="pill ${left <= 14 ? "amber" : ""}">${left} days left</span>`}${s.last_reminder_at && !full ? '<div class="small muted">reminded ' + new Date(s.last_reminder_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "</div>" : ""}` : '<span class="muted">-</span>';
+      return `<tr class="clickable" onclick="openTour('${s.id}')"><td style="min-width:170px"><strong>${NRC.esc(s.name)}</strong>${s.status === "cancelled" ? ' <span class="pill">cancelled</span>' : ""}<div class="small muted">${NRC.esc(s.club_name || "no club")}${s.divisions && s.divisions.length ? ", " + s.divisions.map(NRC.divisionLabel).join(", ") : ""}</div></td>
+        <td style="white-space:nowrap">${NRC.fmtDate(s.start_date)}</td><td style="white-space:nowrap">${dl}</td>
+        <td><span class="pill ${full ? "green" : s.confirmed ? "amber" : "red"}">${s.confirmed}/${need(s)}</span><div class="small muted">referees</div>${s.supervisor_needed ? '<div class="small ' + (s.officials ? "muted" : "") + '">supervisor ' + (s.officials ? "set" : "needed") + "</div>" : ""}</td>
+        <td>${n(s.available)}</td><td>${n(s.contacted)}</td><td class="small" style="white-space:nowrap">${s.contacted ? `<strong style="color:var(--green)">${s.accepted} yes</strong>, ${s.tentative} maybe<br>${s.no_answer} waiting, <span style="color:var(--red)">${s.declined} no</span>` : '<span class="muted">none sent</span>'}</td></tr>`;
+    }).join("") || '<tr><td colspan="7">Nothing here. New requests appear in To staff.</td></tr>';
+    // cards view
     $("#staff-cards").innerHTML = list.map(s => {
       const need = s.pairs_needed * 2; const pct = Math.min(100, Math.round(s.confirmed / need * 100));
       const travel = s.travel_managed_by === "nrc" ? `<div class="small" style="margin-top:6px">Travel: ${s.bookings_done} booked, ${s.bookings_pending} pending</div>` : '<div class="small muted" style="margin-top:6px">Travel booked by the organizer</div>';
@@ -589,7 +624,7 @@
     $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs needed.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || "";
     $("#tour-div").innerHTML = NRC.divisionPicker("divisions", currentTour.divisions);
-    ["start_date", "end_date", "venue_name", "venue_city", "pairs_needed", "travel_managed_by", "club_id"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
+    ["start_date", "end_date", "venue_name", "venue_city", "pairs_needed", "travel_managed_by", "club_id", "staff_by"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
     $("#asg-ref").innerHTML = refs.filter(r => r.active).map(r => `<option value="${r.id}">${NRC.esc(r.first_name + " " + r.last_name)}</option>`).join("");
     // weekends touched by the tournament (Saturday keys)
     const sat = (d) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); return x.toISOString().slice(0, 10); };
@@ -695,7 +730,7 @@
     if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg();
   };
   window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
-  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { sanction: f.sanction.value, divisions: NRC.divisionsFrom(f, "divisions"), region: f.region.value || null, start_date: f.start_date.value || currentTour.start_date, end_date: f.end_date.value || currentTour.end_date, venue_name: f.venue_name.value || null, venue_city: f.venue_city.value || null, pairs_needed: parseInt(f.pairs_needed.value, 10) || currentTour.pairs_needed, travel_managed_by: f.travel_managed_by.value, club_id: f.club_id.value || null }; const { error } = await sb().from("tournaments").update(row).eq("id", currentTour.id); if (error) { alert(error.message); return; } Object.assign(currentTour, row); loadAll(); alert("Saved. Use Notify changes to tell the officials and the organizer."); });
+  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { sanction: f.sanction.value, divisions: NRC.divisionsFrom(f, "divisions"), region: f.region.value || null, start_date: f.start_date.value || currentTour.start_date, end_date: f.end_date.value || currentTour.end_date, venue_name: f.venue_name.value || null, venue_city: f.venue_city.value || null, pairs_needed: parseInt(f.pairs_needed.value, 10) || currentTour.pairs_needed, travel_managed_by: f.travel_managed_by.value, club_id: f.club_id.value || null }; if (f.staff_by.value) row.staff_by = f.staff_by.value; const { error } = await sb().from("tournaments").update(row).eq("id", currentTour.id); if (error) { alert(error.message); return; } Object.assign(currentTour, row); loadAll(); alert("Saved. Use Notify changes to tell the officials and the organizer."); });
   async function callMail(body) { const { data: sess } = await sb().auth.getSession(); const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, ...body }) }); const d = await res.json(); if (!res.ok) { alert("Failed: " + (d.error || res.status)); return null; } const ok = d.results.filter(r => r.sent).length; alert(ok + " email(s) sent." + (d.results.length - ok ? " Not sent: " + d.results.filter(r => !r.sent).map(r => r.email + " (" + (r.error || "").slice(0, 60) + ")").join("; ") : "")); return d; }
   window.notifyChanges = () => callMail({ kind: currentTour.status === "cancelled" ? "cancel" : "changes" });
   window.sendBriefs = () => { if (!desRows.length) { alert("Nobody designated yet."); return; } callMail({ kind: "brief", assignment_ids: desRows.map(a => a.id) }); };

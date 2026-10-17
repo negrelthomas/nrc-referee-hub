@@ -22,7 +22,7 @@
       <a href="#inquiries">Inquiries <span class="pill red hidden" id="nav-inq"></span></a>
       <a href="#clubs">Clubs</a>
       <a href="#staffing">Staffing</a>
-      <a href="#tournaments">Tournament requests</a>
+      <a href="#tournaments">Tournaments</a>
       <a href="#questions">Questions</a>
       <a href="#training">Training sessions</a>
       <a href="#programs">Programs</a>
@@ -88,7 +88,7 @@
           <div class="stat"><div class="n" id="cp-refs">&nbsp;</div><div class="l">Active referees</div></div>
           <div class="stat good"><div class="n" id="cp-cert">&nbsp;</div><div class="l">Certified (L1 and above)</div></div>
           <div class="stat"><div class="n" id="cp-train">&nbsp;</div><div class="l">Candidates in training</div></div>
-          <div class="stat"><div class="n" id="cp-tour">&nbsp;</div><div class="l">Tournament requests</div></div>
+          <div class="stat"><div class="n" id="cp-tour">&nbsp;</div><div class="l">Tournaments</div></div>
         </div>
         <div id="cp-actions" style="display:grid;gap:8px;margin-top:14px"></div>
         <div class="grid c2" style="margin-top:6px">
@@ -99,7 +99,7 @@
         <div class="table-wrap"><table id="cp-reftable"><thead><tr><th>Referee</th><th>Level</th><th>Training</th><th>Games this season</th><th>Last evaluation</th><th></th></tr></thead><tbody></tbody></table></div>
         <h2>Interest from the club</h2>
         <div class="table-wrap"><table id="cp-inq"><thead><tr><th>When</th><th>Name</th><th>Affiliation</th><th>Background</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
-        <h2>Tournament requests</h2>
+        <h2>Tournaments</h2>
         <div class="table-wrap"><table id="cp-tours"><thead><tr><th>Tournament</th><th>Dates</th><th>Pairs</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div>
         <h2>Messages sent by the NRC</h2>
         <div class="table-wrap"><table id="cp-msgs"><thead><tr><th>When</th><th>Subject</th><th>Sent to</th></tr></thead><tbody></tbody></table></div>
@@ -108,9 +108,15 @@
       <!-- Staffing cards -->
       <div id="pane-staffing" class="hidden">
         <h1>Staffing</h1>
-        <p class="muted small">One card per tournament to staff, newest event last. Open a card for the full dashboard: who is open to officiate, who is designated, travel bookings when the NRC manages them.</p>
-        <div class="chips" id="staff-filter"><span class="chip on" data-v="open">To staff</span><span class="chip" data-v="all">All</span></div>
-        <div class="grid c3" id="staff-cards"></div>
+        <div class="small muted" id="staff-settings-line" style="margin-bottom:10px"></div>
+        <div id="staff-dups"></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+          <div class="chips" id="staff-filter" style="margin:0"><span class="chip on" data-v="open">To staff</span><span class="chip" data-v="upcoming">All upcoming</span><span class="chip" data-v="past">Past</span><span class="chip" data-v="all">All</span></div>
+          <div class="chips" id="staff-view" style="margin:0"><span class="chip on" data-v="table">Table</span><span class="chip" data-v="cards">Cards</span></div>
+        </div>
+        <div class="table-wrap" id="staff-table-wrap"><table id="staff-table"><thead><tr><th>Tournament</th><th>Starts</th><th>Staff by</th><th>Designated</th><th title="Certified referees available that weekend">Avail.</th><th>Contacted</th><th>Answers</th></tr></thead><tbody></tbody></table></div>
+        <div class="grid c3 hidden" id="staff-cards"></div>
+        <p class="small muted" style="margin-top:8px">Available: certified referees who marked that weekend available and have no blocked dates over the event. Contacted: invitations sent. Answers: accepted, tentative, no answer yet, declined. Click a row for the tournament dashboard.</p>
       </div>
 
       <!-- Tournaments -->
@@ -302,9 +308,20 @@
     <div class="row"><div><label>Start</label><input name="start_date" type="date" required></div><div><label>End</label><input name="end_date" type="date" required></div></div>
     <div class="row"><div><label>Venue</label><input name="venue_name"></div><div><label>City</label><input name="venue_city"></div></div>
     <div class="row"><div><label>State</label><input name="venue_state" maxlength="2"></div><div><label>Games played</label><input name="games_expected" type="number" min="0"></div></div>
-    <label>Hosting club</label><select name="club_id"></select>
+    <label>Hosting club</label><select name="club_id"></select><div class="help">Required: a USATH registered club. Only international events can have none.</div>
     <label>Divisions</label><div id="newtour-div"></div>
     <p style="margin-top:14px;display:flex;gap:8px"><button class="btn" type="submit">Save and open</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-newtour').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<!-- Staffing deadline and reminder cadence -->
+<dialog id="dlg-staffset"><div class="body">
+  <h3 style="margin-top:0">Deadline and reminders</h3>
+  <form id="form-staffset">
+    <div class="row"><div><label>Deadline to staff (days before the event)</label><input name="staff_by_days_before" type="number" min="0" required></div><div><label>Remind every (days) while not staffed</label><input name="remind_every_days" type="number" min="1" required></div></div>
+    <div class="row"><div><label>Daily reminders in the last (days before the deadline)</label><input name="remind_daily_within_days" type="number" min="0" required></div><div><label>Send reminders to</label><input name="remind_to" type="email" placeholder="NRC contact email"></div></div>
+    <div class="help">The deadline offset applies to new requests. Change one tournament's deadline in its dialog. Reminders go out with the daily job at 8am Pacific.</div>
+    <p style="margin-top:14px;display:flex;gap:8px"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-staffset').close()">Cancel</button></p>
   </form>
 </div></dialog>
 
@@ -353,6 +370,7 @@
     <div><label>Travel booked by</label><select name="travel_managed_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option></select></div>
     <div><button class="btn sm ghost" type="button" onclick="notifyChanges()">Notify changes</button></div>
     <div style="grid-column:span 2"><label>Hosting club</label><select name="club_id"></select></div>
+    <div><label>Staff by</label><input name="staff_by" type="date"></div>
     <div style="grid-column:1/-1"><label>Divisions</label><div id="tour-div"></div></div>
   </form>
 
@@ -416,6 +434,7 @@
     <div class="row"><div><label>City</label><input name="city"></div><div><label>State</label><input name="state" maxlength="2"></div></div>
     <div class="row"><div><label>Nearest airport</label><input name="nearest_airport_iata" maxlength="3"></div><div><label>Pair program status</label><select name="pair_program_status"><option value="none">Not started</option><option value="nominated">Two members nominated</option><option value="mentor_assigned">Mentor assigned</option><option value="in_training">In training</option><option value="observed">Observed at a tournament</option><option value="certified_pair">Certified pair</option></select></div></div>
     <label>Program notes</label><textarea name="pair_program_notes"></textarea>
+    <label><input type="checkbox" name="usath_registered" style="width:auto" checked> Registered with USATH (can host tournaments on the hub)</label>
     <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
     <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-club').close()">Cancel</button></p>
   </form>

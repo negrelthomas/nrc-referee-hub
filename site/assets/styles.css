@@ -353,3 +353,4 @@ dialog .body{padding:22px}
 .hist-list li{padding:8px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .hist-list li:last-child{border-bottom:0}
 .hist-years{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+#staff-table{font-size:13px}#staff-table th,#staff-table td{padding:8px 7px}#staff-table .pill{font-size:12px;padding:2px 8px}

@@ -3,6 +3,7 @@
 //  2. Events within 21 days where the NRC books travel and a designated official has no booked flight or hotel: NRC digest.
 //  3. Organizer report missing 3 days after the event: reminder to the organizer (once).
 //  4. Programs overdue: reminder to the referee (once), listed in the NRC digest.
+//  5. Tournaments not fully staffed: staffing reminder to the NRC at the cadence set on the admin Staffing page.
 import { createClient } from "@supabase/supabase-js";
 import { sendMail, fmtDate } from "./mailer.mjs";
 
@@ -68,6 +69,33 @@ export default async () => {
     const res = await sendMail({ to: prof.email, subject: "Your referee training program is overdue", html });
     await admin.from("email_log").insert({ to_email: prof.email, subject: "Your referee training program is overdue", kind: "program_reminder", sent: res.sent, error: res.error });
     if (res.sent) await log("program", p.id, prof.email);
+  }
+
+  // 5. Tournaments not fully staffed: admin reminder at the cadence set on the Staffing page
+  //    (every N days after the request, daily in the last M days before the deadline to staff, daily once overdue)
+  const { data: st } = await admin.from("staffing_settings").select("*").eq("id", 1).maybeSingle();
+  if (st) {
+    const today = inDays(0);
+    const { data: open } = await admin.from("tournament_overview_service").select("*").in("status", ["submitted", "reviewing"]).gte("start_date", today).order("staff_by");
+    const due = [];
+    for (const t of open || []) {
+      if (t.confirmed >= t.referees_needed) continue;
+      const sinceReq = Math.floor((Date.now() - new Date(t.created_at).getTime()) / 864e5);
+      const toDeadline = Math.round((new Date(t.staff_by + "T12:00:00") - new Date(today + "T12:00:00")) / 864e5);
+      const { data: last } = await admin.from("reminder_log").select("created_at").eq("kind", "staffing").eq("target_id", t.id).order("created_at", { ascending: false }).limit(1);
+      const sinceLast = last && last.length ? Math.floor((Date.now() - new Date(last[0].created_at).getTime()) / 864e5) : sinceReq;
+      const isDue = toDeadline <= st.remind_daily_within_days ? sinceLast >= 1 : sinceLast >= st.remind_every_days;
+      if (isDue) due.push({ ...t, toDeadline });
+    }
+    if (due.length) {
+      const to = st.remind_to || contact;
+      const cell = 'style="padding:4px 8px;border-bottom:1px solid #ddd;text-align:left"';
+      const rows = due.map(t => `<tr><td ${cell}><strong>${esc(t.name)}</strong><br>${esc(t.club_name || "")}</td><td ${cell}>${fmtDate(t.start_date)}</td><td ${cell}>${fmtDate(t.staff_by)}<br>${t.toDeadline < 0 ? `<strong style="color:#C8102E">${-t.toDeadline} days late</strong>` : t.toDeadline + " days left"}</td><td ${cell}>${t.confirmed}/${t.referees_needed}</td><td ${cell}>${t.available}</td><td ${cell}>${t.contacted}</td><td ${cell}>${t.accepted}</td><td ${cell}>${t.tentative}</td><td ${cell}>${t.declined}</td></tr>`).join("");
+      const html = `<p>${due.length} tournament(s) still to staff.</p><table style="border-collapse:collapse;font-size:14px"><tr><th ${cell}>Tournament</th><th ${cell}>Starts</th><th ${cell}>Staff by</th><th ${cell}>Designated</th><th ${cell}>Available</th><th ${cell}>Contacted</th><th ${cell}>Accepted</th><th ${cell}>Tentative</th><th ${cell}>Declined</th></tr>${rows}</table><p><a href="${base}/admin/#staffing">Open the Staffing page</a></p>`;
+      const res = await sendMail({ to, subject: `NRC hub: ${due.length} tournament(s) to staff`, html });
+      await admin.from("email_log").insert({ to_email: to, subject: `NRC hub: ${due.length} tournament(s) to staff`, kind: "staffing_reminder", sent: res.sent, error: res.error });
+      if (res.sent) for (const t of due) await log("staffing", t.id, to);
+    }
   }
 
   // NRC digest

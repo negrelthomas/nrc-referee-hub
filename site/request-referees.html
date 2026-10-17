@@ -36,6 +36,7 @@
         <div><label>Sanction</label><select name="sanction"><option value="club">Club tournament</option><option value="regional">Regional (NORCAL, SOCAL, Northeast...)</option><option value="usath">USATH sanctioned event</option><option value="international">International (NACHC, IHF)</option></select></div>
         <div><label>Region</label><input name="region" placeholder="NORCAL"></div>
       </div>
+      <label>Hosting club</label><select name="club_id" id="club-sel" required><option value="">Pick the USATH registered club hosting the event</option></select><div class="help">Every event is affiliated with a USATH registered club. Club not listed? Write to the NRC at referee@handballusa.org before submitting.</div>
       <label>Divisions</label><div class="help">Tick every division played at the event.</div><div id="div-host"></div>
       <div class="row">
         <div><label>Start date</label><input name="start_date" type="date" required></div>
@@ -88,7 +89,6 @@
         <div><label>Phone</label><input name="organizer_phone"></div>
         <div><label>Who approves referee expenses</label><input name="budget_owner" placeholder="Name and role"></div>
       </div>
-      <label>Hosting club (optional)</label><select name="club_id" id="club-sel"><option value="">Not hosted by a club, or not listed</option></select>
       <label>Anything else the NRC should know</label><textarea name="notes" placeholder="Level of play, youth or adult, preferred pairs, constraints..."></textarea>
       <p style="margin-top:18px"><button class="btn" type="submit">Submit request</button></p>
       <p class="small muted">The NRC Guidance and Best Practices to Event Organizers (December 2025) is published on the <a href="https://www.usateamhandball.org/refereeing" target="_blank" rel="noopener">USATH Refereeing page</a>.</p>
@@ -104,7 +104,13 @@
 <script>
 document.getElementById("div-host").innerHTML = NRC.divisionPicker("divisions", []);
 (function () { try { if (new URLSearchParams(location.search).get("prefill")) { const c = JSON.parse(sessionStorage.getItem("nrc_prefill_request") || "{}"); const f = document.getElementById("req-form"); (c.divisions || []).forEach(v => { const i = f.querySelector(`input[name="divisions"][value="${v}"]`); if (i) i.checked = true; }); Object.keys(c).forEach(k => { if (k !== "divisions" && f[k]) f[k].value = typeof c[k] === "boolean" ? String(c[k]) : c[k]; }); f.start_date.value = ""; f.end_date.value = ""; } } catch (e) { } })();
-(async function () { if (!NRC.sb) return; const { data } = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).order("name"); document.getElementById("club-sel").innerHTML = '<option value="">Not hosted by a club, or not listed</option>' + (data || []).map(c => `<option value="${c.id}">${NRC.esc(c.name)}${c.state ? " (" + NRC.esc(c.state) + ")" : ""}</option>`).join(""); })();
+(async function () { if (!NRC.sb) return;
+  let r = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).eq("usath_registered", true).order("name");
+  if (r.error) r = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).order("name");
+  const sel = document.getElementById("club-sel"), keep = sel.value;
+  sel.innerHTML = '<option value="">Pick the USATH registered club hosting the event</option>' + (r.data || []).map(c => `<option value="${c.id}">${NRC.esc(c.name)}${c.state ? " (" + NRC.esc(c.state) + ")" : ""}</option>`).join("");
+  if (keep) sel.value = keep;
+})();
 document.getElementById("req-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = NRC.$("#msg");
@@ -117,9 +123,12 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
   if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
   if (row.venue_state) row.venue_state = row.venue_state.toUpperCase();
   delete row.divisions; row.divisions = NRC.divisionsFrom(e.target, "divisions");
-  const u = await NRC.currentUser(); if (u) row.organizer_user_id = u.id;
-  const { error } = await NRC.sb.from("tournaments").insert(row);
-  if (error) { NRC.notice(msg, "Could not submit: " + NRC.esc(error.message), "error"); return; }
+  const { data: sess } = await NRC.sb.auth.getSession();
+  const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
+  const res = await fetch("/api/tournament-request", { method: "POST", headers: Object.assign({ "content-type": "application/json" }, sess && sess.session ? { Authorization: "Bearer " + sess.session.access_token } : {}), body: JSON.stringify(row) }).catch(() => null);
+  btn.disabled = false;
+  const d = res ? await res.json().catch(() => ({})) : {};
+  if (!res || !res.ok) { NRC.notice(msg, (res && res.status === 409 ? "" : "Could not submit: ") + NRC.esc(d.error || "network error, try again"), "error"); window.scrollTo({ top: 0, behavior: "smooth" }); return; }
   e.target.reset();
   NRC.notice(msg, "Request received. The NRC will come back to you by email at " + NRC.esc(row.organizer_email) + ". To follow your request, see who is designated and their travel details, <a href=\"login.html?next=organizer.html\">sign in with that email</a>: you get a link and a code, no password.", "ok");
   window.scrollTo({ top: 0, behavior: "smooth" });
