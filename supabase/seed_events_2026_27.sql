@@ -31,6 +31,8 @@ from (values
    'https://www.usateamhandball.org/usath-events', 'USATH events calendar, provisional dates.', null),
   ('Seattle Handball Cup 2027', 'club', null, null, null, 'WA', '2027-04-03', '2027-04-04', '{Senior-M,Senior-W}', 'tentative',
    'https://snocosports.org/event-recap-2026-seattle-handball-cup/', 'Projected from the 2026 edition (Apr 4 to 5, 2026, Walt Price Fitness Center, Everett WA).', 'Seattle THC'),
+  ('IHF Trophy NACHC M U19 2026', 'international', 'NACHC', null, 'Salinas', 'PR', '2026-10-05', '2026-10-10', '{U19-M}', 'confirmed',
+   'https://www.usateamhandball.org/news/2026/july/05/Selection-U19-2026-IHF-Trophy-Mens', 'IHF Trophy North America and the Caribbean, men U19, Salinas, Puerto Rico.', null),
   ('World Series of Handball 2027', 'international', null, null, 'Las Vegas', 'NV', '2027-08-04', '2027-08-08', '{Senior-M,Senior-W}', 'tentative',
    'https://worldseriesofhandball.com', 'Independent international club event. Projected from the 2026 edition (Aug 5 to 9, 2026, Las Vegas).', null)
 ) as v(name, sanction, region, venue_name, venue_city, venue_state, start_date, end_date, divisions, date_status, source_url, notes, club)
