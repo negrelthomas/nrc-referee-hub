@@ -47,16 +47,17 @@
   NRC.historyHtml = (rows, games) => {
     rows = (rows || []).slice().sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)));
     if (!rows.length) return '<p class="small muted">No tournament recorded yet.</p>';
-    const yrs = {}; rows.forEach(h => { const y = String(h.start_date).slice(0, 4); yrs[y] = yrs[y] || { g: 0, t: 0 }; yrs[y].g += h.games || 0; yrs[y].t++; });
+    const now = NRC.localDate(), isUp = (h) => String(h.start_date) > now;
+    const yrs = {}; rows.filter(h => !isUp(h)).forEach(h => { const y = String(h.start_date).slice(0, 4); yrs[y] = yrs[y] || { g: 0, t: 0 }; yrs[y].g += h.games || 0; yrs[y].t++; });
     const G = games || null;
     return `<div class="hist-years">${Object.keys(yrs).sort().reverse().map(y => `<span class="tag"><strong>${y}</strong>: ${yrs[y].g} game${yrs[y].g === 1 ? "" : "s"}, ${yrs[y].t} tournament${yrs[y].t === 1 ? "" : "s"}</span>`).join("")}</div>` +
       `<div class="hist-list">${rows.map(h => {
         const mine = G ? G.filter(g => g.tournament_id === h.tournament_id) : null;
         const where = [h.venue_city, h.venue_state].filter(Boolean).join(", ");
         const dates = h.end_date && h.end_date !== h.start_date ? NRC.fmtDate(h.start_date) + " to " + NRC.fmtDate(h.end_date) : NRC.fmtDate(h.start_date);
-        const detail = `<dl class="prof-facts small"><dt>Dates</dt><dd>${dates}</dd>${where ? `<dt>Where</dt><dd>${NRC.esc(where)}</dd>` : ""}${h.role ? `<dt>Role</dt><dd>${NRC.esc(h.role)}</dd>` : ""}<dt>Games</dt><dd>${h.games != null ? h.games : "pending"}${mine && h.games && mine.length < h.games ? ` (${mine.length} itemised)` : ""}</dd></dl>` +
+        const detail = `<dl class="prof-facts small"><dt>Dates</dt><dd>${dates}</dd>${where ? `<dt>Where</dt><dd>${NRC.esc(where)}</dd>` : ""}${h.role ? `<dt>Role</dt><dd>${NRC.esc(h.role)}</dd>` : ""}<dt>Games</dt><dd>${isUp(h) ? "upcoming" : h.games != null ? h.games : "pending"}${mine && h.games && mine.length < h.games ? ` (${mine.length} itemised)` : ""}</dd></dl>` +
           (mine ? (mine.length ? NRC.gameRowsHtml(mine) : '<p class="small muted" style="margin:6px 0 0">Games not itemised yet.</p>') : "");
-        return `<details class="hist-item"><summary><div><strong>${NRC.esc(h.name)}</strong> ${h.sanction ? NRC.sanctionPill(h.sanction) : ""} <span class="small muted">${new Date(h.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}${h.region ? ", " + NRC.esc(h.region) : ""}</span><div style="margin-top:4px">${NRC.divisionPills(h.divisions)}</div></div><div class="small" style="white-space:nowrap">${h.games != null ? h.games + " games" : '<span class="muted">games pending</span>'}</div></summary><div class="hist-detail">${detail}</div></details>`;
+        return `<details class="hist-item"><summary><div><strong>${NRC.esc(h.name)}</strong> ${h.sanction ? NRC.sanctionPill(h.sanction) : ""} <span class="small muted">${new Date(h.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}${h.region ? ", " + NRC.esc(h.region) : ""}</span><div style="margin-top:4px">${NRC.divisionPills(h.divisions)}</div></div><div class="small" style="white-space:nowrap">${isUp(h) ? '<span class="pill amber">upcoming</span>' : h.games != null ? h.games + " games" : '<span class="muted">games pending</span>'}</div></summary><div class="hist-detail">${detail}</div></details>`;
       }).join("")}</div>`;
   };
   // evaluation criteria (USATH sheet), cached

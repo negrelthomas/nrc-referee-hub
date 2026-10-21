@@ -115,7 +115,7 @@ window.openGames = async function (id) {
   if (OPEN_GAMES && OPEN_GAMES !== id) { const prev = document.getElementById("og-" + OPEN_GAMES); if (prev) prev.innerHTML = `<button class="btn sm" type="button" onclick="openGames('${OPEN_GAMES}')">Open games and evaluations</button>`; }
   OPEN_GAMES = id; ME = ME || await NRC.currentUser();
   const t = TOURS.find(x => x.id === id);
-  NRC.Games.mount(document.getElementById("og-" + id), { tournament: t, mode: "organizer", user: ME, evaluatorName: (ME && ME.full_name) || t.organizer_name || "" });
+  NRC.Games.mount(document.getElementById("og-" + id), { tournament: t, mode: "organizer", user: ME, evaluatorName: (ME && ME.full_name) || t.organizer_name || (ME && ME.email) || "" });
 };
 const FIELDS = ["name", "start_date", "end_date", "pairs_needed", "games_expected", "venue_name", "nearest_airport_iata", "venue_address", "venue_city", "venue_state", "supervisor_needed", "travel_managed_by", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "hotel_to_venue_transport", "earliest_return_last_day", "notes"];
 window.editTour = function (id) {

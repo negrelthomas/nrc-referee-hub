@@ -201,7 +201,7 @@
   window.delTest = async function (id) { if (!confirm("Remove this test record?")) return; await sb().from("referee_tests").delete().eq("id", id); openRef(currentRef.id); };
 
   // evaluation (shared form in games.js, criteria from Rankings)
-  const refEvalOpts = () => ({ referee: { id: currentRef.id, name: currentRef.first_name + " " + currentRef.last_name }, mode: "admin", user, evaluatorName: (user && user.full_name) || "", tournaments: tournaments.filter(t => t.start_date <= today()).map(t => ({ id: t.id, name: t.name + " (" + NRC.fmtDate(t.start_date) + ")" })), onSaved: () => { openRef(currentRef.id); loadAll(); } });
+  const refEvalOpts = () => ({ referee: { id: currentRef.id, name: currentRef.first_name + " " + currentRef.last_name }, mode: "admin", user, evaluatorName: (user && (user.full_name || user.email)) || "NRC", tournaments: tournaments.filter(t => t.start_date <= today()).map(t => ({ id: t.id, name: t.name + " (" + NRC.fmtDate(t.start_date) + ")" })), onSaved: () => { openRef(currentRef.id); loadAll(); } });
   window.openEval = function () { NRC.Games.openEval(refEvalOpts()); };
   window.editRefEval = function (id) { NRC.Games.editEval(id, refEvalOpts()); };
   // game
@@ -593,6 +593,7 @@
     const { data, error } = await sb().from("referee_game_reports").select("*, referees(first_name,last_name), tournaments(name,start_date,sanction)").eq("status", "reported").order("created_at");
     const rows = error ? [] : (data || []);
     const c = $("#reports-count"); c.textContent = rows.length; c.classList.toggle("hidden", !rows.length);
+    $("#reports-card").classList.toggle("hidden", !rows.length);
     $("#reports tbody").innerHTML = rows.map(r => `<tr><td>${NRC.esc(r.referees ? r.referees.first_name + " " + r.referees.last_name : "")}</td><td><strong>${NRC.esc(r.tournaments ? r.tournaments.name : "")}</strong> ${r.tournaments ? NRC.sanctionPill(r.tournaments.sanction) : ""}<div class="small muted">${r.tournaments ? NRC.fmtDate(r.tournaments.start_date) : ""}</div></td><td>${r.games}</td><td>${NRC.esc(r.role)}</td><td>${NRC.esc(r.partner || "")}</td><td class="small">${NRC.fmtDate(r.created_at)}</td><td style="white-space:nowrap"><button class="btn sm" onclick="reviewReport('${r.id}','confirmed')">Confirm</button> <button class="btn sm ghost" onclick="reviewReport('${r.id}','rejected')">Not confirmed</button></td></tr>`).join("") || '<tr><td colspan="7" class="muted">No report waiting.</td></tr>';
   }
   window.reviewReport = async function (id, status) {
@@ -648,7 +649,7 @@
     // each tab reads fresh data when opened, so a confirmation on one tab shows on the next
     ({ invites: renderInvites, candidates: renderCandidates, designated: renderDesignated, money: renderMoney, officiated: renderTourAsg }[b.dataset.ttab] || (() => {}))(); });
   window.openTour = async function (id) {
-    currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour");
+    currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour"); renderTourAsg.mountedFor = null;
     $("#dlg-tour-title").textContent = currentTour.name;
     $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs needed.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || ""; f.date_status.value = currentTour.date_status || "confirmed"; f.source_url.value = currentTour.source_url || ""; f.nrc_staffs.checked = currentTour.nrc_staffs !== false;
@@ -759,7 +760,8 @@
     const { data: gl } = await sb().from("games").select("referee_1,referee_2").eq("tournament_id", currentTour.id);
     const logged = (rid) => (gl || []).filter(g => g.referee_1 === rid || g.referee_2 === rid).length;
     $("#tour-asg tbody").innerHTML = (data || []).map(a => `<tr><td><a href="#" onclick="openRef('${a.referee_id}');return false">${NRC.esc(refName(a.referee_id))}</a></td><td>${NRC.esc(a.role)}</td><td><input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" placeholder="${logged(a.referee_id) || ""}" title="${logged(a.referee_id)} logged below" style="width:80px" onchange="setAsgGames('${a.id}',this.value)">${logged(a.referee_id) ? ' <span class="small muted">' + logged(a.referee_id) + " logged</span>" : ""}</td><td><button class="btn sm ghost" onclick="delAssignment('${a.id}')">Remove</button></td></tr>`).join("") || '<tr><td colspan="4">Nobody recorded yet. Confirmed invitations land here automatically.</td></tr>';
-    if (!renderTourAsg.mounting) { renderTourAsg.mounting = true; await NRC.Games.mount($("#tour-games"), { tournament: currentTour, mode: "admin", user, evaluatorName: (user && user.full_name) || "", nameOf: refName, onChange: () => { renderTourAsg(); loadAll(); } }); renderTourAsg.mounting = false; }
+    // games panel: mounted once per tournament opened, refreshed by its own saves
+    if (renderTourAsg.mountedFor !== currentTour.id) { renderTourAsg.mountedFor = currentTour.id; await NRC.Games.mount($("#tour-games"), { tournament: currentTour, mode: "admin", user, evaluatorName: (user && (user.full_name || user.email)) || "NRC", nameOf: refName, onChange: () => { renderTourAsg(); loadAll(); } }); }
   }
   window.setAsgGames = async function (id, v) { await sb().from("assignments").update({ games_officiated: v === "" ? null : parseInt(v, 10) }).eq("id", id); };
   window.addAssignment = async function () {
