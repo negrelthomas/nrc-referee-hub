@@ -1,7 +1,7 @@
 /* Admin area */
 (function () {
   const $ = NRC.$, sb = () => NRC.sb;
-  let staffSettings = null, staffDups = [], staffView = "table";
+  let staffSettings = null, staffDups = [], staffView = "table", tourStats = {}, tourFilter = "upcoming";
   let user, clubs = [], refs = [], tournaments = [], questions = [], cov = [], sessions = [], inquiries = [], pstat = [], psettings = null, ctest = null, staffing = [], currentRef = null, contacts = [], clubMsgs = [];
   const today = () => NRC.localDate();
   const CRIT = [["score_rules_application", "Rules application"], ["score_game_management", "Game management"], ["score_progressive_punishment", "Progressive punishment"], ["score_positioning", "Positioning"], ["score_pair_cooperation", "Pair cooperation"], ["score_communication", "Communication"]];
@@ -49,10 +49,16 @@
     const [{ data: cc }, { data: cm }] = await Promise.all([sb().from("club_contacts").select("*").order("is_primary", { ascending: false }).order("name"), sb().from("club_messages").select("*").order("created_at", { ascending: false })]);
     contacts = cc || []; clubMsgs = cm || [];
     const { data: stats } = await sb().from("referee_season_stats").select("*");
-    const { data: evals } = await sb().from("evaluations").select("referee_id,evaluated_on").order("evaluated_on", { ascending: false });
+    const [{ data: evals }, { data: gcount }, { data: acount }] = await Promise.all([
+      sb().from("evaluations").select("referee_id,evaluated_on,tournament_id,game_id").order("evaluated_on", { ascending: false }),
+      sb().from("games").select("id,tournament_id,referee_1,referee_2"),
+      sb().from("assignments").select("tournament_id,referee_id,role,games_officiated")]);
+    tourStats = {};
+    tournaments.forEach(t => { const A = (acount || []).filter(a => a.tournament_id === t.id), Gm = (gcount || []).filter(g => g.tournament_id === t.id);
+      tourStats[t.id] = { officials: A.length, referees: A.filter(a => a.role === "referee").length, games: Gm.length, gamesReported: A.reduce((n, a) => n + (a.games_officiated || 0), 0), slots: Gm.reduce((n, g) => n + (g.referee_1 ? 1 : 0) + (g.referee_2 ? 1 : 0), 0), evals: (evals || []).filter(e => e.tournament_id === t.id).length, gameEvals: (evals || []).filter(e => e.tournament_id === t.id && e.game_id).length }; });
     const yr = new Date().getFullYear();
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
-    fillSelects(); renderDashboard(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); renderPlan(); loadTasks(); loadImportLog();
+    fillSelects(); renderDashboard(); loadRankings(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); renderPlan(); loadTasks(); loadImportLog();
     const [h, arg] = (location.hash || "").slice(1).split("/"); if (h === "club" && arg) renderClubPage(arg);
     if (h === "referee" && arg) openRefFromLink(arg);
   }
@@ -124,6 +130,7 @@
     const f = $("#form-ref"); f.reset();
     $("#dlg-ref-title").textContent = currentRef ? currentRef.first_name + " " + currentRef.last_name : "New referee";
     ["#btn-eval", "#btn-game", "#btn-phys", "#btn-theory"].forEach(b => $(b).classList.toggle("hidden", !currentRef));
+    if (currentRef) $("#btn-game").href = "profile.html?as=" + currentRef.id;
     if (id && !currentRef) { alert("Referee not found."); return; }
     $("#ref-photo").src = (currentRef && currentRef.photo_url) || "assets/avatar.svg";
     const locked = !!(currentRef && currentRef.user_id); f.email.readOnly = locked; f.email.style.background = locked ? "#F0F3F8" : "";
@@ -136,6 +143,7 @@
       const { data: ev } = await sb().from("evaluations").select("*").eq("referee_id", currentRef.id).order("evaluated_on", { ascending: false });
       const { data: certs } = await sb().from("certifications").select("*").eq("referee_id", currentRef.id).order("obtained_on", { ascending: false });
       const { data: hist } = await sb().from("referee_tournament_history").select("*").eq("referee_id", currentRef.id).order("start_date", { ascending: false });
+      const { data: glog } = await sb().from("referee_game_log").select("*").eq("referee_id", currentRef.id);
       let training = "";
       if (currentRef.user_id) {
         const { data: ans } = await sb().from("quiz_answers").select("correct,quiz_questions(rule_number),quiz_attempts!inner(user_id)").eq("quiz_attempts.user_id", currentRef.user_id);
@@ -146,11 +154,11 @@
       } else training = "Has not signed in yet.";
       const [L, { data: tests }] = await Promise.all([NRC.latestEvals(currentRef.id, currentRef.user_id), sb().from("referee_tests").select("*").eq("referee_id", currentRef.id).order("tested_on", { ascending: false })]);
       ex.innerHTML = `<h3 style="margin-top:16px">Latest evaluations</h3>` + NRC.latestEvalsHtml(L)
-        + `<h3 style="margin-top:16px">Tournaments</h3>` + NRC.historyHtml(hist) + '<div class="small muted">Add or correct from Tournaments > Open > Officiated.</div>'
+        + `<h3 style="margin-top:16px">Tournaments and games</h3>` + NRC.historyHtml(hist, glog || []) + '<div class="small muted">Click a tournament for its games. Add or correct from Tournaments, Officiated tab.</div>'
         + `<h3 style="margin-top:16px">Physical tests and theory exams</h3>` + ((tests || []).map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${t.result ? " " + NRC.esc(t.result) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.evaluator_name ? ", " + NRC.esc(t.evaluator_name) : ""} <a href="#" onclick="delTest('${t.id}');return false" class="muted">remove</a></div>`).join("") || '<div class="small muted">None recorded.</div>')
         + `<h3 style="margin-top:16px">Training</h3><div class="small">${training}</div>`
         + `<h3 style="margin-top:16px">Certification history</h3>` + ((certs || []).map(c => `<div class="small">${NRC.fmtDate(c.obtained_on)}: ${NRC.levelLabel(c.level)}${c.certified_by ? ", by " + NRC.esc(c.certified_by) : ""}${c.event ? ", " + NRC.esc(c.event) : ""}</div>`).join("") || '<div class="small muted">No history. Saving a level change adds a row.</div>')
-        + `<h3 style="margin-top:16px">Evaluations</h3>` + ((ev || []).map(e => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(e.evaluated_on)}</strong>, ${NRC.esc(e.evaluator_name)}: ${CRIT.map(([k]) => e[k] || "-").join(" / ")}${e.points_to_improve ? "<br>Improve: " + NRC.esc(e.points_to_improve) : ""}${e.shared_with_referee ? ' <span class="pill green">shared</span>' : ""}</div>`).join("") || '<div class="small muted">None yet.</div>');
+        + `<h3 style="margin-top:16px">Evaluations</h3>` + ((ev || []).map(e => { const o = NRC.evalOverall(e), tn = (tournaments.find(t => t.id === e.tournament_id) || {}).name; return `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><a href="#" onclick="editRefEval('${e.id}');return false"><strong>${NRC.fmtDate(e.evaluated_on)}</strong></a>${tn ? ", " + NRC.esc(tn) : ""}${e.game_id ? " (game)" : ""}, ${NRC.esc(NRC.EVAL_SOURCE[e.source] || "")}: ${NRC.esc(e.evaluator_name)} ${o != null ? NRC.scoreHtml(o) : ""}${e.shared_with_referee ? ' <span class="pill green">shared</span>' : ' <span class="pill">NRC only</span>'}${e.points_to_improve ? "<br>Improve: " + NRC.esc(e.points_to_improve) : ""}</div>`; }).join("") || '<div class="small muted">None yet.</div>');
     }
     if (!$("#dlg-ref").open) $("#dlg-ref").showModal();
   };
@@ -192,20 +200,10 @@
   });
   window.delTest = async function (id) { if (!confirm("Remove this test record?")) return; await sb().from("referee_tests").delete().eq("id", id); openRef(currentRef.id); };
 
-  // evaluation
-  window.openEval = function () {
-    const f = $("#form-eval"); f.reset(); f.evaluated_on.value = today();
-    $("#eval-scores").innerHTML = CRIT.map(([k, l]) => `<div><label>${l} (1 to 5)</label><select name="${k}"><option value="">n/a</option>${[1, 2, 3, 4, 5].map(n => `<option>${n}</option>`).join("")}</select></div>`).join("");
-    $("#dlg-eval").showModal();
-  };
-  $("#form-eval").addEventListener("submit", async (e) => {
-    e.preventDefault(); const f = e.target; const row = { referee_id: currentRef.id, evaluator_user_id: user.id, evaluated_on: f.evaluated_on.value, evaluator_name: f.evaluator_name.value, tournament_id: f.tournament_id.value || null, strengths: f.strengths.value || null, points_to_improve: f.points_to_improve.value || null, notes: f.notes.value || null, shared_with_referee: f.shared_with_referee.checked };
-    CRIT.forEach(([k]) => row[k] = f[k].value ? parseInt(f[k].value, 10) : null);
-    const { error } = await sb().from("evaluations").insert(row);
-    if (error) { alert(error.message); return; }
-    $("#dlg-eval").close(); openRef(currentRef.id); loadAll();
-  });
-
+  // evaluation (shared form in games.js, criteria from Rankings)
+  const refEvalOpts = () => ({ referee: { id: currentRef.id, name: currentRef.first_name + " " + currentRef.last_name }, mode: "admin", user, evaluatorName: (user && user.full_name) || "", tournaments: tournaments.filter(t => t.start_date <= today()).map(t => ({ id: t.id, name: t.name + " (" + NRC.fmtDate(t.start_date) + ")" })), onSaved: () => { openRef(currentRef.id); loadAll(); } });
+  window.openEval = function () { NRC.Games.openEval(refEvalOpts()); };
+  window.editRefEval = function (id) { NRC.Games.editEval(id, refEvalOpts()); };
   // game
   window.openGame = function () {
     const f = $("#form-game"); f.reset(); f.game_date.value = today();
@@ -606,8 +604,24 @@
   };
   function renderTournaments() {
     renderReports();
-    $("#tour tbody").innerHTML = tournaments.map(t => `<tr><td><strong>${NRC.esc(t.name)}</strong><br><span class="small muted">${t.games_expected ? t.games_expected + " games" : ""}</span></td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? ' <span class="pill">calendar only</span>' : ""}${t.created_by_nrc ? ' <span class="pill">entered by NRC</span>' : ""}${t.source_url ? ' <a class="small" href="' + NRC.esc(t.source_url) + '" target="_blank" rel="noopener">source</a>' : ""}${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</td><td>${NRC.esc(t.venue_name || "")}<br><span class="small muted">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}${t.nearest_airport_iata ? " (" + NRC.esc(t.nearest_airport_iata) + ")" : ""}</span></td><td>${t.pairs_needed}</td><td class="small">${t.supervisor_needed ? "Yes" + (t.supervisor_notes ? "<br>" + NRC.esc(t.supervisor_notes) : "") : "No"}</td><td class="small">${t.travel_managed_by === "nrc" ? '<span class="pill amber">NRC books</span>' : "Organizer"}</td><td class="small">${t.hotel_nights_covered || 0} hotel nights<br>${t.flights_covered ? "flights" : "no flights"}, ${t.airport_transfers_covered ? "transfers" : "no transfers"}${t.food_stipend_per_day ? "<br>$" + t.food_stipend_per_day + "/day" : ""}${t.earliest_return_last_day ? "<br>return after " + t.earliest_return_last_day.slice(0, 5) : ""}</td><td class="small">${NRC.esc(t.organizer_name)}<br><a href="mailto:${NRC.esc(t.organizer_email)}">${NRC.esc(t.organizer_email)}</a></td><td><select onchange="setTourStatus('${t.id}',this.value)">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(s => `<option ${s === t.status ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><button class="btn sm ghost" onclick="openTour('${t.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="11">No requests yet.</td></tr>';
+    const q = ($("#tour-q").value || "").toLowerCase(), now = today();
+    const clubName = (id) => (clubs.find(c => c.id === id) || {}).name || "";
+    const list = tournaments.filter(t => {
+      const st = tourStats[t.id] || {}, past = t.start_date <= now && t.status !== "cancelled";
+      if (q && ![t.name, t.venue_city, t.venue_state, t.region, clubName(t.club_id)].join(" ").toLowerCase().includes(q)) return false;
+      if (tourFilter === "upcoming") return t.end_date >= now && t.status !== "cancelled";
+      if (tourFilter === "past") return t.end_date < now;
+      if (tourFilter === "todo") return past && st.referees > 0 && (st.games === 0 || st.gameEvals < st.slots);
+      return true;
+    }).sort((a, b) => tourFilter === "upcoming" ? a.start_date.localeCompare(b.start_date) : b.start_date.localeCompare(a.start_date));
+    const STAT = { submitted: "amber", reviewing: "amber", staffed: "green", completed: "", cancelled: "red" };
+    $("#tour tbody").innerHTML = list.map(t => { const st = tourStats[t.id] || {}, need = t.pairs_needed * 2, past = t.start_date <= now;
+      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="8">No tournament in this view.</td></tr>';
   }
+  NRC.$$("#tour-filter .chip").forEach(b => b.onclick = () => { tourFilter = b.dataset.f; NRC.$$("#tour-filter .chip").forEach(x => x.classList.toggle("on", x === b)); renderTournaments(); });
+  $("#tour-q").addEventListener("input", () => renderTournaments());
+  $("#tour tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr && !e.target.closest("select,a,button")) openTour(tr.dataset.id); });
+  $("#tour tbody").addEventListener("keydown", e => { const tr = e.target.closest("tr[data-id]"); if (tr && e.key === "Enter" && e.target === tr) openTour(tr.dataset.id); });
   window.openNewTour = function () {
     const f = $("#form-newtour"); f.reset();
     f.club_id.innerHTML = '<option value="">None</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join("");
@@ -648,7 +662,12 @@
     pairsCache = pr || []; availCache = av || []; weekendCache = wa || [];
     $("#dlg-tour-sub").textContent += currentTour.supervisor_needed ? " Supervisor requested" + (currentTour.supervisor_notes ? ": " + currentTour.supervisor_notes : "") + "." : "";
     $("#btn-organizer").textContent = currentTour.organizer_notified_at ? "Notify organizer again" : "Notify organizer";
-    await Promise.all([renderInvites(), renderCandidates(), renderTourAsg(), renderDesignated(), renderMoney()]);
+    const T = currentTour;
+    $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")} <a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. Travel booked by ${T.travel_managed_by === "nrc" ? "the NRC" : "the organizer"}; ${T.hotel_nights_covered || 0} hotel nights, ${T.flights_covered ? "flights" : "no flights"}, ${T.airport_transfers_covered ? "transfers" : "no transfers"}${T.food_stipend_per_day ? ", $" + T.food_stipend_per_day + " per day" : ""}.`;
+    await Promise.all([renderInvites(), renderCandidates(), renderDesignated(), renderMoney()]);
+    // past or calendar only events open on what is left to do: officials, games, evaluations
+    const tab = (T.start_date <= today() || T.nrc_staffs === false) ? "officiated" : "invites";
+    NRC.$$("#dlg-tour .tabs button").find(x => x.dataset.ttab === tab).click();
     $("#dlg-tour").showModal();
   };
   const refName = id => { const r = refs.find(x => x.id === id); return r ? r.first_name + " " + r.last_name : "?"; };
@@ -737,18 +756,62 @@
   // Officiated
   async function renderTourAsg() {
     const { data } = await sb().from("assignments").select("*").eq("tournament_id", currentTour.id);
-    $("#tour-asg tbody").innerHTML = (data || []).map(a => `<tr><td>${NRC.esc(refName(a.referee_id))}</td><td>${NRC.esc(a.role)}</td><td><input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" style="width:80px" onchange="setAsgGames('${a.id}',this.value)"></td><td><button class="btn sm ghost" onclick="delAssignment('${a.id}')">Remove</button></td></tr>`).join("") || '<tr><td colspan="4">Nobody recorded yet. Confirmed invitations land here automatically.</td></tr>';
+    const { data: gl } = await sb().from("games").select("referee_1,referee_2").eq("tournament_id", currentTour.id);
+    const logged = (rid) => (gl || []).filter(g => g.referee_1 === rid || g.referee_2 === rid).length;
+    $("#tour-asg tbody").innerHTML = (data || []).map(a => `<tr><td><a href="#" onclick="openRef('${a.referee_id}');return false">${NRC.esc(refName(a.referee_id))}</a></td><td>${NRC.esc(a.role)}</td><td><input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" placeholder="${logged(a.referee_id) || ""}" title="${logged(a.referee_id)} logged below" style="width:80px" onchange="setAsgGames('${a.id}',this.value)">${logged(a.referee_id) ? ' <span class="small muted">' + logged(a.referee_id) + " logged</span>" : ""}</td><td><button class="btn sm ghost" onclick="delAssignment('${a.id}')">Remove</button></td></tr>`).join("") || '<tr><td colspan="4">Nobody recorded yet. Confirmed invitations land here automatically.</td></tr>';
+    if (!renderTourAsg.mounting) { renderTourAsg.mounting = true; await NRC.Games.mount($("#tour-games"), { tournament: currentTour, mode: "admin", user, evaluatorName: (user && user.full_name) || "", nameOf: refName, onChange: () => { renderTourAsg(); loadAll(); } }); renderTourAsg.mounting = false; }
   }
   window.setAsgGames = async function (id, v) { await sb().from("assignments").update({ games_officiated: v === "" ? null : parseInt(v, 10) }).eq("id", id); };
   window.addAssignment = async function () {
     const g = $("#asg-games").value; const { error } = await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: $("#asg-ref").value, role: "referee", games_officiated: g === "" ? null : parseInt(g, 10) }, { onConflict: "tournament_id,referee_id" });
-    if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg();
+    if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg(); loadAll();
   };
   window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
   $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { sanction: f.sanction.value, nrc_staffs: f.nrc_staffs.checked, date_status: f.date_status.value, source_url: f.source_url.value.trim() || null, divisions: NRC.divisionsFrom(f, "divisions"), region: f.region.value || null, start_date: f.start_date.value || currentTour.start_date, end_date: f.end_date.value || currentTour.end_date, venue_name: f.venue_name.value || null, venue_city: f.venue_city.value || null, pairs_needed: parseInt(f.pairs_needed.value, 10) || currentTour.pairs_needed, travel_managed_by: f.travel_managed_by.value, club_id: f.club_id.value || null }; if (f.staff_by.value) row.staff_by = f.staff_by.value; const { error } = await sb().from("tournaments").update(row).eq("id", currentTour.id); if (error) { alert(error.message); return; } Object.assign(currentTour, row); loadAll(); alert("Saved. Use Notify changes to tell the officials and the organizer."); });
   async function callMail(body) { const { data: sess } = await sb().auth.getSession(); const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, ...body }) }); const d = await res.json(); if (!res.ok) { alert("Failed: " + (d.error || res.status)); return null; } const ok = d.results.filter(r => r.sent).length; alert(ok + " email(s) sent." + (d.results.length - ok ? " Not sent: " + d.results.filter(r => !r.sent).map(r => r.email + " (" + (r.error || "").slice(0, 60) + ")").join("; ") : "")); return d; }
   window.notifyChanges = () => callMail({ kind: currentTour.status === "cancelled" ? "cancel" : "changes" });
   window.sendBriefs = () => { if (!desRows.length) { alert("Nobody designated yet."); return; } callMail({ kind: "brief", assignment_ids: desRows.map(a => a.id) }); };
+
+  // ---------- rankings ----------
+  let rankings = [], criteria = [], rkSettings = null;
+  async function loadRankings() {
+    const [{ data: rk, error }, { data: cr }, { data: rs }] = await Promise.all([sb().from("referee_rankings").select("*"), sb().from("evaluation_criteria").select("*").order("sort"), sb().from("ranking_settings").select("*").eq("id", 1).maybeSingle()]);
+    if (error) { $("#rk tbody").innerHTML = '<tr><td colspan="11">Rankings need the database update games_evaluations.sql.</td></tr>'; return; }
+    rankings = rk || []; criteria = cr || []; rkSettings = rs; NRC._crit = null;
+    const f = $("#form-rk-settings"); if (rs) { f.window_months.value = rs.window_months; f.min_evaluations.value = rs.min_evaluations; }
+    renderRankings(); renderCriteria();
+  }
+  function renderRankings() {
+    const lv = $("#rk-level").value, prov = $("#rk-prov").checked, R = { level_1: 1, level_2: 2, level_3: 3, nachc: 4, ihf: 5 };
+    const list = rankings.filter(r => (!lv || (lv === "level_3" ? R[r.cert_level] >= 3 : r.cert_level === lv)) && (prov || r.ranked))
+      .sort((a, b) => (b.ranked - a.ranked) || ((a.rank || 999) - (b.rank || 999)) || ((b.avg_overall || 0) - (a.avg_overall || 0)) || (b.games - a.games));
+    if (rankings[0]) $("#rk-since").textContent = "Evaluations since " + NRC.fmtDate(rankings[0].since) + ", ranked from " + (rkSettings ? rkSettings.min_evaluations : 3) + " evaluations";
+    $("#rk tbody").innerHTML = list.map(r => `<tr class="clickable" onclick="openRef('${r.referee_id}')"><td>${r.ranked ? '<span class="rank-n">' + r.rank + "</span>" : '<span class="pill">provisional</span>'}</td><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt=""></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong><div class="small muted">${NRC.esc(r.club_name || "")}</div></td><td>${NRC.levelPill(r.cert_level)}</td><td>${r.avg_overall != null ? NRC.scoreHtml(r.avg_overall) : '<span class="muted">-</span>'}</td><td>${r.avg_organizer != null ? Number(r.avg_organizer).toFixed(1) : '<span class="muted">-</span>'}</td><td>${r.avg_nrc != null ? Number(r.avg_nrc).toFixed(1) : '<span class="muted">-</span>'}</td><td>${r.evals}</td><td>${r.games}</td><td>${r.tournaments}</td><td class="small">${r.last_eval ? NRC.fmtDate(r.last_eval) : '<span class="muted">none</span>'}</td></tr>`).join("") || '<tr><td colspan="11">No referee in this view.</td></tr>';
+  }
+  ["#rk-level", "#rk-prov"].forEach(x => $(x).addEventListener("input", renderRankings));
+  window.exportRankings = function () {
+    const head = ["rank", "first_name", "last_name", "level", "club", "average", "organizers", "nrc", "evaluations", "games", "tournaments", "last_evaluation"];
+    const rows = rankings.map(r => [r.rank || "provisional", r.first_name, r.last_name, NRC.levelLabel(r.cert_level), r.club_name || "", r.avg_overall ?? "", r.avg_organizer ?? "", r.avg_nrc ?? "", r.evals, r.games, r.tournaments, r.last_eval || ""]);
+    const csv = [head, ...rows].map(a => a.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(",")).join("\n");
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); a.download = "nrc-rankings-" + today() + ".csv"; a.click();
+  };
+  $("#form-rk-settings").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const { error } = await sb().from("ranking_settings").update({ window_months: parseInt(f.window_months.value, 10), min_evaluations: parseInt(f.min_evaluations.value, 10), updated_at: new Date().toISOString() }).eq("id", 1); if (error) { alert(error.message); return; } loadRankings(); });
+  function renderCriteria() {
+    $("#crit tbody").innerHTML = criteria.map(c => `<tr class="clickable" onclick="editCrit('${c.code}')"><td>${c.sort}</td><td><strong>${NRC.esc(c.label)}</strong>${c.description ? '<div class="small muted">' + NRC.esc(c.description) + "</div>" : ""}</td><td>${c.weight}</td><td>1 to ${c.scale_max}</td><td>${c.active ? '<span class="pill green">yes</span>' : '<span class="pill">no</span>'}</td><td><button class="btn sm ghost" type="button">Edit</button></td></tr>`).join("") || '<tr><td colspan="6">No criteria yet.</td></tr>';
+  }
+  let currentCrit = null;
+  window.editCrit = function (code) {
+    currentCrit = code ? criteria.find(c => c.code === code) : null; const f = $("#form-crit"); f.reset();
+    const c = currentCrit || { sort: (criteria.length ? Math.max(...criteria.map(x => x.sort)) + 1 : 1), weight: 1, scale_max: 5, active: true };
+    ["code", "label", "description", "sort", "weight", "scale_max"].forEach(k => f[k].value = c[k] == null ? "" : c[k]); f.active.checked = c.active !== false; f.code.readOnly = !!currentCrit;
+    $("#dlg-crit").showModal();
+  };
+  $("#form-crit").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target;
+    const row = { code: f.code.value.trim(), label: f.label.value.trim(), description: f.description.value.trim() || null, sort: parseInt(f.sort.value || "0", 10), weight: parseFloat(f.weight.value), scale_max: parseInt(f.scale_max.value, 10), active: f.active.checked, updated_at: new Date().toISOString() };
+    const { error } = await sb().from("evaluation_criteria").upsert(row, { onConflict: "code" });
+    if (error) { alert(error.message); return; } $("#dlg-crit").close(); loadRankings();
+  });
 
   // ---------- questions ----------
   function renderQuestions() {

@@ -266,6 +266,7 @@ footer img{height:36px}
 .admin-nav{position:sticky;top:84px;display:flex;flex-direction:column;gap:2px}
 .admin-nav a{padding:9px 12px;border-radius:8px;font-weight:600;color:var(--ink)}
 .admin-nav a.active,.admin-nav a:hover{background:#E8EDF5;text-decoration:none}
+.admin-nav .nav-group{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:14px 12px 2px;border-top:1px solid var(--line);margin-top:8px}
 @media (max-width:820px){.admin-layout{grid-template-columns:minmax(0,1fr)}.admin-nav{position:static;flex-direction:row;flex-wrap:wrap}}
 .task{display:flex;gap:12px;align-items:flex-start;padding:12px;border:1px solid var(--line);border-radius:8px;background:#fff}
 .task.overdue{border-color:var(--red);background:var(--red-tint)}
@@ -363,6 +364,24 @@ dialog .body{padding:22px}
 .hist-list{list-style:none;margin:6px 0 0;padding:0}
 .hist-list li{padding:8px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
 .hist-list li:last-child{border-bottom:0}
+.hist-item{border-bottom:1px solid var(--line)}
+.hist-item:last-child{border-bottom:0}
+.hist-item>summary{list-style:none;cursor:pointer;padding:9px 26px 9px 0;display:flex;justify-content:space-between;gap:10px;align-items:flex-start;position:relative}
+.hist-item>summary::-webkit-details-marker{display:none}
+.hist-item>summary::after{content:"";position:absolute;right:6px;top:15px;width:8px;height:8px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);transition:transform .15s}
+.hist-item[open]>summary::after{transform:rotate(-135deg);top:19px}
+.hist-item>summary:hover{background:#F3F6FA}
+.hist-detail{padding:2px 0 12px}
+.hist-detail .prof-facts{margin:4px 0 8px}
+.tag{display:inline-block;border:1px solid var(--line);background:#fff;border-radius:16px;padding:4px 11px;font-size:13px}
+table.gamelog{font-size:14px}table.gamelog th,table.gamelog td{padding:7px 8px}
+tr.detail-row td{background:#F8FAFC;padding:4px 12px 14px}
+tr.clickable td:first-child{position:relative}
+.filterbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.score-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:8px 0}
+.score-grid label{margin:0 0 4px}
+.rank-n{font-family:var(--display);font-size:22px;font-weight:700;color:var(--navy)}
+.game-ref-evals{display:flex;gap:6px;flex-wrap:wrap}
 .hist-years{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
 #staff-table{font-size:13px}#staff-table th,#staff-table td{padding:8px 7px}#staff-table .pill{font-size:12px;padding:2px 8px}
 /* Guide pages: audio intro, quick learn videos, screenshots */

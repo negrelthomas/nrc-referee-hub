@@ -47,7 +47,7 @@
   </div>
   <dl class="prof-facts" id="p-facts"></dl>
   <div id="p-evals" class="hidden"><h4 style="margin:16px 0 8px">Latest evaluations <span class="pill">NRC only</span></h4><div id="p-evals-body"></div></div>
-  <h4 style="margin:16px 0 4px">Tournaments</h4><div id="p-hist" class="small muted">Loading</div>
+  <h4 style="margin:16px 0 4px">Tournaments <span class="small muted" style="font-weight:400">click one for details</span></h4><div id="p-hist" class="small muted">Loading</div>
   <p class="small muted" id="p-contact">Contact goes through the NRC at <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>.</p>
   <p style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px"><a class="btn hidden" id="p-edit" href="#">Edit profile</a><button class="btn ghost" type="button" onclick="document.getElementById('dlg-prof').close()">Close</button></p>
 </div></dialog>
@@ -80,7 +80,8 @@ function openProfile(id) {
   const ed = NRC.$("#p-edit"); ed.classList.toggle("hidden", !isAdmin); ed.href = "admin/index.html#referee/" + r.id;
   NRC.$("#p-hist").innerHTML = "Loading"; NRC.$("#p-evals").classList.toggle("hidden", !isAdmin); NRC.$("#p-evals-body").innerHTML = "";
   NRC.$("#dlg-prof").showModal();
-  NRC.sb.from("referee_public_history").select("*").eq("referee_id", r.id).then(({ data, error }) => { NRC.$("#p-hist").innerHTML = error ? '<p class="small muted">Tournament history not available yet.</p>' : NRC.historyHtml(data); });
+  Promise.all([NRC.sb.from("referee_public_history").select("*").eq("referee_id", r.id), isAdmin ? NRC.sb.from("referee_game_log").select("*").eq("referee_id", r.id) : Promise.resolve({ data: null })])
+    .then(([{ data, error }, { data: games }]) => { NRC.$("#p-hist").innerHTML = error ? '<p class="small muted">Tournament history not available yet.</p>' : NRC.historyHtml(data, isAdmin ? (games || []) : null); });
   if (isAdmin) NRC.sb.from("referees").select("user_id").eq("id", r.id).maybeSingle().then(({ data }) => NRC.latestEvals(r.id, data && data.user_id)).then(L => { NRC.$("#p-evals-body").innerHTML = NRC.latestEvalsHtml(L); });
 }
 document.addEventListener("DOMContentLoaded", async () => {

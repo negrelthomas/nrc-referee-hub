@@ -117,7 +117,7 @@
     <ul class="cal-list" id="calendar"></ul>
   </div>
   </div>
-  <div id="tab-games" class="card hidden"><div class="table-wrap"><table id="games"><thead><tr><th>Date</th><th>Tournament</th><th>Game</th><th>Partner</th></tr></thead><tbody></tbody></table></div></div>
+  <div id="tab-games" class="card hidden"></div>
   <div id="tab-evals" class="hidden"></div>
   <div id="tab-assignments" class="card hidden"><div class="table-wrap"><table id="asg"><thead><tr><th>Tournament</th><th>Dates</th><th>Venue</th><th>Status</th></tr></thead><tbody></tbody></table></div></div>
   <div id="tab-training" class="hidden">
@@ -223,7 +223,14 @@
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
-let user, ref;
+let user, ref, PREVIEW = false;
+function startPreview(r) {
+  document.body.classList.add("preview");
+  $("#main").insertAdjacentHTML("afterbegin", `<div class="notice" style="margin:14px 0 0;background:var(--amber-tint);color:var(--amber);border-color:transparent"><strong>Admin preview, read only.</strong> This is ${NRC.esc(r.first_name + " " + r.last_name)}'s referee home as they see it. Buttons are inactive. <a href="admin/index.html#referee/${r.id}">Back to the record</a></div>`);
+  // nothing in the preview writes: every button except tabs, details and dialog close is inert, every form submit is stopped
+  document.addEventListener("click", (e) => { const b = e.target.closest("button, .btn, [onclick]"); if (!b || b.closest(".tabs") || b.closest("#site-nav") || (b.tagName === "A" && b.getAttribute("href") && !b.getAttribute("href").startsWith("#") && !b.getAttribute("onclick"))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
+  document.addEventListener("submit", (e) => { e.preventDefault(); e.stopImmediatePropagation(); }, true);
+}
 const $ = NRC.$;
 NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").forEach(x => x.classList.toggle("active", x === b)); ["home","profile","tournaments","games","evals","assignments","training"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)); });
 
@@ -232,7 +239,13 @@ async function load() {
   if (user.role === "organizer") { location.replace("organizer.html"); return; }
   const { data: clubs } = await NRC.sb.from("clubs").select("id,name").eq("active", true).order("name");
   const sel = $("select[name=club_id]"); (clubs || []).forEach(c => { const o = document.createElement("option"); o.value = c.id; o.textContent = c.name; sel.appendChild(o); });
-  const { data } = await NRC.sb.from("referees").select("*").eq("user_id", user.id).maybeSingle();
+  // admin preview: profile.html?as=<referee id> shows the referee home as the referee sees it, read only
+  const asId = new URLSearchParams(location.search).get("as");
+  if (asId && user.role === "admin") {
+    const { data: r } = await NRC.sb.from("referees").select("*").eq("id", asId).maybeSingle();
+    if (r) { PREVIEW = true; user = { id: r.user_id || "00000000-0000-0000-0000-000000000000", email: r.email, role: "referee" }; startPreview(r); }
+  }
+  const { data } = PREVIEW ? { data: await NRC.sb.from("referees").select("*").eq("id", asId).maybeSingle().then(x => x.data) } : await NRC.sb.from("referees").select("*").eq("user_id", user.id).maybeSingle();
   ref = data;
   const f = $("#form");
   f.email.value = user.email;
@@ -245,7 +258,7 @@ async function load() {
     $("#compliance").innerHTML = item("USATH membership", ref.usath_membership_valid_until) + item("SafeSport", ref.safesport_valid_until) + item("Background check", ref.background_check_valid_until);
     $("#hello").textContent = "Hello " + ref.first_name;
     loadHome(); loadTournaments(); loadGames(); loadEvals(); loadAssignments(); loadTraining();
-    if (!ref.onboarded_at) startTour(false);
+    if (!ref.onboarded_at && !PREVIEW) startTour(false);
   } else {
     NRC.notice($("#msg"), "Your account is not linked to a referee record. Write to referee@handballusa.org.", "error");
     $("#form").classList.add("hidden");
@@ -398,9 +411,11 @@ async function loadTournaments() {
   const kind = s => s === "usath" ? "usath" : s === "international" ? "international" : "club";
   const by = k => past.filter(t => kind(t.sanction) === k);
   $("#tour-stats").innerHTML = ["usath", "club", "international"].map(k => `<div class="stat"><div class="n">${by(k).length}</div><div class="l">${NRC.sanctionPill(k)} tournaments, ${by(k).reduce((a, t) => a + (t.games || 0), 0)} games</div></div>`).join("");
-  $("#tours tbody").innerHTML = h.map(t => `<tr><td>${monthYear(t.start_date)}</td><td><strong>${NRC.esc(t.name)}</strong>${t.end_date >= today ? ' <span class="pill amber">upcoming</span>' : ""}${NRC.datePill(t)}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(t.role)}</td><td>${t.games != null && t.end_date < today ? t.games : '<span class="muted">pending</span>'}</td></tr>`).join("")
+  GAMELOG = await NRC.sb.from("referee_game_log").select("*").eq("referee_id", ref.id).then(r => r.data || []).catch(() => []);
+  $("#tours tbody").innerHTML = h.map(t => `<tr class="clickable" tabindex="0" data-tid="${t.tournament_id}" title="Show the games"><td>${monthYear(t.start_date)}</td><td><strong>${NRC.esc(t.name)}</strong>${t.end_date >= today ? ' <span class="pill amber">upcoming</span>' : ""}${NRC.datePill(t)}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${t.region ? '<div class="small muted">' + NRC.esc(t.region) + "</div>" : ""}</td><td>${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(t.role)}</td><td>${t.games != null && t.end_date < today ? t.games : '<span class="muted">pending</span>'}</td></tr>`).join("")
     + waiting.map(r => { const e = CAL.find(c => c.id === r.tournament_id) || {}; return `<tr><td>${e.start_date ? monthYear(e.start_date) : ""}</td><td><strong>${NRC.esc(e.name || "Event")}</strong> ${REPORT_STATUS.reported}</td><td>${e.sanction ? NRC.sanctionPill(e.sanction) : ""}</td><td>${NRC.esc([e.venue_city, e.venue_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(r.role)}</td><td>${r.games} <span class="small muted">reported</span></td></tr>`; }).join("")
     || '<tr><td colspan="6">No tournament yet. Report the games you refereed below.</td></tr>';
+  NRC.$$("#tours tbody tr[data-tid]").forEach(tr => { const toggle = () => toggleTourDetail(tr, h.find(x => x.tournament_id === tr.dataset.tid)); tr.onclick = toggle; tr.onkeydown = (e) => { if (e.key === "Enter") toggle(); }; });
   // report form: past events since the start date, not already in the history or reported
   const done = new Set(h.map(t => t.tournament_id).concat(REPORTS.map(r => r.tournament_id)));
   const open = CAL.filter(e => e.start_date <= today && e.start_date >= histFrom && !done.has(e.id)).sort((a, b) => b.start_date.localeCompare(a.start_date));
@@ -412,6 +427,15 @@ async function loadTournaments() {
   // calendar: upcoming events first, colour coded, tentative dates flagged
   const up = CAL.filter(e => e.end_date >= today);
   $("#calendar").innerHTML = up.map(e => `<li><div><strong>${NRC.esc(e.name)}</strong> ${NRC.sanctionPill(e.sanction)}${NRC.datePill(e)}<div class="small muted">${NRC.fmtDate(e.start_date)} to ${NRC.fmtDate(e.end_date)} &middot; ${NRC.esc([e.venue_name, e.venue_city, e.venue_state].filter(Boolean).join(", ") || "Venue to be announced")}${e.club_name ? " &middot; " + NRC.esc(e.club_name) : ""}</div>${e.divisions && e.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(e.divisions) + "</div>" : ""}</div>${e.source_url ? `<a class="small" href="${NRC.esc(e.source_url)}" target="_blank" rel="noopener">Source</a>` : ""}</li>`).join("") || '<li class="muted">No upcoming event listed yet.</li>';
+}
+let GAMELOG = [];
+function toggleTourDetail(tr, t) {
+  const next = tr.nextElementSibling;
+  if (next && next.classList.contains("detail-row")) { next.remove(); return; }
+  const G = GAMELOG.filter(g => g.tournament_id === t.tournament_id);
+  const today = NRC.localDate();
+  const facts = `<dl class="prof-facts small" style="margin:8px 0"><dt>Dates</dt><dd>${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}</dd><dt>Where</dt><dd>${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || "to be announced")}</dd><dt>Role</dt><dd>${NRC.esc(t.role)}</dd><dt>Games</dt><dd>${t.end_date >= today ? "upcoming" : t.games != null ? t.games + (G.length && G.length < t.games ? " (" + G.length + " listed below)" : "") : "pending"}</dd></dl>`;
+  tr.insertAdjacentHTML("afterend", `<tr class="detail-row"><td colspan="6">${facts}${G.length ? NRC.gameRowsHtml(G) : '<p class="small muted" style="margin:0">' + (t.end_date >= today ? "Games appear here once the organizer logs them." : "Games not listed one by one for this event.") + "</p>"}</td></tr>`);
 }
 window.editReport = function (id) {
   const r = REPORTS.find(x => x.id === id); if (!r) return; const f = $("#form-report"); const e = CAL.find(c => c.id === r.tournament_id) || { name: "Event" };
@@ -453,21 +477,23 @@ window.respond = async function (id, status) {
   loadAssignments(); loadHome();
 };
 async function loadGames() {
-  const { data } = await NRC.sb.from("games").select("game_date,home_team,away_team,category,referee_1,referee_2,tournaments(name)").or(`referee_1.eq.${ref.id},referee_2.eq.${ref.id}`).order("game_date", { ascending: false });
-  const ids = [...new Set((data || []).flatMap(g => [g.referee_1, g.referee_2]).filter(x => x && x !== ref.id))];
-  let names = {};
-  if (ids.length) { const { data: d } = await NRC.sb.from("referee_directory").select("id,first_name,last_name").in("id", ids); (d || []).forEach(r => names[r.id] = r.first_name + " " + r.last_name); }
-  $("#games tbody").innerHTML = (data || []).map(g => `<tr><td>${NRC.fmtDate(g.game_date)}</td><td>${NRC.esc(g.tournaments ? g.tournaments.name : "")}</td><td>${NRC.esc([g.home_team, g.away_team].filter(Boolean).join(" v "))} ${g.category ? '<span class="pill">' + NRC.esc(g.category) + '</span>' : ""}</td><td>${NRC.esc(names[g.referee_1 === ref.id ? g.referee_2 : g.referee_1] || "")}</td></tr>`).join("") || '<tr><td colspan="4">No games logged yet.</td></tr>';
+  const { data, error } = await NRC.sb.from("referee_game_log").select("*").eq("referee_id", ref.id).order("game_date", { ascending: false });
+  const rows = data || [];
+  $("#tab-games").innerHTML = error ? '<p class="muted">The game log is not available yet.</p>'
+    : rows.length ? `<p class="small muted" style="margin-top:0">Every game logged with you in the referee pair, by the organizer or the NRC. ${rows.length} game${rows.length === 1 ? "" : "s"}. Evaluation scores show once the NRC shares them.</p>` + NRC.gameRowsHtml(rows, { tournament: true })
+    : '<p class="muted" style="margin:0">No game logged yet. Organizers and the NRC log games after each event; totals you report on the Tournaments tab count until then.</p>';
 }
 async function loadEvals() {
-  const { data } = await NRC.sb.from("evaluations").select("*,tournaments(name)").eq("referee_id", ref.id).order("evaluated_on", { ascending: false });
+  const { data } = await NRC.sb.from("evaluations").select("*,tournaments(name),games(game_date,home_team,away_team,division)").eq("referee_id", ref.id).eq("shared_with_referee", true).order("evaluated_on", { ascending: false });
+  const CR = await NRC.loadCriteria(true).catch(() => []);
   $("#st-evals").textContent = (data || []).length;
   const crit = [["score_rules_application","Rules application"],["score_game_management","Game management"],["score_progressive_punishment","Progressive punishment"],["score_positioning","Positioning"],["score_pair_cooperation","Pair cooperation"],["score_communication","Communication"]];
   const [L, tests] = await Promise.all([NRC.latestEvals(ref.id, ref.user_id), NRC.sb.from("referee_tests").select("*").eq("referee_id", ref.id).order("tested_on", { ascending: false }).then(r => r.data || []).catch(() => [])]);
   const testsHtml = tests.length ? `<div class="card"><h3>Physical tests and theory exams</h3>${tests.map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${t.result ? " " + NRC.esc(t.result) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.notes ? '<div class="muted">' + NRC.esc(t.notes) + "</div>" : ""}</div>`).join("")}</div>` : "";
-  $("#tab-evals").innerHTML = `<div class="card"><h3>Latest evaluations</h3>${NRC.latestEvalsHtml(L)}</div>` + testsHtml + (data || []).map(e => `<div class="card"><div class="small muted">${NRC.fmtDate(e.evaluated_on)} &middot; ${NRC.esc(e.tournaments ? e.tournaments.name : "")} &middot; Observer: ${NRC.esc(e.evaluator_name)}</div>
-    <div class="chips">${crit.map(([k, l]) => e[k] ? `<span class="chip">${l}: <strong>${e[k]}/5</strong></span>` : "").join("")}</div>
-    ${e.strengths ? `<p><strong>Strengths.</strong> ${NRC.esc(e.strengths)}</p>` : ""}${e.points_to_improve ? `<p><strong>Points to improve.</strong> ${NRC.esc(e.points_to_improve)}</p>` : ""}${e.notes ? `<p class="small muted">${NRC.esc(e.notes)}</p>` : ""}</div>`).join("") || '<div class="card">No evaluation shared with you yet.</div>';
+  const scoreTags = (e) => { const sc = e.scores && Object.keys(e.scores).length ? e.scores : null; if (sc && CR.length) return CR.filter(c => sc[c.code] != null).map(c => `<span class="tag">${NRC.esc(c.label)}: <strong>${sc[c.code]}/${c.scale_max}</strong></span>`).join(" "); return crit.map(([k, l]) => e[k] ? `<span class="tag">${l}: <strong>${e[k]}/5</strong></span>` : "").join(" "); };
+  $("#tab-evals").innerHTML = `<div class="card"><h3>Latest evaluations</h3>${NRC.latestEvalsHtml(L)}</div>` + testsHtml + (data || []).map(e => { const o = NRC.evalOverall(e); return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div class="small muted">${NRC.fmtDate(e.evaluated_on)} &middot; ${NRC.esc(e.tournaments ? e.tournaments.name : "")}${e.games ? " &middot; " + NRC.esc([e.games.home_team, e.games.away_team].filter(Boolean).join(" v ") || "game") + (e.games.division ? " (" + NRC.esc(NRC.divisionLabel(e.games.division)) + ")" : "") : ""} &middot; ${NRC.esc(NRC.EVAL_SOURCE[e.source] || "Observer")}: ${NRC.esc(e.evaluator_name)}</div>${o != null ? "<div>Overall " + NRC.scoreHtml(o) + "</div>" : ""}</div>
+    <div class="hist-years">${scoreTags(e)}</div>
+    ${e.strengths ? `<p><strong>Strengths.</strong> ${NRC.esc(e.strengths)}</p>` : ""}${e.points_to_improve ? `<p><strong>Points to improve.</strong> ${NRC.esc(e.points_to_improve)}</p>` : ""}${e.video_url ? `<p class="small"><a href="${NRC.esc(e.video_url)}" target="_blank" rel="noopener">Game video</a></p>` : ""}</div>`; }).join("") || '<div class="card">No evaluation shared with you yet.</div>';
 }
 async function loadAssignments() {
   const { data } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,sanction,start_date,end_date,venue_city,venue_state)").eq("referee_id", ref.id).order("created_at", { ascending: false });

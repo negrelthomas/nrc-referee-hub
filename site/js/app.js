@@ -34,15 +34,39 @@
   };
   NRC.divisionsFrom = (form, name) => NRC.$$(`input[name="${name}"]:checked`, form).map(i => i.value);
   // ---------- referee profile: tournament history and latest evaluations ----------
-  // rows: [{name, start_date, divisions, games, sanction, region}] from referee_public_history or referee_tournament_history
-  NRC.historyHtml = (rows) => {
+  // rows: [{tournament_id, name, start_date, end_date, divisions, games, sanction, region, role, venue_city, venue_state}]
+  // games (optional): rows of referee_game_log for the same referee, listed under their tournament
+  NRC.scoreHtml = (v) => v == null ? "" : `<span class="pill ${v >= 4 ? "green" : v >= 3 ? "" : "amber"}" title="Weighted average on 5">${Number(v).toFixed(1)}</span>`;
+  NRC.gameRowsHtml = (games, opts) => {
+    opts = opts || {};
+    if (!games || !games.length) return "";
+    const g2 = games.slice().sort((a, b) => String(a.game_date).localeCompare(String(b.game_date)) || String(a.game_time || "").localeCompare(String(b.game_time || "")));
+    return `<div class="table-wrap"><table class="gamelog"><thead><tr><th>Date</th>${opts.tournament ? "<th>Tournament</th>" : ""}<th>Game</th><th>Division</th><th>Partner</th><th>Score</th>${opts.noEval ? "" : "<th>Evaluation</th>"}</tr></thead><tbody>` +
+      g2.map(g => `<tr><td>${NRC.fmtDate(g.game_date)}${g.game_time ? '<div class="small muted">' + String(g.game_time).slice(0, 5) + "</div>" : ""}</td>${opts.tournament ? "<td>" + NRC.esc(g.tournament || "") + "</td>" : ""}<td>${NRC.esc([g.home_team, g.away_team].filter(Boolean).join(" v ")) || '<span class="muted">teams not entered</span>'}${g.game_number ? ' <span class="small muted">#' + NRC.esc(g.game_number) + "</span>" : ""}${g.video_url ? ' <a class="small" href="' + NRC.esc(g.video_url) + '" target="_blank" rel="noopener">video</a>' : ""}</td><td>${g.division ? NRC.esc(NRC.divisionLabel(g.division)) : ""}</td><td>${NRC.esc(g.partner || "")}</td><td>${g.home_score != null && g.away_score != null ? g.home_score + " : " + g.away_score : ""}</td>${opts.noEval ? "" : "<td>" + (g.eval_overall != null ? NRC.scoreHtml(g.eval_overall) : g.evals ? '<span class="small muted">not shared</span>' : '<span class="small muted">none</span>') + "</td>"}</tr>`).join("") + "</tbody></table></div>";
+  };
+  NRC.historyHtml = (rows, games) => {
     rows = (rows || []).slice().sort((a, b) => String(b.start_date).localeCompare(String(a.start_date)));
     if (!rows.length) return '<p class="small muted">No tournament recorded yet.</p>';
     const yrs = {}; rows.forEach(h => { const y = String(h.start_date).slice(0, 4); yrs[y] = yrs[y] || { g: 0, t: 0 }; yrs[y].g += h.games || 0; yrs[y].t++; });
-    return `<div class="hist-years">${Object.keys(yrs).sort().reverse().map(y => `<span class="chip"><strong>${y}</strong>: ${yrs[y].g} game${yrs[y].g === 1 ? "" : "s"}, ${yrs[y].t} tournament${yrs[y].t === 1 ? "" : "s"}</span>`).join("")}</div>` +
-      `<ul class="hist-list">${rows.map(h => `<li><div><strong>${NRC.esc(h.name)}</strong> ${h.sanction ? NRC.sanctionPill(h.sanction) : ""} <span class="small muted">${new Date(h.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}${h.region ? ", " + NRC.esc(h.region) : ""}</span><div style="margin-top:4px">${NRC.divisionPills(h.divisions)}</div></div><div class="small" style="white-space:nowrap">${h.games != null ? h.games + " games" : '<span class="muted">games pending</span>'}</div></li>`).join("")}</ul>`;
+    const G = games || null;
+    return `<div class="hist-years">${Object.keys(yrs).sort().reverse().map(y => `<span class="tag"><strong>${y}</strong>: ${yrs[y].g} game${yrs[y].g === 1 ? "" : "s"}, ${yrs[y].t} tournament${yrs[y].t === 1 ? "" : "s"}</span>`).join("")}</div>` +
+      `<div class="hist-list">${rows.map(h => {
+        const mine = G ? G.filter(g => g.tournament_id === h.tournament_id) : null;
+        const where = [h.venue_city, h.venue_state].filter(Boolean).join(", ");
+        const dates = h.end_date && h.end_date !== h.start_date ? NRC.fmtDate(h.start_date) + " to " + NRC.fmtDate(h.end_date) : NRC.fmtDate(h.start_date);
+        const detail = `<dl class="prof-facts small"><dt>Dates</dt><dd>${dates}</dd>${where ? `<dt>Where</dt><dd>${NRC.esc(where)}</dd>` : ""}${h.role ? `<dt>Role</dt><dd>${NRC.esc(h.role)}</dd>` : ""}<dt>Games</dt><dd>${h.games != null ? h.games : "pending"}${mine && h.games && mine.length < h.games ? ` (${mine.length} itemised)` : ""}</dd></dl>` +
+          (mine ? (mine.length ? NRC.gameRowsHtml(mine) : '<p class="small muted" style="margin:6px 0 0">Games not itemised yet.</p>') : "");
+        return `<details class="hist-item"><summary><div><strong>${NRC.esc(h.name)}</strong> ${h.sanction ? NRC.sanctionPill(h.sanction) : ""} <span class="small muted">${new Date(h.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short", year: "numeric" })}${h.region ? ", " + NRC.esc(h.region) : ""}</span><div style="margin-top:4px">${NRC.divisionPills(h.divisions)}</div></div><div class="small" style="white-space:nowrap">${h.games != null ? h.games + " games" : '<span class="muted">games pending</span>'}</div></summary><div class="hist-detail">${detail}</div></details>`;
+      }).join("")}</div>`;
   };
+  // evaluation criteria (USATH sheet), cached
+  NRC.loadCriteria = async function (all) {
+    if (!NRC._crit) { const { data } = await NRC.sb.from("evaluation_criteria").select("*").order("sort"); NRC._crit = data || []; }
+    return all ? NRC._crit : NRC._crit.filter(c => c.active);
+  };
+  NRC.EVAL_SOURCE = { organizer: "Tournament organizer", observer: "NRC observer", video: "Video review", nrc: "NRC" };
   NRC.EVAL_CRIT = ["score_rules_application", "score_game_management", "score_progressive_punishment", "score_positioning", "score_pair_cooperation", "score_communication"];
+  NRC.evalOverall = (e) => { if (e.overall != null) return Number(e.overall); const sc = NRC.EVAL_CRIT.map(k => e[k]).filter(v => v != null); return sc.length ? sc.reduce((a, b) => a + b, 0) / sc.length : null; };
   NRC.latestEvals = async function (refereeId, userId) {
     const sb = NRC.sb, safe = (p) => p.then(r => (r && r.data) || []).catch(() => []);
     const [tests, ev, as] = await Promise.all([
@@ -56,7 +80,7 @@
     if (exam) theory = { date: exam.tested_on, what: exam.test_name, result: exam.result, passed: exam.passed, by: exam.evaluator_name };
     if (online && (!exam || online.created_at.slice(0, 10) >= exam.tested_on)) theory = { date: online.created_at.slice(0, 10), what: online.kind === "retest" ? "Online re-test" : "Online assessment", result: online.pct + "% (" + online.correct + "/" + online.total + ")", passed: online.passed };
     const e = ev[0] || null; let game = null;
-    if (e) { const sc = NRC.EVAL_CRIT.map(k => e[k]).filter(v => v != null); game = { date: e.evaluated_on, what: e.tournaments ? e.tournaments.name : "In game evaluation", result: sc.length ? (sc.reduce((a, b) => a + b, 0) / sc.length).toFixed(1) + " / 5 average" : "", by: e.evaluator_name }; }
+    if (e) { const o = NRC.evalOverall(e); game = { date: e.evaluated_on, what: e.tournaments ? e.tournaments.name : "In game evaluation", result: o != null ? o.toFixed(1) + " / 5" + (e.source ? ", " + (NRC.EVAL_SOURCE[e.source] || e.source).toLowerCase() : "") : "", by: e.evaluator_name }; }
     return { physical: physical && { date: physical.tested_on, what: physical.test_name, result: physical.result, passed: physical.passed, by: physical.evaluator_name }, theory, game };
   };
   NRC.latestEvalsHtml = (L) => {
