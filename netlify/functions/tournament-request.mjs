@@ -1,5 +1,6 @@
 // Organizer request form: stores the request (the database guard refuses a request without a USATH registered club
 // and a second request for the same event), emails the NRC straight away and acknowledges to the organizer.
+// A request for an event the NRC already placed on the calendar takes over that event (claim_id from the outreach link).
 import { createClient } from "@supabase/supabase-js";
 import { sendMail, fmtDate } from "./mailer.mjs";
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -24,7 +25,28 @@ export default async (req) => {
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (token) { const { data: who } = await admin.auth.getUser(token); if (who && who.user) row.organizer_user_id = who.user.id; }
 
-  const { data: t, error } = await admin.from("tournaments").insert(row).select("*, clubs(name)").single();
+  // An event the NRC pre-positioned on the calendar (from the outreach link, or the same event name within two months,
+  // or the same club on overlapping dates) is claimed by this request instead of being refused as a duplicate.
+  const norm = s => String(s || "").toLowerCase().replace(/20\d\d/g, "").replace(/[^a-z0-9]/g, "");
+  const shift = (d, n) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  let claimId = null;
+  if (body.claim_id) {
+    const { data: c } = await admin.from("tournaments").select("id,created_by_nrc,status").eq("id", body.claim_id).maybeSingle();
+    if (c && c.created_by_nrc && c.status !== "cancelled") claimId = c.id;
+  }
+  if (!claimId) {
+    const { data: ph } = await admin.from("tournaments").select("id,name,club_id,start_date,end_date").eq("created_by_nrc", true).neq("status", "cancelled")
+      .gte("start_date", shift(row.start_date, -60)).lte("start_date", shift(row.end_date, 60));
+    const m = (ph || []).find(x => norm(x.name) === norm(row.name) || (row.club_id && x.club_id === row.club_id && x.start_date <= row.end_date && x.end_date >= row.start_date));
+    if (m) claimId = m.id;
+  }
+  let t, error;
+  if (claimId) {
+    Object.assign(row, { created_by_nrc: false, date_status: "confirmed", nrc_staffs: true });
+    ({ data: t, error } = await admin.from("tournaments").update(row).eq("id", claimId).select("*, clubs(name)").single());
+  } else {
+    ({ data: t, error } = await admin.from("tournaments").insert(row).select("*, clubs(name)").single());
+  }
   if (error) return json(error.code === "P0001" ? 409 : 400, { error: error.message });
 
   const base = (SITE_URL || "").replace(/\/$/, "");

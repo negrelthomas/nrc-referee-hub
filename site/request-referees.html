@@ -104,10 +104,15 @@
 <script>
 document.getElementById("div-host").innerHTML = NRC.divisionPicker("divisions", []);
 (function () { try { if (new URLSearchParams(location.search).get("prefill")) { const c = JSON.parse(sessionStorage.getItem("nrc_prefill_request") || "{}"); const f = document.getElementById("req-form"); (c.divisions || []).forEach(v => { const i = f.querySelector(`input[name="divisions"][value="${v}"]`); if (i) i.checked = true; }); Object.keys(c).forEach(k => { if (k !== "divisions" && f[k]) f[k].value = typeof c[k] === "boolean" ? String(c[k]) : c[k]; }); f.start_date.value = ""; f.end_date.value = ""; } } catch (e) { } })();
+// Invitation link from the NRC (Events > Reach out): the event is prefilled and the request takes over the NRC calendar entry
+(function () { const p = new URLSearchParams(location.search); if (!p.get("event")) return; const f = document.getElementById("req-form");
+  ["name", "start_date", "end_date", "venue_city", "venue_state", "organizer_email", "organizer_name"].forEach(k => { if (p.get(k) && f[k]) f[k].value = p.get(k); });
+  window.nrcClaimId = p.get("event");
+  NRC.notice(NRC.$("#msg"), "The event is filled in from the NRC invitation. Check the dates and venue, then complete the rest of the form.", "ok"); })();
 (async function () { if (!NRC.sb) return;
   let r = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).eq("usath_registered", true).order("name");
   if (r.error) r = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).order("name");
-  const sel = document.getElementById("club-sel"), keep = sel.value;
+  const sel = document.getElementById("club-sel"), keep = sel.value || new URLSearchParams(location.search).get("club_id") || "";
   sel.innerHTML = '<option value="">Pick the USATH registered club hosting the event</option>' + (r.data || []).map(c => `<option value="${c.id}">${NRC.esc(c.name)}${c.state ? " (" + NRC.esc(c.state) + ")" : ""}</option>`).join("");
   if (keep) sel.value = keep;
 })();
@@ -123,6 +128,7 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
   if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
   if (row.venue_state) row.venue_state = row.venue_state.toUpperCase();
   delete row.divisions; row.divisions = NRC.divisionsFrom(e.target, "divisions");
+  if (window.nrcClaimId) row.claim_id = window.nrcClaimId;
   const { data: sess } = await NRC.sb.auth.getSession();
   const btn = e.target.querySelector("button[type=submit]"); btn.disabled = true;
   const res = await fetch("/api/tournament-request", { method: "POST", headers: Object.assign({ "content-type": "application/json" }, sess && sess.session ? { Authorization: "Bearer " + sess.session.access_token } : {}), body: JSON.stringify(row) }).catch(() => null);

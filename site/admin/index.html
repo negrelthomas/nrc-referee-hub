@@ -16,21 +16,21 @@
 <div class="wrap" id="main">
 <section>
   <div class="admin-layout">
-    <nav class="admin-nav">
+    <nav class="admin-nav" aria-label="Admin sections">
       <a href="#dashboard" class="active">Dashboard</a>
-      <a href="#referees">Referees</a>
-      <a href="#inquiries">Inquiries <span class="pill red hidden" id="nav-inq"></span></a>
-      <a href="#clubs">Clubs</a>
-      <a href="#staffing">Staffing</a>
-      <a href="#tournaments">Tournaments</a>
-      <a href="#rankings">Rankings</a>
-      <a href="#training">Training sessions</a>
-      <a href="#programs">Programs</a>
-      <a href="#guide">Guide</a>
-      <span class="nav-group">Settings</span>
-      <a href="#questions">Question bank</a>
-      <a href="#imports">Imports</a>
-      <a href="#" onclick="NRC.signOut();return false">Sign out</a>
+      <div class="nav-sec">
+        <button type="button" class="sec-top" aria-expanded="false">Referees</button>
+        <div class="sub"><a href="#referees">Roster</a><a href="#inquiries">Contact requests <span class="pill red hidden" id="nav-inq"></span></a><a href="#clubs">Clubs</a><a href="#rankings">Rankings</a></div>
+      </div>
+      <div class="nav-sec">
+        <button type="button" class="sec-top" aria-expanded="false">Events</button>
+        <div class="sub"><a href="#tournaments">Tournaments</a><a href="#staffing">Staffing</a></div>
+      </div>
+      <div class="nav-sec">
+        <button type="button" class="sec-top" aria-expanded="false">Training</button>
+        <div class="sub"><a href="#training">Sessions</a><a href="#programs">Programs</a><a href="#questions">Question bank</a></div>
+      </div>
+      <div class="nav-foot"><a href="#guide">Guide</a><a href="#imports">Imports</a><a href="#" onclick="NRC.signOut();return false">Sign out</a></div>
     </nav>
     <div id="panes">
 
@@ -65,7 +65,7 @@
 
       <!-- Referees -->
       <div id="pane-referees" class="hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Referees</h1><button class="btn sm" onclick="openRef(null)">Add referee</button></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Referee roster</h1><button class="btn sm" onclick="openRef(null)">Add referee</button></div>
         <div class="toolbar" style="margin-top:12px"><input id="r-q" placeholder="Search"><select id="r-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="r-inactive" style="width:auto"> show inactive</label><button class="btn ghost sm" onclick="exportCsv()">Export CSV</button></div>
         <div class="table-wrap"><table id="refs"><thead><tr><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airport</th><th>Games</th><th>Last eval</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
@@ -128,7 +128,7 @@
         <div class="legend small"><span class="pill s-usath">USATH</span><span class="pill s-club">Club</span><span class="pill s-intl">International</span><span class="pill amber">Tentative dates</span> <span class="muted">tentative and calendar only events stay out of Staffing</span></div>
         <div class="card" id="reports-card" style="margin:10px 0"><h3 style="margin-top:0">Games reported by referees <span class="pill amber hidden" id="reports-count"></span></h3><div class="table-wrap"><table id="reports"><thead><tr><th>Referee</th><th>Event</th><th>Games</th><th>Role</th><th>Partner</th><th>Reported</th><th></th></tr></thead><tbody></tbody></table></div><p class="small muted" style="margin-top:6px">Confirm records the referee in the event's Officiated tab with these games. Not confirmed sends the report back with your note.</p></div>
         <div class="filterbar" id="tour-filter"><button type="button" class="chip on" data-f="upcoming">Upcoming</button><button type="button" class="chip" data-f="past">Past</button><button type="button" class="chip" data-f="todo">Games or evaluations to enter</button><button type="button" class="chip" data-f="all">All</button><input id="tour-q" placeholder="Search name, city, club" style="max-width:240px;margin-left:auto"></div>
-        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Type</th><th>Dates</th><th>Where</th><th title="Officials recorded on the event against referees needed">Officials</th><th title="Games logged one by one, against games expected">Games</th><th title="Referee evaluations entered">Evaluations</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Type</th><th>Dates</th><th>Where</th><th title="Tentative contact for events the NRC placed on the calendar; Reach out invites them to place their request">Organizer</th><th title="Officials recorded on the event against referees needed">Officials</th><th title="Games logged one by one, against games expected">Games</th><th title="Referee evaluations entered">Evaluations</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <div id="pane-rankings" class="hidden">
@@ -193,11 +193,11 @@
         <div class="card"><h3 style="margin-top:0">1. Dashboard</h3>
           <p>The first screen after sign in. It shows the recurring tasks the committee owes (the Sport80 import every 30 days turns red when overdue and only clears when the import runs), the size and certification of the roster, club coverage against the one certified pair per club goal, new contact requests, referees who have not taken their baseline assessment, programs in progress and overdue, the weakest rules across the pool (a direct input for clinic content) and the compliance watch (expired or missing membership, SafeSport, background check).</p></div>
 
-        <div class="card"><h3 style="margin-top:0">2. Referees</h3>
+        <div class="card"><h3 style="margin-top:0">2. Referee roster</h3>
           <p>The roster. One record per referee: identity, club, home city and airports, certification level and date, Sport80 member ID, compliance dates, availability notes and admin notes. Open a referee to see and edit everything, add a certification, log a game sheet or record an evaluation. Add referee creates a record by hand; the record's email is what allows the person to sign in (sign in is by invitation only: an email that is not on the roster or in the admin list gets no link). Export CSV gives the roster as a spreadsheet. To update many records at once, use Imports.</p>
           <p>Removing someone: set the record inactive rather than deleting it, so tournament history and evaluations stay attached.</p></div>
 
-        <div class="card"><h3 style="margin-top:0">3. Inquiries</h3>
+        <div class="card"><h3 style="margin-top:0">3. Contact requests</h3>
           <p>People who pressed "I want to be contacted" on the public Become a referee page. Each row carries their answers: where they are, club if any, background, availability, message. Work them in order: contact the person, then "Add to roster" when they are ready (it opens a prefilled candidate record; save it and they can sign in), set the status to invited. The dashboard counts the new ones.</p></div>
 
         <div class="card"><h3 style="margin-top:0">4. Clubs</h3>
@@ -221,7 +221,7 @@
           </ol>
           <p class="small muted">Emails go out from the NRC Referee Hub sender configured on Netlify and are logged; a send that fails is shown with the reason. Referees contact organizers only once confirmed; organizers reach referees through their tournament page.</p></div>
 
-        <div class="card"><h3 style="margin-top:0">6. Questions</h3>
+        <div class="card"><h3 style="margin-top:0">6. Question bank</h3>
           <p>The question bank behind the training module, the Level 1 course, the assessments and the programs: the IHF Catalogue of Rules Questions (2025 edition) plus the game situation deck. Each question has a rule number, a difficulty (Level 1 to 3), options and the correct answer with the rule reference. Edit, deactivate or add questions here; difficulty decides which pool a referee is tested on.</p></div>
 
         <div class="card"><h3 style="margin-top:0">7. Training sessions</h3>
@@ -244,7 +244,7 @@
 
       <!-- Questions -->
       <div id="pane-questions" class="hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Quiz questions</h1><button class="btn sm" onclick="openQ(null)">Add question</button></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Question bank</h1><button class="btn sm" onclick="openQ(null)">Add question</button></div>
         <p class="small muted" style="margin:8px 0 0">49 Level 1 questions on rules 1, 3, 8, 9 and 11 (source "NRC Level 1") were written from the IHF rules for the demo and are active. Filter on that source to review or correct them; untick Active to pull one out of the course.</p>
         <div class="toolbar" style="margin-top:12px"><input id="q-q" placeholder="Search"><select id="q-rule"><option value="">All rules</option></select><select id="q-diff"><option value="">All levels</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option></select><select id="q-src"><option value="">All sources</option><option value="ihf_catalogue">IHF catalogue</option><option value="calcup">Game situations deck</option><option value="nrc_level1">NRC Level 1</option></select></div>
         <div class="table-wrap"><table id="qs"><thead><tr><th>Rule</th><th>Level</th><th>Question</th><th>Type</th><th>Source</th><th></th></tr></thead><tbody></tbody></table></div>
@@ -480,6 +480,19 @@
     <p class="small muted" style="margin:4px 0 0">Each contact receives their own email. Fields filled per club: {club} {first_name} {referees} {certified} {in_training} {prospects} {state} {pair_status} {hub_url} {contact_email}. Replies go to the NRC address.</p>
     <div id="msg-preview" class="card small" style="margin-top:10px;white-space:pre-wrap"></div>
     <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="btn-msg-send">Send</button><button class="btn ghost" type="button" onclick="sendClubMessage(true)">Send me a test</button><button class="btn ghost" type="button" onclick="copyClubEmails()">Copy addresses</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-msg').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
+<dialog id="dlg-outreach" style="max-width:760px"><div class="body">
+  <h3 style="margin-top:0">Invite the organizer to place the request</h3>
+  <div id="out-event" class="small muted"></div>
+  <form id="form-outreach">
+    <div class="row"><div><label>To</label><input name="to" type="email" list="out-emails" placeholder="organizer email"><datalist id="out-emails"></datalist></div><div><label>Name</label><input name="name" placeholder="first name, if known"></div></div>
+    <div class="help" id="out-source"></div>
+    <label>Subject</label><input name="subject" required>
+    <label>Message</label><textarea name="body" required style="min-height:260px"></textarea>
+    <p class="small muted" style="margin:4px 0 0">{link} becomes the request form with this event filled in. When the organizer submits it, the request replaces this calendar entry. Replies come to you.</p>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="btn-out-send">Send</button><button class="btn ghost" type="button" onclick="sendOutreach(true)">Send me a test</button><button class="btn ghost" type="button" onclick="saveOutreachContact()">Save contact only</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-outreach').close()">Cancel</button></p>
   </form>
 </div></dialog>
 

@@ -12,7 +12,9 @@
   function route() {
     const [h, arg] = (location.hash || "#dashboard").slice(1).split("/");
     const pane = h === "club" ? "clubs" : h === "referee" ? "referees" : h;
-    NRC.$$(".admin-nav a").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + pane));
+    NRC.$$(".admin-nav a:not(.sec-top)").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + pane));
+    // the section holding the current page stays open; the others fold to their title
+    NRC.$$(".admin-nav .nav-sec").forEach(s => { if (s.querySelector('.sub a[href="#' + pane + '"]')) setSec(s, true); });
     NRC.$$("#panes > div").forEach(p => p.classList.toggle("hidden", p.id !== "pane-" + pane));
     if (h === "referee" && arg && refs.length) openRefFromLink(arg);
     if (h === "club" && arg && clubs.length) renderClubPage(arg);
@@ -20,6 +22,9 @@
   }
   // admin/index.html#referee/<id> (Edit profile on the public Referees page) opens the editor once
   function openRefFromLink(id) { history.replaceState(null, "", "#referees"); openRef(id); }
+  function setSec(s, open) { s.classList.toggle("open", open); s.querySelector(".sec-top").setAttribute("aria-expanded", open); }
+  // section titles fold and unfold; every section can be closed, including the one holding the current page
+  NRC.$$(".admin-nav .sec-top").forEach(b => b.addEventListener("click", () => { const s = b.closest(".nav-sec"); setSec(s, !s.classList.contains("open")); }));
   window.addEventListener("hashchange", route);
   // <base href="../"> makes "#pane" links resolve to the site root; keep them on this page
   document.addEventListener("click", e => { const a = e.target.closest('a[href^="#"]'); if (!a || a.getAttribute("href") === "#" || a.onclick) return; e.preventDefault(); location.hash = a.getAttribute("href"); });
@@ -617,8 +622,68 @@
     }).sort((a, b) => tourFilter === "upcoming" ? a.start_date.localeCompare(b.start_date) : b.start_date.localeCompare(a.start_date));
     const STAT = { submitted: "amber", reviewing: "amber", staffed: "green", completed: "", cancelled: "red" };
     $("#tour tbody").innerHTML = list.map(t => { const st = tourStats[t.id] || {}, need = t.pairs_needed * 2, past = t.start_date <= now;
-      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="8">No tournament in this view.</td></tr>';
+      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="9">No tournament in this view.</td></tr>';
   }
+  // ---------- organizer outreach ----------
+  // Events the NRC placed on the calendar carry a tentative organizer contact: the one saved on the event, otherwise the
+  // host club's primary contact. Reach out invites them to place the request; it is off once the organizer has done so.
+  function outreachFor(t) {
+    const club = clubs.find(c => c.id === t.club_id);
+    if (t.outreach_email) return { email: t.outreach_email, name: t.outreach_name || "", note: t.outreach_note || "Saved on the event" };
+    const cs = contacts.filter(c => c.club_id === t.club_id && c.email && c.receives_messages !== false);
+    const c = cs.find(x => x.is_primary) || cs[0];
+    if (c) return { email: c.email, name: c.name || "", note: `${club ? club.name : "Host club"}, ${(c.role || "contact").toLowerCase()} (${c.source || "club contacts"})` };
+    return { email: "", name: "", note: t.outreach_note || (club ? `No email on file for ${club.name}` : "No host club linked to the event") };
+  }
+  function organizerCell(t, past) {
+    if (!t.created_by_nrc) return `<span class="pill green">Request in</span><div>${NRC.esc(t.organizer_name || "")}</div><div class="muted">${NRC.esc(t.organizer_email || "")}</div><button class="btn sm ghost" disabled title="The organizer placed the request" style="margin-top:6px">Reach out</button>`;
+    const o = outreachFor(t);
+    const sent = t.outreach_sent_at ? `<div class="muted">Invited ${NRC.fmtDate(t.outreach_sent_at.slice(0, 10))}</div>` : "";
+    const who = o.email ? `<div title="${NRC.esc(o.note)}">${NRC.esc(o.email)}</div><div class="muted">tentative</div>` : `<div class="muted" title="${NRC.esc(o.note)}">No contact</div>`;
+    return who + sent + (past ? "" : `<button class="btn sm ghost" style="margin-top:6px" onclick="openOutreach('${t.id}')">${t.outreach_sent_at ? "Remind" : "Reach out"}</button>`);
+  }
+  let outreachTour = null;
+  window.openOutreach = function (id) {
+    const t = tournaments.find(x => x.id === id); if (!t) return; outreachTour = t;
+    const o = outreachFor(t), f = $("#form-outreach"), club = clubs.find(c => c.id === t.club_id);
+    const when = t.start_date === t.end_date ? NRC.fmtDate(t.start_date) : NRC.fmtDate(t.start_date) + " to " + NRC.fmtDate(t.end_date);
+    const where = [t.venue_city, t.venue_state].filter(Boolean).join(", ");
+    $("#out-event").textContent = `${t.name}, ${when}${where ? ", " + where : ""}${club ? ". Host club: " + club.name : ""}`;
+    $("#out-emails").innerHTML = contacts.filter(c => c.club_id === t.club_id && c.email).map(c => `<option value="${NRC.esc(c.email)}">${NRC.esc([c.name, c.role].filter(Boolean).join(", "))}</option>`).join("");
+    $("#out-source").textContent = "Source: " + o.note + (t.outreach_sent_at ? `. Invited on ${NRC.fmtDate(t.outreach_sent_at.slice(0, 10))} (${t.outreach_sent_to || ""}).` : "");
+    f.to.value = o.email; f.name.value = (o.name || "").split(" ")[0];
+    const datesLine = t.date_status === "tentative" ? `${when} on our calendar, dates to confirm` : when;
+    f.subject.value = `Referees for ${t.name}: request on the NRC Referee Hub`;
+    f.body.value = [
+      `Hello${f.name.value ? " " + f.name.value : ""},`,
+      `The USATH National Referee Committee is testing a website to handle referee requests for tournaments, and we would like to include ${t.name} (${datesLine}${where ? ", " + where : ""}) in the test.`,
+      `Could you place your referee request through the hub? The event is already filled in. The form asks for the venue, the divisions, the number of referee pairs and what the event covers for travel and lodging, and takes a few minutes:\n{link}`,
+      `Once the request is in, you can follow it on your organizer page: the referees designated, their arrival details and the status of each booking.`,
+      `The site is still a prototype, so your comments on the form are welcome. If someone else handles referees for this event, a reply with their contact would help.`,
+      `Thank you,\n${(user && user.full_name) || ""}`.trim()
+    ].join("\n\n");
+    $("#dlg-outreach").showModal();
+  };
+  window.sendOutreach = async function (test) {
+    const f = $("#form-outreach"), t = outreachTour; if (!t) return;
+    if (!test && !confirm(`Send this invitation to ${f.to.value || "(no address)"}?`)) return;
+    const { data: sess } = await sb().auth.getSession();
+    const btn = $("#btn-out-send"); btn.disabled = true;
+    const res = await fetch("/api/organizer-outreach", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: t.id, to: f.to.value.trim(), name: f.name.value.trim() || null, subject: f.subject.value, body: f.body.value, test: !!test }) }).catch(() => null);
+    btn.disabled = false;
+    const d = res ? await res.json().catch(() => ({})) : {};
+    if (!res || !res.ok) { alert("Not sent: " + (d.error || "network error")); return; }
+    if (test) { alert("Test sent to your own address."); return; }
+    $("#dlg-outreach").close(); loadAll();
+  };
+  window.saveOutreachContact = async function () {
+    const f = $("#form-outreach"), t = outreachTour; if (!t) return;
+    const row = { outreach_email: f.to.value.trim().toLowerCase() || null, outreach_name: f.name.value.trim() || null, outreach_note: f.to.value.trim() ? "Saved by " + (user.email || "admin") : null };
+    const { error } = await sb().from("tournaments").update(row).eq("id", t.id);
+    if (error) { alert(error.message); return; }
+    Object.assign(t, row); $("#dlg-outreach").close(); renderTournaments();
+  };
+  $("#form-outreach").addEventListener("submit", e => { e.preventDefault(); sendOutreach(false); });
   NRC.$$("#tour-filter .chip").forEach(b => b.onclick = () => { tourFilter = b.dataset.f; NRC.$$("#tour-filter .chip").forEach(x => x.classList.toggle("on", x === b)); renderTournaments(); });
   $("#tour-q").addEventListener("input", () => renderTournaments());
   $("#tour tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr && !e.target.closest("select,a,button")) openTour(tr.dataset.id); });

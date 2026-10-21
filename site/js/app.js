@@ -236,8 +236,29 @@
     15: "General instructions for throws", 16: "Punishments", 17: "The referees", 18: "Timekeeper and scorekeeper"
   };
 
+  // Phones: tables outside the admin console stack into one card per row; each cell
+  // carries its column name in data-label so the stacked view stays readable.
+  NRC.labelTables = (root = document) => {
+    root.querySelectorAll(".table-wrap table").forEach(t => {
+      const heads = [...t.querySelectorAll("thead th")].map(th => th.textContent.trim());
+      if (!heads.length) return;
+      t.querySelectorAll("tbody tr").forEach(tr => {
+        let i = 0;
+        for (const td of tr.children) {
+          if (!td.hasAttribute("data-label")) td.setAttribute("data-label", td.colSpan > 1 ? "" : (heads[i] || ""));
+          i += td.colSpan || 1;
+        }
+      });
+    });
+  };
+
   document.addEventListener("DOMContentLoaded", () => {
     NRC.renderNav(document.body.dataset.page);
+    if (!document.querySelector(".admin-layout")) {
+      let queued = false;
+      NRC.labelTables();
+      new MutationObserver(() => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; NRC.labelTables(); }); }).observe(document.body, { childList: true, subtree: true });
+    }
     NRC.renderFooter();
     if (!NRC.configured) { const b = document.getElementById("config-banner"); if (b) b.classList.remove("hidden"); }
   });
