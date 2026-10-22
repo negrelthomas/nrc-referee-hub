@@ -61,7 +61,7 @@ export default async (req) => {
     const results = [];
     for (const a of designated.filter(d => assignment_ids.includes(d.assignment_id))) {
       const roleWord = a.role === "referee" ? "referee" : a.role === "delegate" ? "supervisor" : a.role;
-      const others = designated.filter(d => d.id !== a.id).map(d => esc(d.first_name + " " + d.last_name) + " (" + (a.role === "referee" ? (LEVEL[d.cert_level] || "") : d.role) + ")").join(", ");
+      const others = designated.filter(d => d.id !== a.id).map(d => esc(d.first_name + " " + d.last_name) + (d.role && d.role !== "referee" ? " (" + (d.role === "delegate" ? "supervisor" : d.role) + ")" : "")).join(", ");
       const duties = a.role === "referee" ? "" : `<p><strong>Your role:</strong> you oversee the referee pairs, handle protests with the organizer, and record an evaluation for each pair on the hub after the event.${t.supervisor_notes ? " Organizer notes: " + esc(t.supervisor_notes) : ""}</p>`;
       const subject = `Confirmed as ${roleWord}: ${t.name}, ${fmtDate(t.start_date)}`;
       const html = `<p>Hi ${esc(a.first_name)},</p><p>You are confirmed as <strong>${roleWord}</strong> for <strong>${esc(t.name)}</strong>.</p>
@@ -75,7 +75,7 @@ export default async (req) => {
 
   if (kind === "organizer") {
     const link = `${base}/tournament.html?token=${t.organizer_token}`;
-    const rows = designated.map(r => `<tr><td style="padding:4px 10px 4px 0">${esc(r.first_name + " " + r.last_name)}</td><td style="padding:4px 10px 4px 0">${LEVEL[r.cert_level] || ""}${r.role !== "referee" ? ", " + esc(r.role) : ""}</td><td style="padding:4px 10px 4px 0">${esc(r.clubs ? r.clubs.name : "")}</td><td style="padding:4px 0">${esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + esc(r.home_airport_iata) + ")" : ""}</td></tr>`).join("");
+    const rows = designated.map(r => `<tr><td style="padding:4px 10px 4px 0">${esc(r.first_name + " " + r.last_name)}</td><td style="padding:4px 10px 4px 0">${esc(r.role === "delegate" ? "supervisor" : r.role)}</td><td style="padding:4px 10px 4px 0">${esc(r.clubs ? r.clubs.name : "")}</td><td style="padding:4px 0">${esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + esc(r.home_airport_iata) + ")" : ""}</td></tr>`).join("");
     const subject = `Referees designated for ${t.name}, ${fmtDate(t.start_date)}`;
     const html = `<p>Hi ${esc(t.organizer_name)},</p><p>The National Referee Committee has designated the referees for <strong>${esc(t.name)}</strong>, ${when}, at ${esc(where)}.</p>
       <table style="border-collapse:collapse;font-size:14px">${rows}</table>
@@ -107,7 +107,7 @@ export default async (req) => {
     let subject, html;
     if (kind === "confirm") {
       const partner = partnerOf(ref.id);
-      const others = designated.filter(d => d.id !== ref.id).map(d => esc(d.first_name + " " + d.last_name) + " (" + (LEVEL[d.cert_level] || "") + ")").join(", ");
+      const others = designated.filter(d => d.id !== ref.id).map(d => esc(d.first_name + " " + d.last_name)).join(", ");
       subject = `Confirmed: ${t.name}, ${fmtDate(t.start_date)}`;
       html = `<p>Hi ${esc(ref.first_name)},</p><p>You are confirmed as a referee for <strong>${esc(t.name)}</strong>.</p>
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br>

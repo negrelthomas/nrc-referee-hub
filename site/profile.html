@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
-<style>.weekends{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}.weekends button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 6px;font:inherit;font-size:13px;cursor:pointer;line-height:1.25;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:58px}.weekends button:disabled{cursor:default}.weekends .wk-d{font-weight:700}.weekends .wk-ev{display:block;font-size:11.5px;font-weight:600;padding:1px 0 1px 6px;border-left:3px solid #8796A8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}.weekends .wk-ev.s-usath{border-color:var(--red)}.weekends .wk-ev.s-intl{border-color:#7B3FA0}.weekends .wk-ev.s-club{border-color:var(--navy-2)}.weekends .wk-st{font-size:11.5px;color:var(--muted)}.weekends button.available{background:#E3F6E8;border-color:#2E9E5B;color:#17532D}.weekends button.tentative{background:#FFF4D6;border-color:#D99A00;color:#6B4C00}.weekends button.unavailable{background:#FBE3E6;border-color:#C8102E;color:#7A0A1C}</style>
+<style>.weekends{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}.weekends button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 6px;font:inherit;font-size:13px;cursor:pointer;line-height:1.25;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:58px}.weekends button:disabled{cursor:default;opacity:1;color:var(--ink)}.weekends .wk-d{font-weight:700}.weekends .wk-ev{display:block;font-size:11.5px;font-weight:600;padding:1px 0 1px 6px;border-left:3px solid #8796A8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}.weekends .wk-ev.s-usath{border-color:var(--red)}.weekends .wk-ev.s-intl{border-color:#7B3FA0}.weekends .wk-ev.s-club{border-color:var(--navy-2)}.weekends .wk-st{font-size:11.5px;color:var(--muted)}.weekends .wk-month{grid-column:1/-1;font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase;margin:8px 0 0;padding-left:8px;border-left:5px solid var(--mc)}.weekends .wk-month:first-child{margin-top:0}.weekends button{border-top:4px solid var(--mc)}.weekends button:not(.available):not(.tentative):not(.unavailable){background:color-mix(in srgb,var(--mc) 9%,#fff)}.weekends button.available{background:#E3F6E8;border-color:#2E9E5B;color:#17532D}.weekends button.tentative{background:#FFF4D6;border-color:#D99A00;color:#6B4C00}.weekends button.unavailable{background:#FBE3E6;border-color:#C8102E;color:#7A0A1C}</style>
 </head>
 <body data-page="profile.html">
 <a class="skip" href="#main">Skip to content</a>
@@ -379,13 +379,16 @@ async function loadWeekends(readOnly) {
   const EV = ev || [];
   const host = $("#weekends"); host.innerHTML = "";
   const iso = (x) => NRC.localDate(x);
-  let d = saturday(new Date());
+  const MC = ["#1E5AB8", "#0F6E56", "#7B3FA0", "#D97A00", "#0B7A8F", "#B5179E", "#5C6B00", "#C8102E", "#3A4A5C", "#E0A100", "#04234F", "#9E0B23"];
+  let d = saturday(new Date()), lastMonth = -1;
   for (let i = 0; i < 26; i++) {
     const key = iso(d); const st = WA[key] || "";
+    const mc = MC[d.getMonth()];
+    if (d.getMonth() !== lastMonth) { lastMonth = d.getMonth(); const h = document.createElement("div"); h.className = "wk-month"; h.style.setProperty("--mc", mc); h.style.color = mc; h.textContent = d.toLocaleDateString("en-US", { month: "long", year: "numeric" }); host.appendChild(h); }
     const fri = new Date(d); fri.setDate(fri.getDate() - 1); const sun = new Date(d); sun.setDate(sun.getDate() + 1);
     const evs = EV.filter(e => e.start_date <= iso(sun) && e.end_date >= iso(fri));
     const cls = (s) => s === "usath" ? "s-usath" : s === "international" ? "s-intl" : "s-club";
-    const b = document.createElement("button"); b.type = "button"; b.className = st; b.dataset.w = key;
+    const b = document.createElement("button"); b.type = "button"; b.className = st; b.dataset.w = key; b.style.setProperty("--mc", mc);
     b.title = evs.map(e => e.name + (e.venue_city ? ", " + e.venue_city + (e.venue_state ? " " + e.venue_state : "") : "") + (e.date_status === "tentative" ? " (dates tentative)" : "")).join("\n");
     b.innerHTML = `<span class="wk-d">${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>` + evs.slice(0, 2).map(e => `<span class="wk-ev ${cls(e.sanction)}">${NRC.esc(e.name.replace(/\s+20\d\d.*$/, ""))}${e.date_status === "tentative" ? " ?" : ""}</span>`).join("") + (evs.length > 2 ? `<span class="wk-ev">+${evs.length - 2} more</span>` : "") + (readOnly ? "" : `<span class="wk-st">${st || "unknown"}</span>`);
     if (readOnly) { b.disabled = true; host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7); continue; }
