@@ -864,7 +864,7 @@
   };
   $("#form-rk-settings").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const { error } = await sb().from("ranking_settings").update({ window_months: parseInt(f.window_months.value, 10), min_evaluations: parseInt(f.min_evaluations.value, 10), updated_at: new Date().toISOString() }).eq("id", 1); if (error) { alert(error.message); return; } loadRankings(); });
   function renderCriteria() {
-    $("#crit tbody").innerHTML = criteria.map(c => `<tr class="clickable" onclick="editCrit('${c.code}')"><td>${c.sort}</td><td><strong>${NRC.esc(c.label)}</strong>${c.description ? '<div class="small muted">' + NRC.esc(c.description) + "</div>" : ""}</td><td>${c.weight}</td><td>1 to ${c.scale_max}</td><td>${c.active ? '<span class="pill green">yes</span>' : '<span class="pill">no</span>'}</td><td><button class="btn sm ghost" type="button">Edit</button></td></tr>`).join("") || '<tr><td colspan="6">No criteria yet.</td></tr>';
+    $("#crit tbody").innerHTML = criteria.filter(c => c.scale === "ihf6" || !criteria.some(x => x.scale === "ihf6")).map(c => `<tr class="clickable" onclick="editCrit('${c.code}')"><td>${c.sort}</td><td><strong>${NRC.esc(c.label)}</strong>${c.description ? '<div class="small muted">' + NRC.esc(c.description) + "</div>" : ""}</td><td>${c.weight}</td><td>${c.scale === "ihf6" ? "-- to +++" : "1 to " + c.scale_max}</td><td>${c.active ? '<span class="pill green">yes</span>' : '<span class="pill">no</span>'}</td><td><button class="btn sm ghost" type="button">Edit</button></td></tr>`).join("") || '<tr><td colspan="6">No criteria yet.</td></tr>';
   }
   let currentCrit = null;
   window.editCrit = function (code) {

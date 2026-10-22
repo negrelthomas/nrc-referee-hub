@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Evaluator | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="evaluator.html">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+<div class="wrap" id="main">
+<section>
+  <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+    <h1 style="margin:0" id="ev-title">Evaluator</h1>
+    <div><a class="btn ghost sm" href="guide/evaluators.html">How it works</a> <a class="btn ghost sm" id="ev-home" href="profile.html">My home</a> <button class="btn ghost sm" onclick="NRC.signOut()">Sign out</button></div>
+  </div>
+  <div id="ev-msg" class="notice hidden" style="margin-top:12px"></div>
+
+  <!-- not on the track yet -->
+  <div id="ev-join" class="hidden">
+    <div class="card" style="margin-top:16px">
+      <h2 style="margin-top:0">Evaluate referee pairs for the NRC</h2>
+      <p>Evaluators rate referee pairs on the IHF observation sheet, from game video or live, and the NRC returns the reports to the referees. Referees, club members and NRC members can hold the role once certified.</p>
+      <ul class="steps-list">
+        <li><strong>Rules exam.</strong> <span id="join-rules"></span></li>
+        <li><strong>Video calibration.</strong> <span id="join-cal"></span></li>
+        <li><strong>Certified.</strong> Write reports; the NRC reads each one before releasing it to the referees. Rules exam renewed every <span class="j-rv"></span> months, calibration every <span class="j-cv"></span> months.</li>
+      </ul>
+      <p class="small muted">Tournament organizers evaluate only once certified, like everyone else. You cannot evaluate a game you refereed; declare any other conflict (your own club, family) to the NRC.</p>
+      <label>Your handball background (playing, coaching, refereeing, years)</label><textarea id="join-bg" rows="3"></textarea>
+      <p style="margin-top:12px"><button class="btn" type="button" id="join-btn">Join the evaluator track</button></p>
+    </div>
+  </div>
+
+  <!-- on the track -->
+  <div id="ev-main" class="hidden">
+    <div class="ev-steps" id="ev-steps"></div>
+    <div class="tabs" style="margin-top:14px" id="ev-tabs">
+      <button data-tab="track" class="active">Certification</button>
+      <button data-tab="games">Games to evaluate</button>
+      <button data-tab="reports">My reports</button>
+    </div>
+    <div id="tab-track"></div>
+    <div id="tab-games" class="hidden"></div>
+    <div id="tab-reports" class="hidden"></div>
+  </div>
+
+  <!-- work panel: exam, calibration, report -->
+  <div id="ev-work" class="hidden"></div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="data/questions.js"></script>
+<script src="js/app.js"></script>
+<script src="js/report.js"></script>
+<script src="js/evaluator.js"></script>
+</body>
+</html>

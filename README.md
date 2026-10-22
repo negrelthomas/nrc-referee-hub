@@ -38,6 +38,7 @@ supabase/
   expenses_reports.sql     bookings by organizers and referees, expense_claims with receipts bucket, tournament_reports, reminder_log, tournament_finance view
   changes.sql              organizer update policy, tournament_changes log, status guard trigger
   clubs_outreach.sql       club_contacts (admin only, seeded from the CalCup 2027 registration list), club_messages log, club_id on tournaments and inquiries, club_affiliation (member, volunteer, none) on inquiries (also in schema.sql)
+  evaluator_track.sql      evaluators (referees, club members, NRC), rules exam and video calibration certification, calibration library with hidden NRC reference ratings, IHF observation reports (21 items, one per pair per game) synced to evaluations, weighted rankings; organizers no longer evaluate (run its STEP 0 line alone first)
   organizers_travel.sql    organizer sign in (role organizer for emails that submitted a request), travel_managed_by, travel_bookings, organizer and staffing views
 netlify/functions/        daily-reminders.mjs (scheduled, 15:00 UTC), mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data), club-message.mjs (NRC messages to club contacts, one email per contact with the club's figures, test mode to the admin)
 netlify.toml, package.json
@@ -66,6 +67,7 @@ Photo, club, home city and state, home airport and usual departure airport, cert
 
 - `referee` (default on first sign in): own profile, directory, training progress, own games, shared evaluations, own assignment requests.
 - `admin`: everything. Set in `public.profiles.role`.
+- `evaluator`: given at first sign in to an email the NRC added as an evaluator with no referee record (club members); lands on evaluator.html. Referees, organizers and admins reach the evaluator page from their own home once on the track.
 - `organizer`: given at first sign in to an email that submitted a tournament request; sees organizer.html (own requests, designated officials, bookings). The public form works without an account.
 
 ## Clubs and action plan

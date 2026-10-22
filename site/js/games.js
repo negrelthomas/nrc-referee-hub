@@ -60,7 +60,7 @@
     const [{ data: off }, { data: games, error }, { data: ev }, crit] = await Promise.all([
       sb.from("organizer_designations").select("referee_id,first_name,last_name,role").eq("tournament_id", t.id),
       sb.from("games").select("*").eq("tournament_id", t.id).order("game_date").order("game_time", { nullsFirst: true }),
-      sb.from("evaluations").select("id,referee_id,game_id,overall,source,evaluator_name,shared_with_referee").eq("tournament_id", t.id),
+      ctx.mode === "admin" ? sb.from("observation_reports").select("id,game_id,status,overall,evaluator_name,method").eq("tournament_id", t.id) : Promise.resolve({ data: [] }),
       NRC.loadCriteria()
     ]);
     if (error) { ctx.el.innerHTML = '<p class="notice error">Games could not be loaded: ' + esc(error.message) + "</p>"; return; }
@@ -72,20 +72,16 @@
   const refName = (id) => { const o = ctx.officials.find(x => x.id === id); return o ? o.name : (ctx.nameOf ? ctx.nameOf(id) : ""); };
   function render() {
     const t = ctx.tournament, admin = ctx.mode === "admin";
-    const evOf = (gid, rid) => ctx.evals.filter(e => e.game_id === gid && e.referee_id === rid);
-    const cell = (g, rid) => {
-      if (!rid) return "";
-      const E = evOf(g.id, rid);
-      return `<div class="game-ref-evals" style="align-items:center"><span>${esc(refName(rid))}</span>${E.map(e => `<a href="#" onclick="NRC.Games.editEval('${e.id}');return false" title="${esc((NRC.EVAL_SOURCE[e.source] || "") + ", " + (e.evaluator_name || ""))}">${e.overall != null ? NRC.scoreHtml(e.overall) : '<span class="pill">draft</span>'}</a>`).join("")}<button class="btn sm ghost" type="button" onclick="NRC.Games.newEval('${g.id}','${rid}')">Evaluate</button></div>`;
-    };
-    const done = ctx.games.length, evaluated = new Set(ctx.evals.filter(e => e.game_id).map(e => e.game_id + e.referee_id)).size;
-    const slots = ctx.games.reduce((n, g) => n + (g.referee_1 ? 1 : 0) + (g.referee_2 ? 1 : 0), 0);
-    ctx.el.innerHTML = `<div class="filterbar"><span class="tag"><strong>${done}</strong> game${done === 1 ? "" : "s"} logged${t.games_expected ? " of " + t.games_expected + " expected" : ""}</span><span class="tag"><strong>${evaluated}</strong> of ${slots} referee evaluations</span><span style="flex:1"></span><button class="btn sm" type="button" onclick="NRC.Games.newGame()">Add a game</button></div>` +
+    const repOf = (gid) => ctx.evals.filter(r => r.game_id === gid);
+    const cell = (rid) => rid ? esc(refName(rid)) : "";
+    const reps = (g) => repOf(g.id).map(r => `<a href="#" onclick="NRC.Report.openView('${r.id}');return false" title="${esc((r.evaluator_name || "") + ", " + (r.method === "live" ? "live" : "video"))}">${r.overall != null ? NRC.scoreHtml(r.overall) : ""} ${NRC.Report.statusPill(r.status)}</a>`).join(" ") + ` <a class="btn sm ghost" href="evaluator.html#game=${g.id}">Write report</a>`;
+    const done = ctx.games.length, evaluated = new Set(ctx.evals.filter(r => r.status !== "draft").map(r => r.game_id)).size;
+    ctx.el.innerHTML = `<div class="filterbar"><span class="tag"><strong>${done}</strong> game${done === 1 ? "" : "s"} logged${t.games_expected ? " of " + t.games_expected + " expected" : ""}</span>${admin ? `<span class="tag"><strong>${evaluated}</strong> of ${done} games with an observation report</span><span class="tag"><strong>${ctx.games.filter(g => g.video_url).length}</strong> with video</span>` : ""}<span style="flex:1"></span><button class="btn sm" type="button" onclick="NRC.Games.newGame()">Add a game</button></div>` +
       (ctx.officials.length ? "" : `<p class="small muted">No referee designated on this event yet. ${admin ? "Add them in Designated and travel or with Add referee below." : "Games can be logged once the NRC has designated the referees."}</p>`) +
-      (done ? `<div class="table-wrap"><table class="gamelog"><thead><tr><th>Date</th><th>Game</th><th>Division</th><th>Score</th><th>Referee A</th><th>Referee B</th><th></th></tr></thead><tbody>` +
-        ctx.games.map(g => `<tr><td>${NRC.fmtDate(g.game_date)}${g.game_time ? '<div class="small muted">' + String(g.game_time).slice(0, 5) + "</div>" : ""}</td><td>${esc([g.home_team, g.away_team].filter(Boolean).join(" v ")) || '<span class="muted">teams not entered</span>'}${g.game_number ? ' <span class="small muted">#' + esc(g.game_number) + "</span>" : ""}${g.video_url ? ' <a class="small" href="' + esc(g.video_url) + '" target="_blank" rel="noopener">video</a>' : ""}</td><td>${g.division ? esc(NRC.divisionLabel(g.division)) : ""}</td><td>${g.home_score != null && g.away_score != null ? g.home_score + " : " + g.away_score : ""}</td><td>${cell(g, g.referee_1)}</td><td>${cell(g, g.referee_2)}</td><td><button class="btn sm ghost" type="button" onclick="NRC.Games.editGame('${g.id}')">Edit</button></td></tr>`).join("") + "</tbody></table></div>"
-        : '<p class="small muted">No game logged yet. Add each game with its referee pair; the evaluation of each referee follows from the same row.</p>') +
-      `<p class="small muted" style="margin-top:8px">${admin ? "Organizers log games and evaluate from their tournament page; the NRC can add observer or video review evaluations here. Scores use the criteria set in Rankings." : "Evaluate each referee per game on the USATH criteria. Your evaluations go to the NRC only; the NRC decides what the referee sees."}</p>`;
+      (done ? `<div class="table-wrap"><table class="gamelog"><thead><tr><th>Date</th><th>Game</th><th>Division</th><th>Score</th><th>Referee A</th><th>Referee B</th>${admin ? "<th>Observation reports</th>" : ""}<th></th></tr></thead><tbody>` +
+        ctx.games.map(g => `<tr><td>${NRC.fmtDate(g.game_date)}${g.game_time ? '<div class="small muted">' + String(g.game_time).slice(0, 5) + "</div>" : ""}</td><td>${esc([g.home_team, g.away_team].filter(Boolean).join(" v ")) || '<span class="muted">teams not entered</span>'}${g.game_number ? ' <span class="small muted">#' + esc(g.game_number) + "</span>" : ""}${g.video_url ? ' <a class="small" href="' + esc(g.video_url) + '" target="_blank" rel="noopener">video</a>' : ""}</td><td>${g.division ? esc(NRC.divisionLabel(g.division)) : ""}</td><td>${g.home_score != null && g.away_score != null ? g.home_score + " : " + g.away_score : ""}</td><td>${cell(g.referee_1)}</td><td>${cell(g.referee_2)}</td>${admin ? "<td>" + reps(g) + "</td>" : ""}<td><button class="btn sm ghost" type="button" onclick="NRC.Games.editGame('${g.id}')">Edit</button></td></tr>`).join("") + "</tbody></table></div>"
+        : '<p class="small muted">No game logged yet. Add each game with its referee pair and, when there is one, the video or stream link.</p>') +
+      `<p class="small muted" style="margin-top:8px">${admin ? "Certified evaluators write one observation report per pair from the game video or live (IHF sheet). Reports are reviewed and released in Referees > Evaluators." : "Log each game with its referee pair and the video or stream link when there is one. Certified NRC evaluators review the referees from the video; organizers evaluate once certified as evaluators."}</p>`;
   }
 
   // ---------- games ----------

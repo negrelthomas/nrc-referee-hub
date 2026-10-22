@@ -112,7 +112,7 @@
     NRC.currentUser().then((u) => {
       const a = NRC.$("#nav-login");
       if (!a) return;
-      if (u) { a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : "My profile"; a.href = u.role === "admin" ? "admin/index.html" : u.role === "organizer" ? "organizer.html" : "profile.html"; }
+      if (u) { a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : u.role === "evaluator" ? "My evaluations" : "My profile"; a.href = NRC.homeFor(u); }
     });
   };
 
@@ -189,7 +189,7 @@
     if (role === "admin" && u.role !== "admin") { document.body.innerHTML = '<div class="wrap" style="padding:40px"><h1>Admin access only</h1><p>Your account is not an NRC administrator. Write to ' + NRC.esc(C.CONTACT_EMAIL) + ' if you believe this is a mistake.</p><p><a href="../profile.html">Back to my profile</a></p></div>'; return null; }
     return u;
   };
-  NRC.homeFor = (u) => !u ? "login.html" : u.role === "admin" ? "admin/index.html" : u.role === "organizer" ? "organizer.html" : "profile.html";
+  NRC.homeFor = (u) => !u ? "login.html" : u.role === "admin" ? "admin/index.html" : u.role === "organizer" ? "organizer.html" : u.role === "evaluator" ? "evaluator.html" : "profile.html";
   // Calendar file with one event per item. events: [{title, start (Date), end (Date), location, desc, url}]
   NRC.downloadIcs = function (name, events) {
     const fmt = (d) => new Date(d).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");

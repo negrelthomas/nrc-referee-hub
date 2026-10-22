@@ -20,7 +20,7 @@
       <a href="#dashboard" class="active">Dashboard</a>
       <div class="nav-sec">
         <button type="button" class="sec-top" aria-expanded="false">Referees</button>
-        <div class="sub"><a href="#referees">Roster</a><a href="#inquiries">Contact requests <span class="pill red hidden" id="nav-inq"></span></a><a href="#clubs">Clubs</a><a href="#rankings">Rankings</a></div>
+        <div class="sub"><a href="#referees">Roster</a><a href="#inquiries">Contact requests <span class="pill red hidden" id="nav-inq"></span></a><a href="#clubs">Clubs</a><a href="#rankings">Rankings</a><a href="#evaluators">Evaluators <span class="pill red hidden" id="nav-evx"></span></a></div>
       </div>
       <div class="nav-sec">
         <button type="button" class="sec-top" aria-expanded="false">Events</button>
@@ -133,7 +133,7 @@
 
       <div id="pane-rankings" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Rankings</h1><a class="btn sm ghost" href="#" onclick="exportRankings();return false">Export CSV</a></div>
-        <p class="muted small">Weighted average of every evaluation in the window (organizer, observer and video review), on a 5 point scale. A referee is ranked once they have the minimum number of evaluations; below that they show as provisional. NRC only.</p>
+        <p class="muted small">Average of every evaluation in the window, on a 5 point scale. Observation reports score the summary verdict (Positive 4, Neutral 3, Negative 2) plus or minus 1 for the referees' influence, weighted by type of match (Easy 0.75, Normal 1, Difficult 1.25, Very difficult 1.5). A referee is ranked once they have the minimum number of evaluations; below that they show as provisional. NRC only.</p>
         <div class="filterbar"><select id="rk-level" style="max-width:200px"><option value="">All levels</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3 and above</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="rk-prov" checked style="width:auto"> show provisional</label><span class="small muted" id="rk-since" style="margin-left:auto"></span></div>
         <div class="table-wrap"><table id="rk"><thead><tr><th>Rank</th><th></th><th>Referee</th><th>Level</th><th>Average</th><th title="Average of organizer evaluations">Organizers</th><th title="Average of NRC observer and video review evaluations">NRC</th><th>Evaluations</th><th>Games</th><th>Tournaments</th><th>Last evaluation</th></tr></thead><tbody></tbody></table></div>
         <div class="grid c2" style="margin-top:16px;align-items:start">
@@ -141,10 +141,34 @@
             <form id="form-rk-settings" class="row" style="align-items:end"><div><label>Window (months)</label><input name="window_months" type="number" min="1" max="60"></div><div><label>Evaluations to be ranked</label><input name="min_evaluations" type="number" min="1" max="50"></div><div><button class="btn sm" type="submit">Save</button></div></form>
             <p class="small muted" style="margin:6px 0 0">The window never starts before the history start date.</p></div>
           <div class="card"><h3 style="margin-top:0">Evaluation criteria</h3>
-            <p class="small muted" style="margin:0 0 8px">The criteria every evaluation form uses. Replace them with the USATH evaluation sheet: change labels, weights and scale, add rows, untick the ones no longer used. Past scores stay attached to their code.</p>
+            <p class="small muted" style="margin:0 0 8px">The 21 items of the IHF observation sheet, rated on six steps from Not satisfactory to Excellent. Edit a label or definition here; the earlier placeholder criteria are kept inactive for past evaluations.</p>
             <div class="table-wrap"><table id="crit"><thead><tr><th>Order</th><th>Criterion</th><th>Weight</th><th>Scale</th><th>Active</th><th></th></tr></thead><tbody></tbody></table></div>
             <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="editCrit(null)">Add criterion</button></p></div>
         </div>
+      </div>
+
+
+      <!-- Evaluators -->
+      <div id="pane-evaluators" class="hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Evaluators</h1><div><a class="btn sm ghost" href="evaluator.html">Open my evaluator page</a> <button class="btn sm" type="button" onclick="openEvaluator(null)">Add an evaluator</button></div></div>
+        <p class="muted small">Evaluators rate referee pairs on the IHF observation sheet. Certification: rules exam and video calibration against the NRC reference ratings. Every report comes here before the referees see it.</p>
+        <div class="grid c4" id="evx-kpis"></div>
+        <h2>Reports</h2>
+        <div class="filterbar"><select id="evx-qfilter" style="max-width:240px"><option value="submitted">To review</option><option value="returned">Returned to the evaluator</option><option value="released">Released</option><option value="all">All</option></select></div>
+        <div class="table-wrap"><table id="evx-queue"><thead><tr><th>Game date</th><th>Game</th><th>Referees</th><th>Evaluator</th><th>Overall</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <h2>Evaluators</h2>
+        <div class="table-wrap"><table id="evx-list"><thead><tr><th>Name</th><th>Background</th><th>Club</th><th>Status</th><th>Rules exam</th><th>Calibration</th><th>Reports</th></tr></thead><tbody></tbody></table></div>
+        <h2>Calibration library</h2>
+        <p class="small muted" id="evx-lib-note"></p>
+        <div class="table-wrap"><table id="evx-lib"><thead><tr><th>Reference game</th><th>NRC rating</th><th>Active</th><th></th></tr></thead><tbody></tbody></table></div>
+        <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="openCalGame(null)">Add a reference game</button> <span class="small muted">Or open a released report with a video and use it as a reference.</span></p>
+        <div class="card" style="margin-top:16px"><h3 style="margin-top:0">Certification rules</h3>
+          <form id="form-evx-settings" class="small">
+            <div class="row"><div><label>Rules exam questions</label><input name="rules_question_count" type="number" min="20" max="100"></div><div><label>Pass mark (%)</label><input name="rules_pass_pct" type="number" min="50" max="100"></div><div><label>Time limit (minutes)</label><input name="rules_time_limit_minutes" type="number" min="10" max="180"></div><div><label>Hardest questions</label><select name="rules_max_difficulty"><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option></select></div></div>
+            <div class="row"><div><label>Calibration games</label><input name="calibration_games_required" type="number" min="1" max="10"></div><div><label>Calibration pass mark (%)</label><input name="calibration_pass_pct" type="number" min="50" max="100"></div><div><label>Tolerance (steps)</label><input name="calibration_tolerance" type="number" min="0" max="2"></div><div><label>Probation reports</label><input name="probation_reports" type="number" min="0" max="10"></div></div>
+            <div class="row"><div><label>Rules exam valid (months)</label><input name="rules_valid_months" type="number" min="6" max="60"></div><div><label>Calibration valid (months)</label><input name="calibration_valid_months" type="number" min="6" max="60"></div><div><label>Report due (days after game)</label><input name="report_due_days" type="number" min="1" max="30"></div><div><label>Weekly target per evaluator</label><input name="weekly_target" type="number" min="0" max="20"></div></div>
+            <p><button class="btn sm" type="submit">Save</button></p><div id="evx-set-msg" class="notice hidden"></div>
+          </form></div>
       </div>
 
       <!-- Training sessions -->
@@ -552,11 +576,47 @@
   </form>
 </div></dialog>
 
+
+<dialog id="dlg-evx"><div class="body">
+  <h3 style="margin-top:0" id="evx-dlg-title">Evaluator</h3>
+  <form id="form-evx">
+    <div class="row"><div><label>First name</label><input name="first_name" required></div><div><label>Last name</label><input name="last_name" required></div></div>
+    <div class="row"><div><label>Email (sign in)</label><input name="email" type="email" required></div><div><label>Phone</label><input name="phone"></div></div>
+    <div class="row"><div><label>Club affiliation</label><select name="club_id"></select></div><div><label>Background</label><select name="origin"><option value="referee">Referee</option><option value="club_member">Club member</option><option value="coach">Coach</option><option value="nrc">NRC</option><option value="organizer">Organizer</option><option value="other">Other</option></select></div></div>
+    <label>Handball background</label><textarea name="handball_background" rows="2"></textarea>
+    <div class="row"><div><label>USATH member ID</label><input name="usath_member_id"></div><div><label>SafeSport valid until</label><input name="safesport_valid_until" type="date"></div></div>
+    <div class="row"><div><label>Status</label><select name="status"><option value="in_training">In training</option><option value="certified">Certified</option><option value="suspended">Suspended</option><option value="inactive">Inactive</option></select></div><div><label style="margin-top:28px"><input type="checkbox" name="founding" style="width:auto"> Founding evaluator (certified by the NRC, sets reference ratings)</label></div></div>
+    <label>NRC notes</label><textarea name="admin_notes" rows="2"></textarea>
+    <div id="evx-hist"></div>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="evx-del">Remove</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-evx').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+<dialog id="dlg-evx-cal"><div class="body">
+  <h3 style="margin-top:0">Reference game</h3>
+  <form id="form-evx-cal">
+    <label>Title</label><input name="title" required placeholder="CalCup 2027, U19 Men final">
+    <label>Video link</label><input name="video_url" type="url" required placeholder="https://www.youtube.com/watch?v=...">
+    <div class="row"><div><label>Division</label><select name="division"></select></div><div><label>Order</label><input name="sort" type="number"></div></div>
+    <label>What to watch</label><input name="watch_notes" placeholder="Full game; pair in dark shirts">
+    <label><input type="checkbox" name="active" style="width:auto" checked> Open to candidates</label>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" id="evx-cal-del">Delete</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-evx-cal').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+<dialog id="dlg-evx-ref" style="max-width:820px"><div class="body">
+  <h3 style="margin-top:0" id="evx-ref-title">Reference rating</h3>
+  <p class="small" id="evx-ref-video"></p>
+  <p class="small muted">Candidates are graded against this rating: each item within the tolerance counts as agreement, and the summary must match. The remarks are shown to them after they submit.</p>
+  <div id="evx-ref-form"></div>
+  <p style="margin-top:14px;display:flex;gap:8px"><button class="btn" type="button" id="evx-ref-save">Save the reference</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-evx-ref').close()">Cancel</button></p>
+</div></dialog>
+
 <footer id="site-footer"></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
+<script src="js/report.js"></script>
 <script src="js/games.js"></script>
 <script src="js/admin.js"></script>
+<script src="js/evaluators-admin.js"></script>
 </body>
 </html>
