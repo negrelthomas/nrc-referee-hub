@@ -13,6 +13,7 @@ Last updated: October 21, 2026
 | 3 | Referee pay and expenses: games reported per referee, fees, travel costs, per diem, receipts, scheduled payouts (Finnish model: payment twice a month for league games, tax withheld) | Halina Lehto, Oct 21 | Fee schedule per event type; games already logged become the pay basis; per diem rules; payout batches; receipts already stored with expense claims; exports for accounting; W-9 collection and 1099 reporting | USATH finance and legal: referee status (contractor vs employee), federal and state tax treatment, who pays (USATH, organizer, club) |
 | 4 | Ranking formula for evaluations | Evaluator track, Oct 21 | Proposal built (summary score, influence, weight by type of match); switch to the NRC's formula once agreed | Joshua to confirm |
 | 5 | Validity periods and whether evaluation reports are ever public | Evaluator track, Oct 21 | Parameters already in evaluator_settings | Joshua to confirm |
+| 6 | "Invalid scores" item: keep or drop | NRC sheet, Oct 21 | The NRC report form lists 20 items; the instructions define a 21st, Invalid scores, and say it overlaps the others. The hub rates all 21. Dropping it is one switch (active flag on the item) | Joshua to choose |
 
 ## Next development items (no decision needed)
 

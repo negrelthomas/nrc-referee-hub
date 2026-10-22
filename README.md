@@ -43,6 +43,7 @@ supabase/
   organizers_travel.sql    organizer sign in (role organizer for emails that submitted a request), travel_managed_by, travel_bookings, organizer and staffing views
 netlify/functions/        daily-reminders.mjs (scheduled, 15:00 UTC), mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data), club-message.mjs (NRC messages to club contacts, one email per contact with the club's figures, test mode to the admin)
 netlify.toml, package.json
+reference/                 NRC source documents: IHF indoor observation report and its instructions (sent by the NRC chair, Oct 21, 2026); basis of the evaluation report
 ```
 
 ## Setup (one time, about 20 minutes)

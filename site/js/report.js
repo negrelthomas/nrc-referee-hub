@@ -33,8 +33,9 @@
     const v = o.value || {}, sc = v.scores || {}, ro = o.mode === "view", full = o.mode === "report" || o.mode === "view";
     const g = o.game || {}, mi = v.match_info || {};
     const teams = [g.home_team, g.away_team].filter(Boolean).join(" v ");
+    const venue = g.venue_name || [g.venue_city, g.venue_state].filter(Boolean).join(", ");
     let h = "";
-    if (g.game_date || g.tournament) h += `<div class="rep-head"><div><strong>${esc(g.tournament || "")}</strong>${g.division ? " &middot; " + esc(NRC.divisionLabel(g.division)) : ""}</div><div class="small">${NRC.fmtDate(g.game_date)}${teams ? " &middot; " + esc(teams) : ""}${g.home_score != null && g.away_score != null ? " &middot; " + g.home_score + " : " + g.away_score : ""}</div>${g.referee_1_name ? `<div class="small">Referees: <strong>${esc(g.referee_1_name)}</strong>${g.referee_2_name ? " and <strong>" + esc(g.referee_2_name) + "</strong>" : ""}</div>` : ""}${(v.video_url || g.video_url) ? `<div class="small"><a href="${esc(v.video_url || g.video_url)}" target="_blank" rel="noopener">Open the game video</a></div>` : ""}</div>`;
+    if (g.game_date || g.tournament) h += `<div class="rep-head"><div><strong>${esc(g.tournament || "")}</strong>${g.division ? " &middot; " + esc(NRC.divisionLabel(g.division)) : ""}</div><div class="small">${g.game_number ? "Match " + esc(String(g.game_number)) + " &middot; " : ""}${NRC.fmtDate(g.game_date)}${venue ? " &middot; " + esc(venue) : ""}${teams ? " &middot; " + esc(teams) : ""}${g.home_score != null && g.away_score != null ? " &middot; " + g.home_score + " : " + g.away_score : ""}</div>${g.referee_1_name ? `<div class="small">Referees: <strong>${esc(g.referee_1_name)}</strong>${g.referee_2_name ? " and <strong>" + esc(g.referee_2_name) + "</strong>" : ""}</div>` : ""}${(v.video_url || g.video_url) ? `<div class="small"><a href="${esc(v.video_url || g.video_url)}" target="_blank" rel="noopener">Open the game video</a></div>` : ""}</div>`;
     if (full) {
       h += `<details class="rep-sec" ${ro ? "" : "open"}><summary>Observation and match facts</summary>
         <div class="row"><div><label>Method</label>${radios("method", [["video", "Video review"], ["live", "Live at the game"]], v.method || (g.video_url ? "video" : "live"), ro)}</div>
@@ -121,10 +122,10 @@
     if (!document.getElementById("dlg-rep-view")) document.body.insertAdjacentHTML("beforeend", `<dialog id="dlg-rep-view" style="max-width:820px"><div class="body"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3 style="margin:0">Observation report</h3><button class="btn sm ghost" type="button" onclick="this.closest('dialog').close()">Close</button></div><div id="rep-view-meta" class="small muted" style="margin:6px 0 10px"></div><div id="rep-view-body"></div><div id="rep-view-extra"></div></div></dialog>`);
     const { data: r, error } = await NRC.sb.from("observation_reports").select("*").eq("id", reportId).single();
     if (error) { alert(error.message); return null; }
-    const { data: g } = await NRC.sb.from("games").select("*,tournaments(name)").eq("id", r.game_id).maybeSingle();
+    const { data: g } = await NRC.sb.from("games").select("*,tournaments(name,venue_name,venue_city,venue_state)").eq("id", r.game_id).maybeSingle();
     const names = {}; const ids = [r.referee_1, r.referee_2].filter(Boolean);
     if (ids.length) { const { data: rf } = await NRC.sb.from("referees").select("id,first_name,last_name").in("id", ids); (rf || []).forEach(x => names[x.id] = x.first_name + " " + x.last_name); }
-    const game = Object.assign({}, g || {}, { tournament: g && g.tournaments ? g.tournaments.name : "", referee_1_name: names[r.referee_1], referee_2_name: names[r.referee_2], referee_2: r.referee_2 });
+    const game = Object.assign({}, g || {}, { tournament: g && g.tournaments ? g.tournaments.name : "", venue_name: g && g.tournaments ? g.tournaments.venue_name : "", venue_city: g && g.tournaments ? g.tournaments.venue_city : "", venue_state: g && g.tournaments ? g.tournaments.venue_state : "", referee_1_name: names[r.referee_1], referee_2_name: names[r.referee_2], referee_2: r.referee_2 });
     NRC.$("#rep-view-meta").innerHTML = `${R.statusPill(r.status)} ${esc(r.evaluator_name || "")} (${esc(r.evaluator_club || "")}), ${r.method === "live" ? "live" : "video review"}${r.submitted_at ? ", submitted " + NRC.fmtDate(r.submitted_at.slice(0, 10)) : ""}${r.overall != null ? " &middot; overall " + NRC.scoreHtml(r.overall) : ""}${r.nrc_note ? `<div class="notice" style="margin-top:6px"><strong>NRC note.</strong> ${esc(r.nrc_note)}</div>` : ""}`;
     await R.render(NRC.$("#rep-view-body"), { mode: "view", game, value: r });
     NRC.$("#rep-view-extra").innerHTML = "";
