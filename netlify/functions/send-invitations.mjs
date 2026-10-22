@@ -127,7 +127,8 @@ export default async (req) => {
       const partner = partnerOf(ref.id);
       const others = designated.filter(d => d.id !== ref.id).map(d => esc(d.first_name + " " + d.last_name)).join(", ");
       subject = `Confirmed: ${t.name}, ${fmtDate(t.start_date)}`;
-      html = `<p>Hi ${esc(ref.first_name)},</p><p>You are confirmed as a referee for <strong>${esc(t.name)}</strong>.</p>
+      const recorded = /^Recorded by /.test(r.response_note || "") ? `<p>You accepted this assignment outside the hub (${esc(String(r.response_note).replace(/^Recorded by [^:]*:\s*/, ""))}). The NRC has recorded it so the hub shows you as confirmed. If this is not right, reply to this email.</p>` : "";
+      html = `<p>Hi ${esc(ref.first_name)},</p><p>You are confirmed as a referee for <strong>${esc(t.name)}</strong>.</p>${recorded}
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br>
         <strong>Where:</strong> ${esc(where)}<br>
         ${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + " over the event<br>" : ""}

@@ -11,6 +11,7 @@
   NRC.$$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
   NRC.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // calendar date in the viewer's time zone (toISOString would give the UTC date, a day ahead in the evening in the US)
+  NRC.byLastName = (a, b) => String(a.last_name || "").localeCompare(String(b.last_name || ""), "en", { sensitivity: "base" }) || String(a.first_name || "").localeCompare(String(b.first_name || ""), "en", { sensitivity: "base" });
   NRC.localDate = (d) => { d = d || new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   NRC.fmtDate = (d) => (d ? new Date(d + (String(d).length === 10 ? "T00:00:00" : "")).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "");
   NRC.levelLabel = (l) => ({ candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3 (National)", nachc: "NACHC Continental", ihf: "IHF International" }[l] || l || "");

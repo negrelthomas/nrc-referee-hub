@@ -497,6 +497,18 @@
 </div></dialog>
 
 <!-- Message to clubs -->
+<dialog id="dlg-accept" style="max-width:600px"><div class="body">
+  <h3 style="margin-top:0">Record acceptance given outside the hub</h3>
+  <p class="small" id="acc-who"></p>
+  <form id="form-accept">
+    <input type="hidden" name="ids">
+    <label>How and when they accepted (shown in the email and kept on the invitation)</label><textarea name="reason" required minlength="15"></textarea>
+    <label style="font-weight:400"><input type="checkbox" name="send" checked style="width:auto"> Send each referee the confirmation email (dates, team, what the organizer covers, travel), with a note that the NRC recorded their acceptance and that they should reply if it is not right</label>
+    <ul class="small muted" style="padding-left:18px"><li>Creates their invitation as confirmed, so the Invitations tab and their home show them as accepted and confirmed</li><li>Logged with your name; fictional test referees get no email</li></ul>
+    <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Record</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-accept').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
 <dialog id="dlg-override" style="max-width:600px"><div class="body">
   <h3 style="margin-top:0">Override availability</h3>
   <p class="small" id="ov-who"></p>
