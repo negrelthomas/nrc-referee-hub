@@ -87,8 +87,8 @@
       <div class="stat"><div class="n" id="c-pct">0%</div><div class="l">Score</div></div>
     </div>
     <div class="flash" id="flash"><div class="inner">
-      <div class="face front"><div class="small muted" id="fc-meta"></div><div id="fc-q"></div><div class="small muted" style="margin-top:14px">Tap to reveal</div></div>
-      <div class="face back"><div id="fc-a"></div><div class="rule" id="fc-rule"></div></div>
+      <div class="face front"><div class="small muted" id="fc-meta"></div><div id="fc-q"></div><ol class="fc-opts" id="fc-opts"></ol><div class="small muted" style="margin-top:14px">Pick your answer, then tap to reveal</div></div>
+      <div class="face back"><div id="fc-ans"></div><div id="fc-a" style="margin-top:10px;font-size:15px"></div><div class="rule" id="fc-rule"></div></div>
     </div></div>
     <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn secondary" id="fc-missed">Missed</button><button class="btn" id="fc-knew">Knew it</button>
@@ -101,10 +101,10 @@
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
         <h3 style="margin:0">Timed challenge, season <span id="board-season"></span></h3>
-        <div class="chips" id="chips-board"><span class="chip on" data-v="">All</span><span class="chip" data-v="level_1">Level 1</span><span class="chip" data-v="level_2">Level 2</span><span class="chip" data-v="level_3">Level 3</span></div>
+        
       </div>
-      <p class="small muted">Points are the correct answers in timed sessions of 10 questions or more this season. The overall ranking is the one that counts; the level views show where you stand among your peers.</p>
-      <div class="table-wrap"><table id="board"><thead><tr><th>#</th><th>Referee</th><th>Level</th><th>Hometown</th><th>Points</th><th>Sessions</th><th>Accuracy</th><th>Best session</th></tr></thead><tbody></tbody></table></div>
+      <p class="small muted">Points are the correct answers in timed sessions of 10 questions or more this season. Referee levels are not shown: they stay between each referee and the NRC.</p>
+      <div class="table-wrap"><table id="board"><thead><tr><th>#</th><th>Referee</th><th>Hometown</th><th>Points</th><th>Sessions</th><th>Accuracy</th><th>Best session</th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>
 

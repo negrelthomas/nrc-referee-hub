@@ -1,7 +1,7 @@
 /* Training module: practice quiz, timed challenge, flashcards, progress */
 (function () {
   const $ = NRC.$;
-  let ALL = [], user = null, custom = null, tab = "path", mode = "practice", diff = "", rule = "", src = "", boardLevel = "";
+  let ALL = [], user = null, custom = null, tab = "path", mode = "practice", diff = "", rule = "", src = "";
   const secsPerQ = () => Math.min(30, Math.max(10, parseInt(($("#secs") || {}).value, 10) || 20));
   const SKEY = "nrc_quiz_secs";
   const LKEY = "nrc_training_v1";
@@ -14,7 +14,7 @@
     return ALL.filter(q => (!diff || q.diff === diff) && (!rule || String(q.rule) === rule) && (!src || (src === "ihf" ? q.src === "ihf" : src === "nrc_level1" ? q.src === "nrc_level1" : (q.src !== "ihf" && q.src !== "nrc_level1"))) && (forCards ? true : (q.options && q.options.length)));
   }
   function updatePoolCount() {
-    const n = tab === "cards" ? pool(true).length : pool(false).length;
+    const n = pool(false).length;
     $("#pool-count").textContent = n + (tab === "cards" ? " cards" : " questions") + " match these filters.";
   }
 
@@ -155,15 +155,20 @@
   // ---------- flashcards ----------
   let deck = [], ci = 0, flipped = false, scores = {};
   function startCards(review) {
-    const base = review ? pool(true).filter(q => scores[q.id] === false) : pool(true);
+    const base = review ? pool(false).filter(q => scores[q.id] === false) : pool(false);
     deck = NRC.shuffle(base.slice()); ci = 0; flipped = false;
-    if (!deck.length) { $("#fc-q").textContent = review ? "No missed cards to review." : "No cards match these filters."; $("#fc-a").textContent = ""; $("#fc-meta").textContent = ""; return; }
+    if (!deck.length) { $("#fc-q").textContent = review ? "No missed cards to review." : "No cards match these filters."; $("#fc-opts").innerHTML = ""; $("#fc-ans").textContent = ""; $("#fc-a").textContent = ""; $("#fc-meta").textContent = ""; return; }
     showCard();
   }
   function showCard() {
     const q = deck[ci]; flipped = false; $("#flash").classList.remove("flipped");
     $("#fc-meta").textContent = `${ci + 1} / ${deck.length}` + (q.rule ? `, Rule ${q.rule}` : "") + `, ${q.cat}`;
-    $("#fc-q").textContent = q.q; $("#fc-a").textContent = q.a; $("#fc-rule").textContent = q.rr || "";
+    const correct = q.cis && q.cis.length ? q.cis : [q.ci];
+    const letter = (i) => String.fromCharCode(97 + i) + ")";
+    $("#fc-q").textContent = q.q;
+    $("#fc-opts").innerHTML = q.options.map((o, i) => `<li><span class="fc-l">${letter(i)}</span>${NRC.esc(o)}</li>`).join("");
+    $("#fc-ans").innerHTML = (correct.length > 1 ? "Correct answers: " : "Correct answer: ") + correct.map(i => `<strong>${letter(i)} ${NRC.esc(q.options[i] || "")}</strong>`).join(", ");
+    $("#fc-a").textContent = q.a; $("#fc-rule").textContent = q.rr || "";
     updateCardStats();
   }
   function updateCardStats() {
@@ -178,18 +183,17 @@
   $("#fc-review").onclick = () => startCards(true);
 
   // ---------- leaderboard ----------
-  NRC.$$("#chips-board .chip").forEach(c => c.onclick = () => { NRC.$$("#chips-board .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); boardLevel = c.dataset.v; renderBoard(); });
   async function renderBoard() {
     const season = new Date().getFullYear(); $("#board-season").textContent = season;
     const tb = $("#board tbody");
-    if (!user || !NRC.sb) { tb.innerHTML = '<tr><td colspan="8">The leaderboard is for signed in referees. <a href="login.html?next=training.html%23board">Sign in</a> to see it, and to have your timed sessions count.</td></tr>'; return; }
-    tb.innerHTML = '<tr><td colspan="8" class="muted">Loading.</td></tr>';
+    if (!user || !NRC.sb) { tb.innerHTML = '<tr><td colspan="7">The leaderboard is for signed in referees. <a href="login.html?next=training.html%23board">Sign in</a> to see it, and to have your timed sessions count.</td></tr>'; return; }
+    tb.innerHTML = '<tr><td colspan="7" class="muted">Loading.</td></tr>';
     const { data, error } = await NRC.sb.from("quiz_leaderboard").select("*").eq("season", season).order("points", { ascending: false }).order("accuracy", { ascending: false }).order("last_played", { ascending: true });
-    if (error) { tb.innerHTML = '<tr><td colspan="8">The leaderboard could not be loaded.</td></tr>'; return; }
-    const rows = (data || []).filter(r => !boardLevel || r.cert_level === boardLevel);
-    if (!rows.length) { tb.innerHTML = `<tr><td colspan="8">No timed session yet this season${boardLevel ? " at this level" : ""}. Play a timed challenge of 10 questions or more to open the ranking.</td></tr>`; return; }
+    if (error) { tb.innerHTML = '<tr><td colspan="7">The leaderboard could not be loaded.</td></tr>'; return; }
+    const rows = data || [];
+    if (!rows.length) { tb.innerHTML = `<tr><td colspan="7">No timed session yet this season. Play a timed challenge of 10 questions or more to open the ranking.</td></tr>`; return; }
     const me = await myRefereeId();
-    tb.innerHTML = rows.map((r, i) => `<tr${r.referee_id === me ? ' style="background:#FFF9D6"' : ""}><td><strong>${i + 1}</strong></td><td style="white-space:nowrap"><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" style="width:32px;height:32px;vertical-align:middle;margin-right:8px"><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.referee_id === me ? ' <span class="pill amber">you</span>' : ""}</td><td>${NRC.levelPill(r.cert_level)}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td><strong>${r.points}</strong></td><td>${r.sessions}</td><td>${r.accuracy}%</td><td>${r.best_pct}%</td></tr>`).join("");
+    tb.innerHTML = rows.map((r, i) => `<tr${r.referee_id === me ? ' style="background:#FFF9D6"' : ""}><td><strong>${i + 1}</strong></td><td style="white-space:nowrap"><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" style="width:32px;height:32px;vertical-align:middle;margin-right:8px"><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.referee_id === me ? ' <span class="pill amber">you</span>' : ""}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td><strong>${r.points}</strong></td><td>${r.sessions}</td><td>${r.accuracy}%</td><td>${r.best_pct}%</td></tr>`).join("");
   }
   let myRef = null;
   async function myRefereeId() {

@@ -241,10 +241,11 @@ tr.clickable:focus{outline:2px solid var(--red);outline-offset:-2px}
 .timer{height:6px;background:var(--line);border-radius:3px;overflow:hidden;margin-bottom:14px}
 .timer > div{height:100%;background:var(--red);transition:width .25s linear}
 .flash{perspective:1200px;min-height:260px;cursor:pointer}
-.flash .inner{position:relative;width:100%;min-height:260px;transition:transform .5s;transform-style:preserve-3d}
+.flash .inner{position:relative;width:100%;min-height:260px;transition:transform .5s;transform-style:preserve-3d;display:grid}
 .flash.flipped .inner{transform:rotateY(180deg)}
-.flash .face{position:absolute;inset:0;backface-visibility:hidden;background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;justify-content:center;font-size:17px}
+.flash .face{position:relative;grid-area:1/1;backface-visibility:hidden;-webkit-backface-visibility:hidden;background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;justify-content:center;font-size:17px}
 .flash .face.back{transform:rotateY(180deg);background:#F7F9FC}
+.flash .fc-opts{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:6px;font-size:15px}.flash .fc-opts li{display:flex;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#F7F9FC}.flash .fc-l{font-weight:700;color:var(--navy-2);min-width:18px}
 .flash .rule{margin-top:12px;font-size:12px;font-weight:700;color:var(--navy-2)}
 .chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
 .mode-switch{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 14px}
