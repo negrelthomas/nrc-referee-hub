@@ -41,3 +41,7 @@ Last updated: October 22, 2026
 - Admin can email all or a selection of referees from the roster (tick boxes, select all shown, test copy to self, one email per referee, logged).
 - Roster shows last sign in and last update with its author; filter on sign in status.
 - Change history on each referee record: who changed which field, from what to what, and when (admin by name, the referee, the hub server, or the database directly).
+- Initial assessment within 7 days of the first sign in: banner with the due date and a direct button on the referee home, reminder email with a direct link every 48 hours until done, due or overdue status on Admin > Programs, overdue referees in the NRC digest.
+- Tournament travel can be booked by the officiating referees (reimbursed by the organizer), besides the organizer or the NRC.
+- Organizers can declare international pairs they bring themselves (outside the US only, country or federation required); pairs needed is the number the NRC staffs; organizer page, tournament page, admin cards and emails show total, organizer and NRC pairs.
+- Test scores private across the site: assessments, tests, programs and quizzes readable only by the referee and admins (verified in the database rules); timed challenge leaderboard now opt in; privacy line on every test and in the guide.

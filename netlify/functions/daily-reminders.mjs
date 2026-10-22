@@ -4,6 +4,9 @@
 //  3. Organizer report missing 3 days after the event: reminder to the organizer (once).
 //  4. Programs overdue: reminder to the referee (once), listed in the NRC digest.
 //  5. Tournaments not fully staffed: staffing reminder to the NRC at the cadence set on the admin Staffing page.
+//  6. Initial assessment: certified referees who have signed in but not taken the baseline assessment get a reminder
+//     every 48 hours (first one the day after their first sign in), with a link straight to the test. Due 7 days after
+//     the first sign in; overdue referees are listed in the NRC digest.
 import { createClient } from "@supabase/supabase-js";
 import { sendMail, fmtDate } from "./mailer.mjs";
 
@@ -35,7 +38,7 @@ export default async () => {
   }
 
   // 2. travel not booked, NRC books, event within 21 days
-  const { data: soon } = await admin.from("tournaments").select("id,name,start_date,travel_managed_by").eq("travel_managed_by", "nrc").gte("start_date", inDays(0)).lte("start_date", inDays(21)).neq("status", "cancelled");
+  const { data: soon } = await admin.from("tournaments").select("id,name,start_date,travel_managed_by").in("travel_managed_by", ["nrc", "referee"]).gte("start_date", inDays(0)).lte("start_date", inDays(21)).neq("status", "cancelled");
   for (const t of soon || []) {
     const { data: asg } = await admin.from("assignments").select("id, referees(first_name,last_name)").eq("tournament_id", t.id);
     for (const a of asg || []) {
@@ -95,6 +98,36 @@ export default async () => {
       const res = await sendMail({ to, subject: `NRC hub: ${due.length} tournament(s) to staff`, html });
       await admin.from("email_log").insert({ to_email: to, subject: `NRC hub: ${due.length} tournament(s) to staff`, kind: "staffing_reminder", sent: res.sent, error: res.error });
       if (res.sent) for (const t of due) await log("staffing", t.id, to);
+    }
+  }
+
+  // 6. Initial assessment within 7 days of the first sign in, reminder every 48 hours until taken
+  {
+    const { data: rs } = await admin.from("referees").select("id,first_name,email,user_id,cert_level").eq("active", true).neq("cert_level", "candidate").not("user_id", "is", null);
+    const list = (rs || []).filter(r => r.email && !/@demo\.nrc$/i.test(r.email));
+    if (list.length) {
+      const uids = list.map(r => r.user_id);
+      const [{ data: done }, { data: profs }] = await Promise.all([
+        admin.from("assessments").select("user_id").in("user_id", uids),
+        admin.from("profiles").select("id,created_at").in("id", uids)]);
+      const took = new Set((done || []).map(a => a.user_id));
+      const firstAt = {}; (profs || []).forEach(p => firstAt[p.id] = p.created_at);
+      const link = `${base}/login.html?next=${encodeURIComponent("training.html#program")}`;
+      for (const r of list) {
+        if (took.has(r.user_id) || !firstAt[r.user_id]) continue;
+        const first = new Date(firstAt[r.user_id]).getTime();
+        if (Date.now() - first < 20 * 3600e3) continue;               // give a day after the first sign in
+        const due = new Date(first + 7 * 864e5);
+        const late = Date.now() > due.getTime();
+        if (late) digest.push(`Initial assessment overdue: ${r.first_name} (${r.email}), due ${fmtDate(due.toISOString().slice(0, 10))}`);
+        const { data: last } = await admin.from("reminder_log").select("created_at").eq("kind", "assessment").eq("target_id", r.id).order("created_at", { ascending: false }).limit(1);
+        if (last && last.length && Date.now() - new Date(last[0].created_at).getTime() < 47 * 3600e3) continue;   // every 48 hours (job runs daily)
+        const subject = late ? "Your initial rules assessment is overdue" : `Your initial rules assessment, due ${fmtDate(due.toISOString().slice(0, 10))}`;
+        const html = `<p>Hi ${esc(r.first_name)},</p><p>${late ? "Your initial assessment on the NRC Referee Hub was due on " + fmtDate(due.toISOString().slice(0, 10)) + " and is not done yet." : "Please take your initial assessment on the NRC Referee Hub by " + fmtDate(due.toISOString().slice(0, 10)) + "."} It gives the NRC a first picture of where every referee stands on the rules, and builds your own study program on the rules you miss.</p><ul><li>50 questions on the IHF rules at your level</li><li>60 minutes, in one sitting</li><li>Results by rule right after, visible to you and the NRC only</li></ul><p><a href="${link}" style="display:inline-block;background:#04234F;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Take the assessment</a></p><p style="font-size:13px;color:#666">The link signs you in if needed, then opens the assessment. Questions: ${esc(contact)}. This reminder repeats every two days until the assessment is done.</p><p>National Referee Committee</p>`;
+        const res = await sendMail({ to: r.email, subject, html });
+        await admin.from("email_log").insert({ to_email: r.email, subject, kind: "assessment_reminder", sent: res.sent, error: res.error });
+        if (res.sent) await log("assessment", r.id, r.email);
+      }
     }
   }
 

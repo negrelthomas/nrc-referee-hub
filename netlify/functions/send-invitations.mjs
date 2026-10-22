@@ -38,7 +38,7 @@ export default async (req) => {
   const designated = (confirmedRows || []).map(a => ({ assignment_id: a.id, role: a.role, ...a.referees }));
   const LEVEL = { candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3", nachc: "NACHC", ihf: "IHF" };
 
-  const LABEL = { name: "Name", start_date: "Start date", end_date: "End date", venue_name: "Venue", venue_address: "Address", venue_city: "City", venue_state: "State", nearest_airport_iata: "Nearest airport", pairs_needed: "Pairs needed", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights covered", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers covered", airport_transfer_how: "Airport transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure last day", travel_managed_by: "Travel booked by", notes: "Notes", status: "Status", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
+  const LABEL = { name: "Name", start_date: "Start date", end_date: "End date", venue_name: "Venue", venue_address: "Address", venue_city: "City", venue_state: "State", nearest_airport_iata: "Nearest airport", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "International pairs brought by the organizer", organizer_pairs_note: "Organizer pairs from", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights covered", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers covered", airport_transfer_how: "Airport transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure last day", travel_managed_by: "Travel booked by", notes: "Notes", status: "Status", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
   const logAndSend = async (to, subject, html, kindLabel) => { const r = await sendMail({ to, subject, html }); await admin.from("email_log").insert({ to_email: to, subject, kind: kindLabel, sent: r.sent, error: r.error }); return { email: to, sent: r.sent, error: r.error }; };
   const recipients = () => { const list = designated.map(d => ({ email: d.email, name: d.first_name })); return list; };
 
@@ -66,7 +66,7 @@ export default async (req) => {
       const subject = `Confirmed as ${roleWord}: ${t.name}, ${fmtDate(t.start_date)}`;
       const html = `<p>Hi ${esc(a.first_name)},</p><p>You are confirmed as <strong>${roleWord}</strong> for <strong>${esc(t.name)}</strong>.</p>
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br><strong>Where:</strong> ${esc(where)}<br>${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + "<br>" : ""}${others ? "<strong>Officials:</strong> " + others + "<br>" : ""}<strong>Organizer:</strong> ${esc(t.organizer_name)}, ${esc(t.organizer_email)}${t.organizer_phone ? ", " + esc(t.organizer_phone) : ""}</p>${duties}
-        <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : "the organizer"}.</p>
+        <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? "you (keep your receipts and record your bookings on the hub)" : "the organizer"}.</p>
         <p>Your trip and bookings are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p><p>National Referee Committee</p>`;
       results.push(await logAndSend(a.email, subject, html, "brief"));
     }
@@ -96,6 +96,8 @@ export default async (req) => {
   const partnerOf = id => { const p = (pairs || []).find(p => p.referee_a === id || p.referee_b === id); if (!p) return null; const pid = p.referee_a === id ? p.referee_b : p.referee_a; return designated.find(d => d.id === pid) || null; };
   const travelLine = t.travel_managed_by === "nrc"
     ? `The NRC books your flights and hotel and you see each booking on your referee home as it is made; do not book anything yourself unless the NRC asks you to.`
+    : t.travel_managed_by === "referee"
+    ? `You book your own travel within what the organizer covers above, and the organizer reimburses it. Record each booking on your referee home (Add a booking I made) and submit your expenses with receipts there, so the NRC and the organizer see them.`
     : `The organizer books travel directly with you within what they cover above; send them your travel details and copy ${contact}. Record what gets booked on your referee home so the NRC sees it.`;
 
   const results = [];

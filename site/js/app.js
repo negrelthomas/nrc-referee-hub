@@ -179,7 +179,7 @@
       const s = data && data.session;
       if (!s) return null;
       const { data: p } = await NRC.sb.from("profiles").select("id,email,role,full_name").eq("id", s.user.id).maybeSingle();
-      return { id: s.user.id, email: s.user.email, role: (p && p.role) || "referee", full_name: p && p.full_name };
+      return { id: s.user.id, email: s.user.email, created_at: s.user.created_at, role: (p && p.role) || "referee", full_name: p && p.full_name };
     })();
     return _userPromise;
   };

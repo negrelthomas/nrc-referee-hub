@@ -7,7 +7,7 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const FIELDS = ["name", "sanction", "region", "divisions", "club_id", "organizer_name", "organizer_email", "organizer_phone", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata",
   "start_date", "end_date", "pairs_needed", "games_expected", "hotel_nights_covered", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport",
-  "food_stipend_per_day", "meals_provided", "earliest_return_last_day", "budget_owner", "notes", "supervisor_needed", "supervisor_notes", "travel_managed_by"];
+  "food_stipend_per_day", "meals_provided", "earliest_return_last_day", "budget_owner", "notes", "supervisor_needed", "supervisor_notes", "travel_managed_by", "pairs_organizer", "organizer_pairs_note"];
 
 export default async (req) => {
   if (req.method !== "POST") return json(405, { error: "POST only" });
@@ -19,6 +19,10 @@ export default async (req) => {
   FIELDS.forEach(k => { if (body[k] !== undefined && body[k] !== "") row[k] = body[k]; });
   if (!row.name || !row.organizer_email || !row.start_date || !row.end_date) return json(400, { error: "Name, organizer email and dates are required." });
   if (row.end_date < row.start_date) return json(400, { error: "The end date is before the start date." });
+  row.pairs_organizer = Math.max(0, Math.min(20, parseInt(row.pairs_organizer, 10) || 0));
+  if (row.pairs_organizer && !String(row.organizer_pairs_note || "").trim()) return json(400, { error: "Give the country or federation of the pairs you bring. Only pairs based outside the United States can be brought by the organizer." });
+  if (!row.pairs_organizer) row.organizer_pairs_note = null;
+  if (row.travel_managed_by && !["organizer", "nrc", "referee"].includes(row.travel_managed_by)) row.travel_managed_by = "organizer";
   row.organizer_email = String(row.organizer_email).trim().toLowerCase();
   row.status = "submitted";
   // a signed in organizer owns the request
@@ -55,7 +59,7 @@ export default async (req) => {
   const when = `${fmtDate(t.start_date)} to ${fmtDate(t.end_date)}`;
   const nrcHtml = `<p>New tournament request on the hub.</p>
 <p><strong>${esc(t.name)}</strong><br>${when}<br>${esc([t.venue_name, t.venue_city, t.venue_state].filter(Boolean).join(", "))}<br>Club: ${esc(t.clubs ? t.clubs.name : "none")}<br>
-${t.pairs_needed} pair(s)${t.supervisor_needed ? " and a supervisor" : ""}, ${(t.divisions || []).join(", ") || "divisions not given"}<br>
+${t.pairs_needed} pair(s) for the NRC to staff${t.pairs_organizer ? ", plus " + t.pairs_organizer + " international pair(s) brought by the organizer (" + esc(t.organizer_pairs_note || "") + ")" : ""}${t.supervisor_needed ? " and a supervisor" : ""}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? "each referee" : "the organizer"}, ${(t.divisions || []).join(", ") || "divisions not given"}<br>
 Organizer: ${esc(t.organizer_name)} (${esc(t.organizer_email)})<br>Staff by: <strong>${fmtDate(t.staff_by)}</strong></p>
 <p><a href="${base}/admin/#staffing">Open the Staffing page</a></p>`;
   const r1 = await sendMail({ to: contact, subject: `New tournament request: ${t.name}`, html: nrcHtml, replyTo: t.organizer_email });

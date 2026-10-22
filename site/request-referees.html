@@ -43,7 +43,15 @@
         <div><label>End date</label><input name="end_date" type="date" required></div>
       </div>
       <div class="row">
-        <div><label>Referee pairs needed</label><input name="pairs_needed" type="number" min="1" value="2" required></div>
+        <div><label>Pairs the NRC staffs</label><input name="pairs_needed" type="number" min="0" value="2" required><div class="help">Referee pairs you need the NRC to designate. Every US based referee at your event comes through the NRC.</div></div>
+        <div><label>International pairs you bring yourself</label><input name="pairs_organizer" type="number" min="0" max="20" value="0"><div class="help">Only pairs from outside the United States, invited by you directly. Leave 0 if none.</div></div>
+      </div>
+      <div id="org-pairs" class="hidden">
+        <label>Country or federation of each pair you bring</label><input name="organizer_pairs_note" placeholder="Canada (Handball Canada), Mexico (FMH)">
+        <label style="font-weight:400"><input type="checkbox" id="org-pairs-ok" style="width:auto"> I confirm these pairs are based outside the United States.</label>
+      </div>
+      <p class="small" id="pairs-total" style="margin:6px 0 0"></p>
+      <div class="row">
         <div><label>Earliest acceptable departure on the last day</label><input name="earliest_return_last_day" type="time"><div class="help">Pairs scheduled on the final games cannot leave before this time.</div></div>
       </div>
       <div class="row">
@@ -77,7 +85,7 @@
 
       <h3 style="margin-top:22px">Bookings and expenses</h3>
       <div class="row">
-        <div><label>Who books and pays referee travel?</label><select name="travel_managed_by"><option value="organizer">We book flights, hotel and car ourselves</option><option value="nrc">The NRC books on our behalf, we reimburse</option></select><div class="help">Either way, the designated referees and their travel details show on your organizer page.</div></div>
+        <div><label>Who books and pays referee travel?</label><select name="travel_managed_by"><option value="organizer">We book flights, hotel and car ourselves</option><option value="nrc">The NRC books on our behalf, we reimburse</option><option value="referee">Each referee books their own travel, we reimburse what we cover</option></select><div class="help">In every case, the designated referees and their travel details show on your organizer page.</div></div>
       </div>
 
       <h3 style="margin-top:22px">Contact</h3>
@@ -116,14 +124,25 @@ document.getElementById("div-host").innerHTML = NRC.divisionPicker("divisions", 
   sel.innerHTML = '<option value="">Pick the USATH registered club hosting the event</option>' + (r.data || []).map(c => `<option value="${c.id}">${NRC.esc(c.name)}${c.state ? " (" + NRC.esc(c.state) + ")" : ""}</option>`).join("");
   if (keep) sel.value = keep;
 })();
+function pairsSummary() {
+  const f = document.getElementById("req-form"); const nrc = parseInt(f.pairs_needed.value, 10) || 0, own = parseInt(f.pairs_organizer.value, 10) || 0;
+  NRC.$("#org-pairs").classList.toggle("hidden", !own);
+  f.organizer_pairs_note.required = own > 0;
+  NRC.$("#pairs-total").innerHTML = `<strong>${nrc + own} pair${nrc + own === 1 ? "" : "s"} at the event</strong>: ${nrc} staffed by the NRC${own ? ", " + own + " international brought by you" : ""}.`;
+}
+["pairs_needed", "pairs_organizer"].forEach(n => document.querySelector(`#req-form [name=${n}]`).addEventListener("input", pairsSummary));
+document.addEventListener("DOMContentLoaded", pairsSummary);
 document.getElementById("req-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = NRC.$("#msg");
+  { const f = e.target, own = parseInt(f.pairs_organizer.value, 10) || 0, nrc = parseInt(f.pairs_needed.value, 10) || 0;
+    if (!own && !nrc) { NRC.notice(msg, "Enter at least one pair.", "error"); return; }
+    if (own && !NRC.$("#org-pairs-ok").checked) { NRC.notice(msg, "Pairs you bring yourself must be based outside the United States. Tick the confirmation, or ask the NRC to staff them.", "error"); NRC.$("#org-pairs-ok").focus(); return; } }
   if (!NRC.sb) { NRC.notice(msg, "The database is not configured yet. Email your request to referee@handballusa.org.", "error"); return; }
   const f = new FormData(e.target); const row = {};
   for (const [k, v] of f.entries()) row[k] = v === "" ? null : v;
   ["flights_covered", "airport_transfers_covered", "supervisor_needed"].forEach(k => row[k] = row[k] === "true");
-  ["pairs_needed", "games_expected", "hotel_nights_covered"].forEach(k => row[k] = row[k] == null ? null : parseInt(row[k], 10));
+  ["pairs_needed", "pairs_organizer", "games_expected", "hotel_nights_covered"].forEach(k => row[k] = row[k] == null ? null : parseInt(row[k], 10));
   if (row.food_stipend_per_day != null) row.food_stipend_per_day = parseFloat(row.food_stipend_per_day);
   if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
   if (row.venue_state) row.venue_state = row.venue_state.toUpperCase();

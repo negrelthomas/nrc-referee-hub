@@ -401,8 +401,10 @@
     <div><button class="btn sm secondary" type="submit">Save</button></div>
     <div><label>Venue</label><input name="venue_name"></div>
     <div><label>City</label><input name="venue_city"></div>
-    <div><label>Pairs</label><input name="pairs_needed" type="number" min="1"></div>
-    <div><label>Travel booked by</label><select name="travel_managed_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option></select></div>
+    <div><label>Pairs NRC staffs</label><input name="pairs_needed" type="number" min="0"></div>
+    <div><label>Pairs organizer brings</label><input name="pairs_organizer" type="number" min="0" max="20" title="International pairs only (based outside the US)"></div>
+    <div><label>Travel booked by</label><select name="travel_managed_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option><option value="referee">Referees</option></select></div>
+    <div style="grid-column:span 2"><label>Organizer pairs from</label><input name="organizer_pairs_note" placeholder="Country or federation, outside the US only"></div>
     <div><button class="btn sm ghost" type="button" onclick="notifyChanges()">Notify changes</button></div>
     <div style="grid-column:span 2"><label>Hosting club</label><select name="club_id"></select></div>
     <div><label>Staff by</label><input name="staff_by" type="date"></div>
