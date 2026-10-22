@@ -15,8 +15,8 @@
 <div class="wrap" id="main">
 <section>
   <h1>Referee directory</h1>
-  <p class="muted">Active USATH referees. Contact details are held by the NRC.</p>
-  <div class="toolbar"><input id="q" placeholder="Search name, club, city, airport"><select id="f-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select></div>
+  <p class="muted">Certified USATH referees. Email and phone show for referees who chose to share them with other referees (My profile, under Phone). Levels stay between each referee and the NRC.</p>
+  <div class="toolbar"><input id="q" placeholder="Search name, club, city, airport"></div>
   <div class="grid c3" id="list"></div>
 </section>
 </div>
@@ -27,15 +27,15 @@
 <script>
 let rows = [];
 function render() {
-  const q = NRC.$("#q").value.toLowerCase(), l = NRC.$("#f-level").value;
-  NRC.$("#list").innerHTML = rows.filter(r => (!l || r.cert_level === l) && (!q || [r.first_name, r.last_name, r.club_name, r.home_city, r.home_state, r.home_airport_iata].join(" ").toLowerCase().includes(q)))
-    .map(r => `<div class="card" style="display:flex;gap:14px;align-items:center"><img class="avatar lg" src="${r.photo_url ? NRC.esc(r.photo_url) : 'assets/avatar.svg'}" alt=""><div><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong><br>${NRC.levelPill(r.cert_level, r.level_confirmed)}<div class="small muted" style="margin-top:6px">${NRC.esc(r.club_name || "No club")}<br>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " &middot; " + NRC.esc(r.home_airport_iata) : ""}</div></div></div>`).join("") || '<div class="card">No referee matches.</div>';
+  const q = NRC.$("#q").value.toLowerCase();
+  NRC.$("#list").innerHTML = rows.filter(r => (!q || [r.first_name, r.last_name, r.club_name, r.home_city, r.home_state, r.home_airport_iata].join(" ").toLowerCase().includes(q)))
+    .map(r => `<div class="card" style="display:flex;gap:14px;align-items:center"><img class="avatar lg" src="${r.photo_url ? NRC.esc(r.photo_url) : 'assets/avatar.svg'}" alt=""><div><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.cert_level ? "<br>" + NRC.levelPill(r.cert_level, r.level_confirmed) : ""}<div class="small muted" style="margin-top:6px">${NRC.esc(r.club_name || "No club affiliation")}<br>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " &middot; " + NRC.esc(r.home_airport_iata) : ""}</div>${r.email || r.phone ? `<div class="small" style="margin-top:6px">${r.email ? `<a href="mailto:${NRC.esc(r.email)}">${NRC.esc(r.email)}</a>` : ""}${r.phone ? `${r.email ? "<br>" : ""}<a href="tel:${NRC.esc(r.phone.replace(/[^+\d]/g, ""))}">${NRC.esc(r.phone)}</a>` : ""}</div>` : ""}</div></div>`).join("") || '<div class="card">No referee matches.</div>';
 }
 document.addEventListener("DOMContentLoaded", async () => {
   if (!await NRC.requireUser()) return;
   const { data } = await NRC.sb.from("referee_directory").select("*").order("last_name");
   rows = data || []; render();
-  ["#q", "#f-level"].forEach(s => NRC.$(s).addEventListener("input", render));
+  ["#q"].forEach(s => NRC.$(s).addEventListener("input", render));
 });
 </script>
 </body>

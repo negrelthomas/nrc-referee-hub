@@ -12,7 +12,7 @@ site/                      published folder (Netlify publish = site)
   training.html            quiz (practice, timed), flashcards, progress
   request-referees.html    organizer intake form (writes to tournaments), asks who books travel
   organizer.html           organizer page: progress of each request, designated officials, travel bookings
-  referees.html            public list of certified referees (name, level, dates, club; no contact details)
+  referees.html            public list of certified referees (name, dates, club; level visible to the NRC and the referee only; no contact details)
   directory.html           referee directory (signed in)
   login.html               magic link sign in, with a one time code fallback
   guide/                   user guides (index, referees, organizers, admin) with click by click walkthroughs; images in guide/img
@@ -39,6 +39,7 @@ supabase/
   changes.sql              organizer update policy, tournament_changes log, status guard trigger
   clubs_outreach.sql       club_contacts (admin only, seeded from the CalCup 2027 registration list), club_messages log, club_id on tournaments and inquiries, club_affiliation (member, volunteer, none) on inquiries (also in schema.sql)
   evaluator_track.sql      evaluators (referees, club members, NRC), rules exam and video calibration certification, calibration library with hidden NRC reference ratings, IHF observation reports (21 items, one per pair per game) synced to evaluations, weighted rankings; organizers no longer evaluate (run its STEP 0 line alone first)
+  level_privacy_contacts.sql  levels visible to the NRC and the referee only (public list, directory, leaderboard, organizer view), share_contact opt in for referee email and phone, guard on self edits of level and status (also in schema.sql)
   organizers_travel.sql    organizer sign in (role organizer for emails that submitted a request), travel_managed_by, travel_bookings, organizer and staffing views
 netlify/functions/        daily-reminders.mjs (scheduled, 15:00 UTC), mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data), club-message.mjs (NRC messages to club contacts, one email per contact with the club's figures, test mode to the admin)
 netlify.toml, package.json
@@ -90,9 +91,9 @@ Email needs these environment variables on Netlify (Site configuration > Environ
 
 Staffing flow: organizer request (with supervisor need) > Find referees (declared weekend availability first, local flag, pairs) > invitations with accept, tentative, decline and a sign in prompt > confirm (count and pair checks, full brief emailed, assignment created) > Notify organizer (designated list and private page `tournament.html?token=`). Referees declare weekend availability on their home page.
 
-## Phase 3 (evaluations at scale)
+## Roadmap
 
-Observer accounts, season reports, exports, organizer accounts with their own request list.
+Development items not yet built, with their source and dependencies, are in `ROADMAP.md`.
 
 ## Local preview
 

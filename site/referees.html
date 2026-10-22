@@ -18,24 +18,22 @@
   <div class="wrap">
     <p class="kicker">Certified referees</p>
     <h1>Certified USATH referees</h1>
-    <p class="sub">The NRC roster with level and certification dates. To have referees at your event, use the <a href="request-referees.html" style="color:#fff;text-decoration:underline">tournament request page</a>.</p>
+    <p class="sub">The NRC roster with certification dates. Levels stay between each referee and the NRC. To have referees at your event, use the <a href="request-referees.html" style="color:#fff;text-decoration:underline">tournament request page</a>.</p>
   </div>
 </section>
 
 <div class="wrap">
 <section>
-  <div class="grid c4" style="margin-bottom:16px">
-    <div class="stat"><div class="n" id="st-total">&nbsp;</div><div class="l">Certified referees</div></div>
-    <div class="stat"><div class="n" id="st-l1">&nbsp;</div><div class="l">Level 1</div></div>
-    <div class="stat"><div class="n" id="st-l2">&nbsp;</div><div class="l">Level 2</div></div>
-    <div class="stat good"><div class="n" id="st-l3">&nbsp;</div><div class="l">Level 3 and above</div></div>
+  <div class="grid c3" style="margin-bottom:16px">
+    <div class="stat good"><div class="n" id="st-total">&nbsp;</div><div class="l">Certified referees</div></div>
+    <div class="stat"><div class="n" id="st-clubs">&nbsp;</div><div class="l">Clubs represented</div></div>
+    <div class="stat"><div class="n" id="st-states">&nbsp;</div><div class="l">States</div></div>
   </div>
   <div class="toolbar">
     <input id="q" placeholder="Search name, club, state">
-    <select id="f-level"><option value="">All levels</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3 (National)</option><option value="nachc">NACHC Continental</option><option value="ihf">IHF International</option></select>
-    <select id="f-sort"><option value="name">Sort by name</option><option value="level">Sort by level</option><option value="since">Sort by certified since</option><option value="last">Sort by last certification</option></select>
+    <select id="f-sort"><option value="name">Sort by name</option><option value="since">Sort by certified since</option><option value="last">Sort by last certification</option></select>
   </div>
-  <div class="table-wrap"><table id="tbl"><thead><tr><th></th><th>Referee</th><th>Current level</th><th>Certified since</th><th>Last certification</th><th>Club</th><th>State</th></tr></thead><tbody></tbody></table></div>
+  <div class="table-wrap"><table id="tbl"><thead><tr><th></th><th>Referee</th><th>Certified since</th><th>Last certification</th><th>Club</th><th>State</th></tr></thead><tbody></tbody></table></div>
   <p class="small muted" style="margin-top:10px">To request referees for an event, use the <a href="request-referees.html">tournament request page</a>. For anything else, write to the NRC at <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>. Signed in referees can open the <a href="directory.html">referee directory</a>.</p>
 </section>
 </div>
@@ -58,23 +56,21 @@
 <script src="js/app.js"></script>
 <script>
 let rows = [], isAdmin = false;
-const RANK = { level_1: 1, level_2: 2, level_3: 3, nachc: 4, ihf: 5 };
 function render() {
-  const q = NRC.$("#q").value.toLowerCase(), lv = NRC.$("#f-level").value, sort = NRC.$("#f-sort").value;
+  const q = NRC.$("#q").value.toLowerCase(), sort = NRC.$("#f-sort").value;
   const tb = NRC.$("#tbl tbody"); tb.innerHTML = "";
-  const list = rows.filter(r => (!lv || r.cert_level === lv) && (!q || [r.first_name, r.last_name, r.club_name, r.home_state].join(" ").toLowerCase().includes(q)));
-  list.sort((a, b) => sort === "level" ? (RANK[b.cert_level] - RANK[a.cert_level]) || a.last_name.localeCompare(b.last_name)
-    : sort === "since" ? String(a.certified_since || "9").localeCompare(String(b.certified_since || "9"))
+  const list = rows.filter(r => (!q || [r.first_name, r.last_name, r.club_name, r.home_state].join(" ").toLowerCase().includes(q)));
+  list.sort((a, b) => sort === "since" ? String(a.certified_since || "9").localeCompare(String(b.certified_since || "9"))
     : sort === "last" ? String(b.last_certified_on || "").localeCompare(String(a.last_certified_on || ""))
     : a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
-  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr class="clickable" tabindex="0" data-id="${r.id}"><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" loading="lazy"></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}</td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
-  if (!list.length) tb.innerHTML = '<tr><td colspan="7">No referee matches.</td></tr>';
+  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr class="clickable" tabindex="0" data-id="${r.id}"><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" loading="lazy"></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
+  if (!list.length) tb.innerHTML = '<tr><td colspan="6">No referee matches.</td></tr>';
 }
 function openProfile(id) {
   const r = rows.find(x => x.id === id); if (!r) return;
   NRC.$("#p-photo").src = r.photo_url || "assets/avatar.svg";
   NRC.$("#p-name").textContent = r.first_name + " " + r.last_name;
-  NRC.$("#p-level").innerHTML = NRC.levelPill(r.cert_level, r.level_confirmed);
+  NRC.$("#p-level").innerHTML = r.cert_level ? NRC.levelPill(r.cert_level, r.level_confirmed) + ' <span class="small muted">visible to you and the NRC only</span>' : "";
   const facts = [["Club", r.club_name], ["Home", [r.home_city, r.home_state].filter(Boolean).join(", ")], ["Certified since", NRC.fmtDate(r.certified_since) || "On file with the NRC"], ["Last certification", NRC.fmtDate(r.last_certified_on)]].filter(f => f[1]);
   NRC.$("#p-facts").innerHTML = facts.map(([k, v]) => `<dt>${k}</dt><dd>${NRC.esc(v)}</dd>`).join("");
   const ed = NRC.$("#p-edit"); ed.classList.toggle("hidden", !isAdmin); ed.href = "admin/index.html#referee/" + r.id;
@@ -87,16 +83,15 @@ function openProfile(id) {
 document.addEventListener("DOMContentLoaded", async () => {
   NRC.$("#tbl tbody").addEventListener("click", e => { const tr = e.target.closest("tr[data-id]"); if (tr) openProfile(tr.dataset.id); });
   NRC.$("#tbl tbody").addEventListener("keydown", e => { const tr = e.target.closest("tr[data-id]"); if (tr && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openProfile(tr.dataset.id); } });
-  if (!NRC.sb) { NRC.$("#tbl tbody").innerHTML = '<tr><td colspan="7">Database not configured. The referee list appears here once Supabase is set up.</td></tr>'; return; }
+  if (!NRC.sb) { NRC.$("#tbl tbody").innerHTML = '<tr><td colspan="6">Database not configured. The referee list appears here once Supabase is set up.</td></tr>'; return; }
   const { data } = await NRC.sb.from("referee_directory").select("*");
   rows = data || [];
   NRC.currentUser().then(u => { isAdmin = !!(u && u.role === "admin"); }).catch(() => {});
   NRC.$("#st-total").textContent = rows.length;
-  NRC.$("#st-l1").textContent = rows.filter(r => r.cert_level === "level_1").length;
-  NRC.$("#st-l2").textContent = rows.filter(r => r.cert_level === "level_2").length;
-  NRC.$("#st-l3").textContent = rows.filter(r => RANK[r.cert_level] >= 3).length;
+  NRC.$("#st-clubs").textContent = new Set(rows.map(r => r.club_name).filter(Boolean)).size;
+  NRC.$("#st-states").textContent = new Set(rows.map(r => r.home_state).filter(Boolean)).size;
   render();
-  ["#q", "#f-level", "#f-sort"].forEach(s => NRC.$(s).addEventListener("input", render));
+  ["#q", "#f-sort"].forEach(s => NRC.$(s).addEventListener("input", render));
 });
 </script>
 </body>

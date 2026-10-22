@@ -68,7 +68,7 @@
     if (h === "referee" && arg) openRefFromLink(arg);
   }
   function fillSelects() {
-    NRC.$$("select[name=club_id]").forEach(s => { s.innerHTML = '<option value="">No club</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join(""); });
+    NRC.$$("select[name=club_id]").forEach(s => { s.innerHTML = '<option value="">No club affiliation</option>' + clubs.map(c => `<option value="${c.id}">${NRC.esc(c.name)}</option>`).join(""); });
     NRC.$$("select[name=tournament_id]").forEach(s => { s.innerHTML = '<option value="">None</option>' + tournaments.map(t => `<option value="${t.id}">${NRC.esc(t.name)} (${NRC.fmtDate(t.start_date)})</option>`).join(""); });
     const rs = Object.keys(NRC.RULES).map(r => `<option value="${r}">Rule ${r}: ${NRC.RULES[r]}</option>`).join("");
     $("#q-rule").innerHTML = '<option value="">All rules</option>' + rs; $("select[name=rule_number]").innerHTML = rs;
@@ -244,7 +244,7 @@
   // ---------- clubs: list, club page, contacts, messages, action plan ----------
   const CTYPE = { adult: "Adult", collegiate_men: "Collegiate (M)", collegiate_women: "Collegiate (W)", youth: "Youth" };
   const CERT = ["level_1", "level_2", "level_3", "nachc", "ihf"];
-  const AFF = { member: "Member", volunteer: "Volunteer", none: "No club" };
+  const AFF = { member: "Member", volunteer: "Volunteer", none: "No club affiliation" };
   const normClub = s => String(s || "").toLowerCase().replace(/\b(thc|hc|wthc|team handball( club)?|handball( club)?|club)\b/g, "").replace(/[^a-z0-9]/g, "");
   const clubName = id => (clubs.find(c => c.id === id) || {}).name || "";
   // inquiry belongs to a club when it was picked from the list, or when the free text matches the club name

@@ -71,8 +71,9 @@
         <div><label>Email</label><input name="email" type="email" readonly style="background:#F0F3F8"><div class="help">Your sign in. <a href="#" onclick="openEmailChange();return false">Change email</a></div></div>
         <div><label>Phone</label><input name="phone"></div>
       </div>
+      <label class="check" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0 12px;font-weight:500"><input type="checkbox" name="share_contact" style="width:auto;margin-top:3px"><span>Show my email and phone to other signed in referees in the referee directory. Organizers and visitors never see them.</span></label>
       <div class="row">
-        <div><label>Club</label><select name="club_id"><option value="">No club</option></select></div>
+        <div><label>Club</label><select name="club_id"><option value="">No club affiliation</option></select></div>
         <div><label>USATH member ID (Sport80)</label><input name="usath_member_id"></div>
       </div>
       <div class="row">
@@ -170,7 +171,7 @@
     <form id="tour-form">
       <div class="row">
         <div><label>Phone</label><input name="phone" autocomplete="tel"></div>
-        <div><label>Club</label><select name="club_id"><option value="">No club</option></select></div>
+        <div><label>Club</label><select name="club_id"><option value="">No club affiliation</option></select></div>
       </div>
       <div class="row">
         <div><label>Home city</label><input name="home_city"></div>
@@ -253,6 +254,7 @@ async function load() {
   f.email.value = user.email;
   if (ref) {
     ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
+    f.share_contact.checked = !!ref.share_contact;
     if (ref.photo_url) $("#photo").src = ref.photo_url;
     $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", ""); if (ref.level1_theory_passed_on && ref.cert_level === "candidate") $("#st-level").insertAdjacentHTML("afterend", '<span class="pill green" style="margin-top:4px;display:inline-block">Theory passed</span>');
     const today = NRC.localDate();
@@ -284,6 +286,7 @@ $("#form").addEventListener("submit", async (e) => {
   const f = e.target; const row = {};
   ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => row[k] = f[k].value.trim() || null);
   ["home_state","home_airport_iata","departure_airport_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
+  row.share_contact = f.share_contact.checked;
   row.updated_at = new Date().toISOString();
   let res;
   res = await NRC.sb.from("referees").update(row).eq("id", ref.id).select().single();
