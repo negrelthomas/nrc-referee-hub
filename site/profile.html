@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
-<style>.weekends{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:6px}.weekends button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 4px;font-size:13px;cursor:pointer;line-height:1.2}.weekends button.available{background:#E3F6E8;border-color:#2E9E5B;color:#17532D}.weekends button.tentative{background:#FFF4D6;border-color:#D99A00;color:#6B4C00}.weekends button.unavailable{background:#FBE3E6;border-color:#C8102E;color:#7A0A1C}</style>
+<style>.weekends{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}.weekends button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 6px;font:inherit;font-size:13px;cursor:pointer;line-height:1.25;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:58px}.weekends button:disabled{cursor:default}.weekends .wk-d{font-weight:700}.weekends .wk-ev{display:block;font-size:11.5px;font-weight:600;padding:1px 0 1px 6px;border-left:3px solid #8796A8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}.weekends .wk-ev.s-usath{border-color:var(--red)}.weekends .wk-ev.s-intl{border-color:#7B3FA0}.weekends .wk-ev.s-club{border-color:var(--navy-2)}.weekends .wk-st{font-size:11.5px;color:var(--muted)}.weekends button.available{background:#E3F6E8;border-color:#2E9E5B;color:#17532D}.weekends button.tentative{background:#FFF4D6;border-color:#D99A00;color:#6B4C00}.weekends button.unavailable{background:#FBE3E6;border-color:#C8102E;color:#7A0A1C}</style>
 </head>
 <body data-page="profile.html">
 <a class="skip" href="#main">Skip to content</a>
@@ -43,7 +43,7 @@
     <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
     <div class="card" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">Evaluator track</h3><div class="small muted">Rate referee pairs for the NRC from game video. Rules exam and video calibration first.</div></div><a class="btn sm ghost" href="evaluator.html">Open the evaluator page</a></div>
     <div class="grid c2" style="margin-top:14px">
-      <div class="card"><h3>Weekends I can referee</h3><p class="small muted">Tap a weekend to cycle: available, tentative, unavailable. The NRC sees this when staffing a tournament; weekends you leave blank count as unknown.</p>
+      <div class="card"><h3>Weekends I can referee</h3><p class="small muted">Tap a weekend to cycle: available, tentative, unavailable. Tournaments on the calendar show under each weekend (hover for details). Weekends left blank count as unknown.</p>
         <div id="weekends" class="weekends"></div>
         <h3 style="margin-top:16px">Blocked dates</h3><p class="small muted">Longer periods you cannot referee (travel, season with your club).</p>
         <div class="avail-list" id="avail-list"></div>
@@ -262,8 +262,11 @@ async function load() {
     loadHome(); loadTournaments(); loadGames(); loadEvals(); loadAssignments(); loadTraining();
     if (!ref.onboarded_at && !PREVIEW) startTour(false);
   } else {
-    NRC.notice($("#msg"), "Your account is not linked to a referee record. Write to referee@handballusa.org.", "error");
+    NRC.notice($("#msg"), "Your account is not linked to a referee record, so this page shows the tournament calendar only. Referees on the roster declare their weekends here.", "error");
     $("#form").classList.add("hidden");
+    const wc = $("#weekends") && $("#weekends").closest(".card");
+    if (wc) { wc.querySelector("h3").textContent = "Tournament calendar"; wc.querySelector("p").textContent = "Upcoming events on the NRC calendar, by weekend. A question mark means the dates are projected from the last edition."; [...wc.children].forEach((x, i) => { if (i > 2) x.classList.add("hidden"); }); }
+    loadWeekends(true);
   }
 }
 window.openEmailChange = function () { const f = $("#form-email"); f.reset(); $("#email-msg").classList.add("hidden"); f.querySelector("button[type=submit]").disabled = false; $("#dlg-email").showModal(); };
@@ -366,15 +369,26 @@ async function loadHome() {
 }
 let WA = {};
 function saturday(d) { const x = new Date(d); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); x.setHours(12, 0, 0, 0); return x; }
-async function loadWeekends() {
-  const { data } = await NRC.sb.from("weekend_availability").select("*").eq("referee_id", ref.id).gte("weekend", NRC.localDate());
+// weekend grid with the tournaments on the calendar; read only when the account has no referee record
+async function loadWeekends(readOnly) {
+  const today = NRC.localDate();
+  const [{ data }, { data: ev }] = await Promise.all([
+    readOnly ? Promise.resolve({ data: [] }) : NRC.sb.from("weekend_availability").select("*").eq("referee_id", ref.id).gte("weekend", today),
+    NRC.sb.from("event_calendar").select("id,name,sanction,start_date,end_date,date_status,venue_city,venue_state").gte("end_date", today).order("start_date")]);
   WA = {}; (data || []).forEach(r => WA[r.weekend] = r.status);
+  const EV = ev || [];
   const host = $("#weekends"); host.innerHTML = "";
+  const iso = (x) => NRC.localDate(x);
   let d = saturday(new Date());
   for (let i = 0; i < 26; i++) {
-    const key = d.toISOString().slice(0, 10); const st = WA[key] || "";
+    const key = iso(d); const st = WA[key] || "";
+    const fri = new Date(d); fri.setDate(fri.getDate() - 1); const sun = new Date(d); sun.setDate(sun.getDate() + 1);
+    const evs = EV.filter(e => e.start_date <= iso(sun) && e.end_date >= iso(fri));
+    const cls = (s) => s === "usath" ? "s-usath" : s === "international" ? "s-intl" : "s-club";
     const b = document.createElement("button"); b.type = "button"; b.className = st; b.dataset.w = key;
-    b.innerHTML = d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "<br><span class='small'>" + (st || "unknown") + "</span>";
+    b.title = evs.map(e => e.name + (e.venue_city ? ", " + e.venue_city + (e.venue_state ? " " + e.venue_state : "") : "") + (e.date_status === "tentative" ? " (dates tentative)" : "")).join("\n");
+    b.innerHTML = `<span class="wk-d">${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>` + evs.slice(0, 2).map(e => `<span class="wk-ev ${cls(e.sanction)}">${NRC.esc(e.name.replace(/\s+20\d\d.*$/, ""))}${e.date_status === "tentative" ? " ?" : ""}</span>`).join("") + (evs.length > 2 ? `<span class="wk-ev">+${evs.length - 2} more</span>` : "") + (readOnly ? "" : `<span class="wk-st">${st || "unknown"}</span>`);
+    if (readOnly) { b.disabled = true; host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7); continue; }
     b.onclick = async () => { const next = { "": "available", available: "tentative", tentative: "unavailable", unavailable: "available" }[st]; const { error } = await NRC.sb.from("weekend_availability").upsert({ referee_id: ref.id, weekend: key, status: next, updated_at: new Date().toISOString() }, { onConflict: "referee_id,weekend" }); if (error) NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); else loadWeekends(); };
     host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7);
   }

@@ -113,6 +113,8 @@ p{margin:0 0 1em}
 .btn.yellow:hover{background:#D9DC1E}
 .btn[disabled]{opacity:.5;cursor:default}
 label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+button{font-family:inherit}
+.btn{white-space:nowrap}
 input,select,textarea{width:100%;font:inherit;padding:10px 12px;border:1px solid #C9D2DE;border-radius:8px;background:#fff}
 input:focus,select:focus,textarea:focus{outline:2px solid var(--navy-2);outline-offset:1px;border-color:var(--navy-2)}
 textarea{min-height:90px}
