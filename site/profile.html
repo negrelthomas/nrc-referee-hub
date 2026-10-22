@@ -44,9 +44,9 @@
     <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
     <div class="card" style="margin-top:14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap"><div><h3 style="margin:0">Evaluator track</h3><div class="small muted">Rate referee pairs for the NRC from game video. Rules exam and video calibration first.</div></div><a class="btn sm ghost" href="evaluator.html">Open the evaluator page</a></div>
     <div class="grid c2" style="margin-top:14px">
-      <div class="card"><h3>Weekends I can referee</h3><p class="small muted">Tap a weekend to cycle: available, tentative, unavailable. Tournaments on the calendar show under each weekend (hover for details). Weekends left blank count as unknown.</p>
+      <div class="card"><h3>Weekends I can referee</h3><ul class="small muted" style="padding-left:18px;margin:6px 0 10px"><li>Tap a weekend to cycle: available, tentative, unavailable</li><li>Mark unavailable only the weekends you cannot referee at all</li><li>Weekends of tournaments you are confirmed for show as <strong>Assigned</strong>: leave them, the NRC already counts on you</li></ul>
         <div id="weekends" class="weekends"></div>
-        <h3 style="margin-top:16px">Blocked dates</h3><p class="small muted">Longer periods you cannot referee (travel, season with your club).</p>
+        <h3 style="margin-top:16px">Blocked dates</h3><p class="small muted">Periods you cannot referee at all (travel, season with your club). Do not block the dates of a tournament you are already confirmed for.</p>
         <div class="avail-list" id="avail-list"></div>
         <form id="avail-form" class="row" style="margin-top:10px;grid-template-columns:1fr 1fr auto;align-items:end;gap:8px">
           <div><label>From</label><input name="start_date" type="date" required></div>
@@ -353,6 +353,8 @@ async function loadHome() {
   const { data: asmt } = await NRC.sb.from("assessments").select("id,pct,passed,created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
   const { data: prg } = await NRC.sb.from("programs").select("status,due_on,weak_rules").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1);
   const pr = prg && prg[0];
+  const { data: ovs } = await NRC.sb.from("availability_overrides").select("token,status,reason,created_by_label,tournaments(name,start_date)").eq("referee_id", ref.id).eq("status", "pending");
+  (ovs || []).forEach(o => alerts.unshift(`<div class="alert warn"><div><div class="t">The NRC marked you available for ${NRC.esc(o.tournaments ? o.tournaments.name : "a tournament")}</div><div class="small">Reason: ${NRC.esc(o.reason)}. Accept the change or revert it.</div></div><a class="btn sm" href="override.html?token=${o.token}">Answer</a></div>`));
   const needAssessment = certified && !(asmt && asmt.length);
   if (needAssessment) {
     const first = !PREVIEW && user.created_at ? new Date(user.created_at) : null;
@@ -384,7 +386,11 @@ async function loadHome() {
   const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n)[0];
   $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way and counts on the <a href=\"training.html#board\">leaderboard</a>.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
 }
-let WA = {};
+let WA = {}, MYA = [];
+async function loadMyAssignments() {
+  const { data } = await NRC.sb.from("assignments").select("tournament_id,role,tournaments(name,start_date,end_date,status)").eq("referee_id", ref.id);
+  MYA = (data || []).filter(a => a.tournaments && a.tournaments.status !== "cancelled" && a.tournaments.end_date >= NRC.localDate());
+}
 function saturday(d) { const x = new Date(d); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); x.setHours(12, 0, 0, 0); return x; }
 // weekend grid with the tournaments on the calendar; read only when the account has no referee record
 async function loadWeekends(readOnly) {
@@ -393,6 +399,7 @@ async function loadWeekends(readOnly) {
     readOnly ? Promise.resolve({ data: [] }) : NRC.sb.from("weekend_availability").select("*").eq("referee_id", ref.id).gte("weekend", today),
     NRC.sb.from("event_calendar").select("id,name,sanction,start_date,end_date,date_status,venue_city,venue_state").gte("end_date", today).order("start_date")]);
   WA = {}; (data || []).forEach(r => WA[r.weekend] = r.status);
+  if (!readOnly) await loadMyAssignments();
   const EV = ev || [];
   const host = $("#weekends"); host.innerHTML = "";
   const iso = (x) => NRC.localDate(x);
@@ -409,6 +416,13 @@ async function loadWeekends(readOnly) {
     b.title = evs.map(e => e.name + (e.venue_city ? ", " + e.venue_city + (e.venue_state ? " " + e.venue_state : "") : "") + (e.date_status === "tentative" ? " (dates tentative)" : "")).join("\n");
     b.innerHTML = `<span class="wk-d">${d.toLocaleDateString("en-US", { month: "short", day: "numeric" })}</span>` + evs.slice(0, 2).map(e => `<span class="wk-ev ${cls(e.sanction)}">${NRC.esc(e.name.replace(/\s+20\d\d.*$/, ""))}${e.date_status === "tentative" ? " ?" : ""}</span>`).join("") + (evs.length > 2 ? `<span class="wk-ev">+${evs.length - 2} more</span>` : "") + (readOnly ? "" : `<span class="wk-st">${st || "unknown"}</span>`);
     if (readOnly) { b.disabled = true; host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7); continue; }
+    const mine = MYA.find(a => a.tournaments.start_date <= iso(sun) && a.tournaments.end_date >= iso(fri));
+    if (mine) {
+      b.className = "available"; b.title = "You are confirmed for " + mine.tournaments.name;
+      b.querySelector(".wk-st").textContent = "assigned";
+      b.onclick = () => alert(`You are confirmed for ${mine.tournaments.name} on this weekend. If you can no longer officiate, write to the NRC at referee@handballusa.org.`);
+      host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7); continue;
+    }
     b.onclick = async () => { const next = { "": "available", available: "tentative", tentative: "unavailable", unavailable: "available" }[st]; const { error } = await NRC.sb.from("weekend_availability").upsert({ referee_id: ref.id, weekend: key, status: next, updated_at: new Date().toISOString() }, { onConflict: "referee_id,weekend" }); if (error) NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); else loadWeekends(); };
     host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7);
   }
@@ -422,6 +436,9 @@ async function loadAvail() {
 window.delAvail = async function (id) { await NRC.sb.from("availability_blocks").delete().eq("id", id); loadAvail(); };
 $("#avail-form").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
+  if (!MYA.length) await loadMyAssignments();
+  const clash = MYA.filter(a => a.tournaments.start_date <= f.end_date.value && a.tournaments.end_date >= f.start_date.value);
+  if (clash.length && !confirm(`You are confirmed for ${clash.map(a => a.tournaments.name).join(", ")} in this period. Blocking these dates tells the NRC you cannot referee at all, including that tournament.\n\nTo block only other events, choose dates that leave the tournament out. Block anyway?`)) return;
   const { error } = await NRC.sb.from("availability_blocks").insert({ referee_id: ref.id, start_date: f.start_date.value, end_date: f.end_date.value, note: $("#avail-note").value.trim() || null });
   if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); return; }
   f.reset(); $("#avail-note").value = ""; loadAvail();

@@ -436,7 +436,8 @@
   </div>
 
   <div id="ttab-candidates" class="hidden">
-    <div class="toolbar"><input id="cand-q" placeholder="Search name, club, airport"><select id="cand-level"><option value="">All levels</option><option value="level_1">Level 1 and above</option><option value="level_2">Level 2 and above</option><option value="level_3">Level 3 and above</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-avail" checked style="width:auto"> hide unavailable</label></div>
+    <div class="toolbar"><input id="cand-q" placeholder="Search name, club, airport"><select id="cand-level"><option value="">All levels</option><option value="level_1">Level 1 and above</option><option value="level_2">Level 2 and above</option><option value="level_3">Level 3 and above</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-avail" checked style="width:auto"> hide unavailable</label><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-pairs" checked style="width:auto"> invite pairs together</label></div>
+    <div id="cand-hidden" class="small muted" style="margin:6px 0"></div>
     <div class="table-wrap"><table id="cand"><thead><tr><th></th><th>Referee</th><th>Level</th><th>Club</th><th>Airport</th><th>Availability</th><th>Season</th><th>Pair</th></tr></thead><tbody></tbody></table></div>
     <p style="margin-top:10px"><button class="btn sm" type="button" onclick="addCandidates()">Add selected as draft invitations</button> <span class="small muted">Then send from the Invitations tab.</span></p>
   </div>
@@ -496,6 +497,17 @@
 </div></dialog>
 
 <!-- Message to clubs -->
+<dialog id="dlg-override" style="max-width:600px"><div class="body">
+  <h3 style="margin-top:0">Override availability</h3>
+  <p class="small" id="ov-who"></p>
+  <form id="form-override">
+    <input type="hidden" name="referee_id">
+    <label>Reason (sent to the referee)</label><textarea name="reason" required minlength="15" placeholder="You are already booked for this event and confirmed on the team; the blocked dates cover other events only."></textarea>
+    <ul class="small muted" style="padding-left:18px"><li>Marks the referee available for this tournament only; their own blocked dates and weekends stay unchanged</li><li>The referee gets an email with your reason and answers Accept or Revert; you are told of the answer</li><li>Logged with your name</li></ul>
+    <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Override and email the referee</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-override').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
 <dialog id="dlg-refmsg" style="max-width:760px"><div class="body">
   <h3 style="margin-top:0">Message to referees</h3>
   <div id="refmsg-to" class="small"></div>

@@ -100,6 +100,22 @@ export default async (req) => {
     ? `You book your own travel within what the organizer covers above, and the organizer reimburses it. Record each booking on your referee home (Add a booking I made) and submit your expenses with receipts there, so the NRC and the organizer see them.`
     : `The organizer books travel directly with you within what they cover above; send them your travel details and copy ${contact}. Record what gets booked on your referee home so the NRC sees it.`;
 
+  // Availability for the tournament dates, per referee: blocked dates, weekend declarations (Saturday keys)
+  const sat = d => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + ((6 - x.getUTCDay() + 7) % 7)); return x.toISOString().slice(0, 10); };
+  const wk = []; for (let d = new Date(t.start_date + "T12:00:00Z"); d <= new Date(t.end_date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1)) { const k = sat(d.toISOString().slice(0, 10)); if (!wk.includes(k)) wk.push(k); }
+  const ids = new Set(); (reqs || []).forEach(r => { if (r.referees) ids.add(r.referees.id); });
+  (pairs || []).forEach(p => { if (ids.has(p.referee_a)) ids.add(p.referee_b); if (ids.has(p.referee_b)) ids.add(p.referee_a); });
+  const [{ data: blocks }, { data: weekends }, { data: pairRefs }, { data: overrides }] = await Promise.all([
+    admin.from("availability_blocks").select("referee_id,start_date,end_date").in("referee_id", [...ids]).lte("start_date", t.end_date).gte("end_date", t.start_date),
+    admin.from("weekend_availability").select("referee_id,weekend,status").in("referee_id", [...ids]).in("weekend", wk),
+    admin.from("referees").select("id,first_name,last_name").in("id", [...ids]),
+    admin.from("availability_overrides").select("referee_id,status").eq("tournament_id", t.id).neq("status", "reverted")]);
+  const availOf = id => { if ((overrides || []).some(o => o.referee_id === id)) return { ok: true, word: "available (NRC override)" }; const b = (blocks || []).find(x => x.referee_id === id); if (b) return { ok: false, word: `blocked dates from ${fmtDate(b.start_date)} to ${fmtDate(b.end_date)} on the hub` };
+    const w = (weekends || []).filter(x => x.referee_id === id); if (!w.length) return { ok: false, word: "not declared on the hub" };
+    if (w.some(x => x.status === "unavailable")) return { ok: false, word: "marked unavailable on the hub" };
+    if (w.every(x => x.status === "available")) return { ok: true, word: "available" }; return { ok: false, word: "marked tentative on the hub" }; };
+  const pairPartner = id => { const p = (pairs || []).find(p => p.referee_a === id || p.referee_b === id); if (!p) return null; const pid = p.referee_a === id ? p.referee_b : p.referee_a; return (pairRefs || []).find(x => x.id === pid) || null; };
+
   const results = [];
   for (const r of reqs || []) {
     const ref = r.referees; if (!ref) continue;
@@ -127,8 +143,12 @@ export default async (req) => {
       html = `<p>Hi ${esc(ref.first_name)},</p><p>Thank you for considering <strong>${esc(t.name)}</strong>, ${when}. The NRC has completed the referee team for this event, so your invitation is closed and nothing is expected from you.</p><p>Your availability stays on file for the next events. Questions: ${contact}.</p><p>National Referee Committee</p>`;
     } else {
       const again = kind === "reminder" ? "<p>This is a reminder; the NRC has not received your answer yet.</p>" : "";
+      const mine = availOf(ref.id), mate = pairPartner(ref.id), mateAv = mate ? availOf(mate.id) : null;
+      const pairP = mate ? `<p>You are invited as a pair with <strong>${esc(mate.first_name + " " + mate.last_name)}</strong>, who receives the same invitation. The pair is confirmed only once both of you accept.${mateAv && !mateAv.ok ? " " + esc(mate.first_name) + "'s availability for these dates is " + mateAv.word + "; please check with them." : ""}</p>` : "";
+      const checkP = !mine.ok ? `<p><strong>Please confirm your availability.</strong> Your availability for ${when} is ${mine.word}. If you can officiate on these dates, press Accept; if you are not sure yet, press Tentative and let us know when you will know; if you cannot, press Decline.</p>` : "";
       subject = `${kind === "reminder" ? "Reminder: " : ""}Referee invitation, ${t.name}, ${fmtDate(t.start_date)}`;
       html = `<p>Hi ${esc(ref.first_name)},</p>${again}<p>The NRC proposes you as a referee for <strong>${esc(t.name)}</strong>, ${when}, at ${esc(where)}. ${t.games_expected ? "About " + t.games_expected + " games over the event." : ""}</p>
+        ${pairP}${checkP}
         <p>What the organizer covers:<br>${covers.map(esc).join("<br>")}</p>
         <p><a href="${accept}" style="background:#C8102E;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Accept</a>&nbsp;&nbsp;<a href="${tentative}" style="background:#04234F;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none">Tentative</a>&nbsp;&nbsp;<a href="${decline}" style="color:#04234F;padding:12px 18px;text-decoration:underline">Decline</a></p>
         <p>The proposal is also on your referee home, where you can review the details and answer: <a href="${base}/login.html?next=profile.html">sign in</a>.</p>

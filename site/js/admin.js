@@ -617,7 +617,8 @@
     const openList = (acc || []).filter(a => !desRows.find(d => d.referee_id === a.referee_id));
     $("#des-summary").innerHTML = `<span class="chip ${refsConfirmed >= need ? "on" : ""}">${refsConfirmed}/${need} referees designated</span><span class="chip">${desRows.filter(a => a.role !== "referee").length} supervisor or observer${currentTour.supervisor_needed ? " (requested)" : ""}</span><span class="chip">${currentTour.travel_managed_by === "nrc" ? "NRC books travel" : "Organizer books travel"}</span>` + (openList.length ? `<span class="chip">Open to officiate, not designated: ${openList.map(a => NRC.esc(refName(a.referee_id)) + (a.status === "tentative" ? " (tentative)" : "")).join(", ")}</span>` : "");
     $("#des tbody").innerHTML = desRows.map(a => { const r = refs.find(x => x.id === a.referee_id) || {}; const bk = travelRows.filter(b => b.assignment_id === a.id);
-      return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong><br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>'}<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)">Add booking</button></div></td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Confirm accepted referees on the Invitations tab.</td></tr>';
+      const st = availState(a.referee_id);
+      return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong>${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared on the referee's home">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>'}<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)">Add booking</button></div></td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Confirm accepted referees on the Invitations tab.</td></tr>';
     $("#des-ref").innerHTML = refs.filter(r => r.active && !desRows.find(d => d.referee_id === r.id)).map(r => `<option value="${r.id}">${NRC.esc(r.first_name + " " + r.last_name)} (${NRC.levelLabel(r.cert_level).replace(" (National)", "")})</option>`).join("");
   }
   window.addDesignated = async function () {
@@ -796,13 +797,13 @@
     // weekends touched by the tournament (Saturday keys)
     const sat = (d) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); return x.toISOString().slice(0, 10); };
     const wk = []; for (let d = new Date(currentTour.start_date + "T12:00:00"); d <= new Date(currentTour.end_date + "T12:00:00"); d.setDate(d.getDate() + 1)) { const k = sat(d.toISOString().slice(0, 10)); if (!wk.includes(k)) wk.push(k); }
-    const [{ data: pr }, { data: av }, { data: wa }] = await Promise.all([sb().from("pairs").select("*"), sb().from("availability_blocks").select("*").lte("start_date", currentTour.end_date).gte("end_date", currentTour.start_date), sb().from("weekend_availability").select("*").in("weekend", wk)]);
-    pairsCache = pr || []; availCache = av || []; weekendCache = wa || [];
+    const [{ data: pr }, { data: av }, { data: wa }, { data: ov }] = await Promise.all([sb().from("pairs").select("*"), sb().from("availability_blocks").select("*").lte("start_date", currentTour.end_date).gte("end_date", currentTour.start_date), sb().from("weekend_availability").select("*").in("weekend", wk), sb().from("availability_overrides").select("*").eq("tournament_id", currentTour.id)]);
+    pairsCache = pr || []; availCache = av || []; weekendCache = wa || []; overrideCache = ov || [];
     $("#dlg-tour-sub").textContent += currentTour.supervisor_needed ? " Supervisor requested" + (currentTour.supervisor_notes ? ": " + currentTour.supervisor_notes : "") + "." : "";
     $("#btn-organizer").textContent = currentTour.organizer_notified_at ? "Notify organizer again" : "Notify organizer";
     const T = currentTour;
     $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")} <a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. Travel booked by ${T.travel_managed_by === "nrc" ? "the NRC" : "the organizer"}; ${T.hotel_nights_covered || 0} hotel nights, ${T.flights_covered ? "flights" : "no flights"}, ${T.airport_transfers_covered ? "transfers" : "no transfers"}${T.food_stipend_per_day ? ", $" + T.food_stipend_per_day + " per day" : ""}.`;
-    await Promise.all([renderInvites(), renderCandidates(), renderDesignated(), renderMoney()]);
+    await Promise.all([renderInvites(), renderDesignated(), renderMoney()]); renderCandidates();
     // past or calendar only events open on what is left to do: officials, games, evaluations
     const tab = (T.start_date <= today() || T.nrc_staffs === false) ? "officiated" : "invites";
     NRC.$$("#dlg-tour .tabs button").find(x => x.dataset.ttab === tab).click();
@@ -814,7 +815,31 @@
   let weekendCache = [];
   // declared weekend availability for the tournament weekends: available | tentative | unavailable | unknown
   const weekendStatus = id => { const rows = weekendCache.filter(w => w.referee_id === id); if (!rows.length) return "unknown"; if (rows.some(w => w.status === "unavailable")) return "unavailable"; if (rows.every(w => w.status === "available")) return "available"; return "tentative"; };
-  const availPill = id => { const u = unavailable(id); if (u) return `<span class="pill red">blocked ${NRC.fmtDate(u.start_date)}</span>`; const w = weekendStatus(id); return w === "available" ? '<span class="pill green">available</span>' : w === "tentative" ? '<span class="pill amber">tentative</span>' : w === "unavailable" ? '<span class="pill red">unavailable</span>' : '<span class="pill">not declared</span>'; };
+  let overrideCache = [];
+  const overrideOf = id => overrideCache.find(o => o.referee_id === id && o.status !== "reverted");
+  const declaredWord = id => { const u = unavailable(id); return u ? `blocked dates ${NRC.fmtDate(u.start_date)} to ${NRC.fmtDate(u.end_date)}` : { available: "available", tentative: "tentative", unavailable: "weekend marked unavailable", unknown: "not declared" }[weekendStatus(id)]; };
+  const availState = id => overrideOf(id) ? "available" : unavailable(id) ? "blocked" : weekendStatus(id);
+  const availWord = id => { const o = overrideOf(id); return o ? `available by NRC override (${o.status === "accepted" ? "accepted by the referee" : "awaiting the referee"})` : declaredWord(id); };
+  const ovPill = id => { const o = overrideCache.find(x => x.referee_id === id); if (!o) return ""; return o.status === "accepted" ? '<span class="pill green" title="' + NRC.esc(o.reason) + '">override accepted</span>' : o.status === "pending" ? '<span class="pill amber" title="' + NRC.esc(o.reason) + '">override: awaiting referee</span>' : '<span class="pill red" title="' + NRC.esc(o.response_note || o.reason) + '">override reverted by referee</span>'; };
+  const ovBtn = id => (availState(id) === "blocked" || availState(id) === "unavailable" || availState(id) === "tentative" || availState(id) === "unknown") && !overrideOf(id) ? ` <button class="btn sm ghost" type="button" onclick="event.stopPropagation();openOverride('${id}')">Override</button>` : "";
+  window.openOverride = function (id) {
+    const f = $("#form-override"); f.reset(); f.referee_id.value = id;
+    $("#ov-who").innerHTML = `<strong>${NRC.esc(refName(id))}</strong>, ${NRC.esc(currentTour.name)} (${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)})<br>Declared on their home: <strong>${NRC.esc(declaredWord(id))}</strong>`;
+    $("#dlg-override").showModal();
+  };
+  $("#form-override").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target; const reason = f.reason.value.trim();
+    if (reason.length < 15) { alert("Give the reason in a full sentence."); return; }
+    const { data: sess } = await sb().auth.getSession();
+    const res = await fetch("/api/availability-override", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ action: "create", tournament_id: currentTour.id, referee_id: f.referee_id.value, reason, declared: declaredWord(f.referee_id.value) }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { alert("Failed: " + (d.error || res.status)); return; }
+    alert(d.sent ? `Override recorded. ${refName(f.referee_id.value)} was emailed at ${d.email} to accept or revert.` : "Override recorded, but the email did not go out: " + (d.error || ""));
+    $("#dlg-override").close();
+    const { data: ov } = await sb().from("availability_overrides").select("*").eq("tournament_id", currentTour.id); overrideCache = ov || [];
+    renderInvites(); renderCandidates(); renderDesignated();
+  });
+  const availPill = id => { if (overrideCache.find(x => x.referee_id === id)) return ovPill(id) + (overrideOf(id) ? "" : ' <span class="pill red">' + NRC.esc(declaredWord(id)) + "</span>"); const u = unavailable(id); if (u) return `<span class="pill red">blocked ${NRC.fmtDate(u.start_date)}</span>`; const w = weekendStatus(id); return w === "available" ? '<span class="pill green">available</span>' : w === "tentative" ? '<span class="pill amber">tentative</span>' : w === "unavailable" ? '<span class="pill red">unavailable</span>' : '<span class="pill">not declared</span>'; };
 
   // Invitations
   let invites = [];
@@ -839,7 +864,12 @@
       toConfirm.forEach(rid => { const p = partnerOf(rid); if (p && !after.has(p)) issues.push(`${refName(rid)} forms a pair with ${refName(p)}, who is not in the confirmed set.`); });
       if (issues.length && !confirm("Check before confirming:\n\n" + issues.join("\n") + "\n\nConfirm anyway?")) return;
     }
-    if (kind === "invite") ids = ids.filter(id => ["draft", "sent"].includes((invites.find(i => i.id === id) || {}).status));
+    if (kind === "invite") {
+      ids = ids.filter(id => ["draft", "sent"].includes((invites.find(i => i.id === id) || {}).status));
+      const sel = ids.map(id => invites.find(i => i.id === id).referee_id);
+      const split = sel.filter(rid => { const p = partnerOf(rid); return p && !sel.includes(p) && !invites.find(i => i.referee_id === p && i.status !== "draft") && !(desRows || []).find(a => a.referee_id === p); });
+      if (split.length && !confirm("Pair split: " + split.map(rid => refName(rid) + " without " + refName(partnerOf(rid))).join(", ") + ". Add the partner from Find referees to invite the pair together.\n\nSend anyway?")) return;
+    }
     const { data: sess } = await sb().auth.getSession();
     const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, request_ids: ids, kind }) });
     const d = await res.json();
@@ -875,17 +905,29 @@
     const q = $("#cand-q").value.toLowerCase(), lvl = $("#cand-level").value, hide = $("#cand-avail").checked;
     const order = ["candidate", "level_1", "level_2", "level_3", "nachc", "ihf"];
     const invited = new Set(invites.map(i => i.referee_id));
+    (desRows || []).forEach(a => invited.add(a.referee_id));
     const club = id => (clubs.find(c => c.id === id) || {}).name || "";
     const yr = new Date().getFullYear();
     const AR = { available: 0, tentative: 1, unknown: 2, unavailable: 3 };
     const qualified = r => r.cert_level !== "candidate";
-    $("#cand tbody").innerHTML = refs.filter(r => r.active && qualified(r) && !invited.has(r.id) && (!lvl || order.indexOf(r.cert_level) >= order.indexOf(lvl)) && (!hide || (!unavailable(r.id) && weekendStatus(r.id) !== "unavailable")) && (!q || [r.first_name, r.last_name, club(r.club_id), r.home_airport_iata, r.home_city].join(" ").toLowerCase().includes(q)))
+    const isOut = r => !overrideOf(r.id) && (unavailable(r.id) || weekendStatus(r.id) === "unavailable");
+    const hiddenOut = hide ? refs.filter(r => r.active && qualified(r) && !invited.has(r.id) && isOut(r)) : [];
+    $("#cand-hidden").innerHTML = (hiddenOut.length ? `Hidden as unavailable: ${hiddenOut.map(r => NRC.esc(r.first_name + " " + r.last_name) + " (" + NRC.esc(availWord(r.id)) + `, <a href="#" onclick="openOverride('${r.id}');return false">override</a>)`).join(", ")}. Untick "hide unavailable" to see them. ` : "") + ((desRows || []).length ? `Already designated, not listed: ${desRows.map(a => NRC.esc(refName(a.referee_id))).join(", ")}.` : "");
+    $("#cand tbody").innerHTML = refs.filter(r => r.active && qualified(r) && !invited.has(r.id) && (!lvl || order.indexOf(r.cert_level) >= order.indexOf(lvl)) && (!hide || !isOut(r)) && (!q || [r.first_name, r.last_name, club(r.club_id), r.home_airport_iata, r.home_city].join(" ").toLowerCase().includes(q)))
       .sort((a, b) => AR[unavailable(a.id) ? "unavailable" : weekendStatus(a.id)] - AR[unavailable(b.id) ? "unavailable" : weekendStatus(b.id)] || (a.home_airport_iata === currentTour.nearest_airport_iata ? -1 : 0) - (b.home_airport_iata === currentTour.nearest_airport_iata ? -1 : 0) || order.indexOf(b.cert_level) - order.indexOf(a.cert_level))
-      .map(r => { const p = partnerOf(r.id); return `<tr><td><input type="checkbox" class="cand-sel" value="${r.id}" style="width:auto"></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.home_airport_iata && r.home_airport_iata === currentTour.nearest_airport_iata ? ' <span class="pill green">local</span>' : ""}</td><td>${availPill(r.id)}</td><td class="small">${r._games} games ${yr}</td><td class="small">${p ? "with " + NRC.esc(refName(p)) : ""}</td></tr>`; }).join("") || '<tr><td colspan="8">No referee matches.</td></tr>';
+      .map(r => { const p = partnerOf(r.id); return `<tr><td><input type="checkbox" class="cand-sel" value="${r.id}" style="width:auto"></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.home_airport_iata && r.home_airport_iata === currentTour.nearest_airport_iata ? ' <span class="pill green">local</span>' : ""}</td><td>${availPill(r.id)}${ovBtn(r.id)}</td><td class="small">${r._games} games ${yr}</td><td class="small">${p ? "with " + NRC.esc(refName(p)) + "<br>" + availPill(p) : ""}</td></tr>`; }).join("") || '<tr><td colspan="8">No referee matches.</td></tr>';
   }
-  ["#cand-q", "#cand-level", "#cand-avail"].forEach(sel => $(sel).addEventListener("input", renderCandidates));
+  ["#cand-q", "#cand-level", "#cand-avail", "#cand-pairs"].forEach(sel => $(sel).addEventListener("input", renderCandidates));
   window.addCandidates = async function () {
-    const ids = NRC.$$(".cand-sel:checked").map(x => x.value); if (!ids.length) { alert("Select referees first."); return; }
+    let ids = NRC.$$(".cand-sel:checked").map(x => x.value); if (!ids.length) { alert("Select referees first."); return; }
+    const taken = new Set([...invites.map(i => i.referee_id), ...(desRows || []).map(a => a.referee_id)]);
+    if ($("#cand-pairs").checked) {
+      const added = [];
+      ids.slice().forEach(id => { const p = partnerOf(id); const pr = p && refs.find(r => r.id === p && r.active); if (pr && !ids.includes(p) && !taken.has(p)) { ids.push(p); added.push(refName(p) + " (" + availWord(p) + ")"); } });
+      if (added.length && !confirm("Partners added so each pair is invited together:\n" + added.join("\n") + "\n\nContinue?")) return;
+    }
+    const doubt = ids.filter(id => availState(id) !== "available");
+    if (doubt.length) alert("Availability not confirmed for: " + doubt.map(id => refName(id) + " (" + availWord(id) + ")").join(", ") + ". Their invitation email will ask them to confirm they are available before accepting.");
     const rows = ids.map(id => ({ tournament_id: currentTour.id, referee_id: id, status: "draft" }));
     const { error } = await sb().from("assignment_requests").insert(rows); if (error) { alert(error.message); return; }
     await renderInvites(); renderCandidates(); NRC.$$("#dlg-tour .tabs button")[0].click();

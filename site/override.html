@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Availability change | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="override.html">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+<div class="wrap" id="main">
+<section style="max-width:560px;margin:0 auto">
+  <div class="card" id="box">
+    <h2 style="margin-top:0">One moment</h2>
+    <p>Loading the change.</p>
+  </div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+// The answer is recorded only on a button press, so mail scanners opening the link cannot answer for the referee.
+const q = new URLSearchParams(location.search), token = q.get("token") || "", pre = q.get("answer");
+document.addEventListener("DOMContentLoaded", async () => {
+  const box = NRC.$("#box");
+  const res = await fetch("/api/availability-override?token=" + encodeURIComponent(token)).catch(() => null);
+  const d = res ? await res.json().catch(() => ({})) : {};
+  if (!res || !res.ok) { box.innerHTML = `<h2 style="margin-top:0">This link does not work</h2><p>${NRC.esc(d.error || "")} Write to referee@handballusa.org.</p>`; return; }
+  const t = d.tournament, when = `${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}`;
+  const done = d.status !== "pending";
+  box.innerHTML = `<h2 style="margin-top:0">${NRC.esc(t.name)}</h2>
+    <p class="muted">${when}${t.venue_city ? ", " + NRC.esc(t.venue_city) + (t.venue_state ? ", " + NRC.esc(t.venue_state) : "") : ""}</p>
+    <ul class="small" style="padding-left:18px"><li>Your availability on the hub: ${NRC.esc(d.declared || "not available")}</li><li>Changed by: ${NRC.esc(d.by || "the NRC")}</li><li>Reason: ${NRC.esc(d.reason)}</li><li>Applies to this tournament only; your other dates stay as you entered them</li></ul>
+    ${done ? `<div class="notice ${d.status === "accepted" ? "ok" : ""}" style="margin-bottom:10px">Your answer: ${d.status === "accepted" ? "change accepted, you are available" : "change reverted, you are not available"}${d.responded_at ? " (" + NRC.fmtDate(d.responded_at.slice(0, 10)) + ")" : ""}. You can change it below.</div>` : ""}
+    <label>Note to the NRC (optional)</label><textarea id="note" placeholder="Anything the NRC should know"></textarea>
+    <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-a="accept" ${pre === "accept" ? 'style="outline:3px solid #E8EB2F"' : ""}>Accept the change</button><button class="btn ghost" data-a="revert" ${pre === "revert" ? 'style="outline:3px solid #E8EB2F"' : ""}>Revert: I am not available</button></p>`;
+  NRC.$$("[data-a]", box).forEach(b => b.onclick = async () => {
+    NRC.$$("[data-a]", box).forEach(x => x.disabled = true);
+    const r = await fetch("/api/availability-override", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "answer", token, answer: b.dataset.a, note: NRC.$("#note").value }) }).catch(() => null);
+    const x = r ? await r.json().catch(() => ({})) : {};
+    box.innerHTML = r && r.ok ? `<h2 style="margin-top:0">Thank you</h2><p>${x.status === "accepted" ? "You are marked available for " + NRC.esc(t.name) + "." : "The change is reverted: the NRC knows you are not available for " + NRC.esc(t.name) + "."} The NRC has been told.</p><p><a class="btn sm" href="profile.html">My referee home</a></p>` : `<h2 style="margin-top:0">Not recorded</h2><p>${NRC.esc(x.error || "Try again or write to referee@handballusa.org.")}</p>`;
+  });
+});
+</script>
+</body>
+</html>
