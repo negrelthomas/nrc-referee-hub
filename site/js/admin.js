@@ -62,6 +62,9 @@
     tournaments.forEach(t => { const A = (acount || []).filter(a => a.tournament_id === t.id), Gm = (gcount || []).filter(g => g.tournament_id === t.id);
       tourStats[t.id] = { officials: A.length, referees: A.filter(a => a.role === "referee").length, games: Gm.length, gamesReported: A.reduce((n, a) => n + (a.games_officiated || 0), 0), slots: Gm.reduce((n, g) => n + (g.referee_1 ? 1 : 0) + (g.referee_2 ? 1 : 0), 0), evals: (evals || []).filter(e => e.tournament_id === t.id).length, gameEvals: (evals || []).filter(e => e.tournament_id === t.id && e.game_id).length }; });
     const yr = new Date().getFullYear();
+    const { data: logins } = await sb().rpc("admin_referee_logins");
+    const LG = {}; (logins || []).forEach(x => LG[x.referee_id] = x);
+    refs.forEach(r => { const x = LG[r.id]; r._lastLogin = x ? x.last_sign_in_at : null; r._firstLogin = x ? x.first_sign_in_at : null; });
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
     fillSelects(); renderDashboard(); loadRankings(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); renderPlan(); loadTasks(); loadImportLog();
     const [h, arg] = (location.hash || "").slice(1).split("/"); if (h === "club" && arg) renderClubPage(arg);
@@ -116,13 +119,64 @@
   }
 
   // ---------- referees ----------
-  function renderRefs() {
-    const q = $("#r-q").value.toLowerCase(), l = $("#r-level").value, inc = $("#r-inactive").checked;
+  const refSel = new Set();
+  const ago = (ts) => { if (!ts) return ""; const d = Math.floor((Date.now() - new Date(ts).getTime()) / 86400000); return d <= 0 ? "today" : d === 1 ? "yesterday" : d < 60 ? d + " days ago" : NRC.fmtDate(String(ts).slice(0, 10)); };
+  const fmtTs = (ts) => ts ? new Date(ts).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }) : "";
+  function shownRefs() {
+    const q = $("#r-q").value.toLowerCase(), l = $("#r-level").value, inc = $("#r-inactive").checked, lg = $("#r-login").value;
     const club = id => (clubs.find(c => c.id === id) || {}).name || "";
-    $("#refs tbody").innerHTML = refs.filter(r => (inc || r.active) && (!l || r.cert_level === l) && (!q || [r.first_name, r.last_name, r.email, club(r.club_id), r.home_city, r.home_state, r.home_airport_iata].join(" ").toLowerCase().includes(q)))
-      .map(r => `<tr class="clickable" onclick="openRef('${r.id}')"><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt=""></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.active ? "" : ' <span class="pill">inactive</span>'}<br><span class="small muted">${NRC.esc(r.email)}</span></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}${r.level1_theory_passed_on ? ' <span class="pill green">theory passed ' + NRC.fmtDate(r.level1_theory_passed_on) + "</span>" : ""}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.departure_airport_iata ? " / " + NRC.esc(r.departure_airport_iata) : ""}</td><td>${r._games}</td><td>${r._lastEval ? NRC.fmtDate(r._lastEval) : '<span class="muted">none</span>'}</td><td><button class="btn sm ghost" onclick="event.stopPropagation();openRef('${r.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="9">No referee yet. Add one or import.</td></tr>';
+    const old = Date.now() - 30 * 86400000;
+    return refs.filter(r => (inc || r.active) && (!l || r.cert_level === l)
+      && (!lg || (lg === "never" ? !r._lastLogin : lg === "yes" ? !!r._lastLogin : (!r._lastLogin || new Date(r._lastLogin).getTime() < old)))
+      && (!q || [r.first_name, r.last_name, r.email, club(r.club_id), r.home_city, r.home_state, r.home_airport_iata].join(" ").toLowerCase().includes(q)));
   }
-  ["#r-q", "#r-level", "#r-inactive"].forEach(s => $(s).addEventListener("input", renderRefs));
+  function renderRefs() {
+    const club = id => (clubs.find(c => c.id === id) || {}).name || "";
+    const list = shownRefs();
+    $("#refs tbody").innerHTML = list
+      .map(r => `<tr class="clickable" onclick="openRef('${r.id}')"><td onclick="event.stopPropagation()"><input type="checkbox" style="width:auto" ${refSel.has(r.id) ? "checked" : ""} onchange="toggleRefSel('${r.id}',this.checked)"></td><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt=""></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.active ? "" : ' <span class="pill">inactive</span>'}<br><span class="small muted">${NRC.esc(r.email)}</span></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}${r.level1_theory_passed_on ? ' <span class="pill green">theory passed ' + NRC.fmtDate(r.level1_theory_passed_on) + "</span>" : ""}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.departure_airport_iata ? " / " + NRC.esc(r.departure_airport_iata) : ""}</td><td>${r._games}</td><td>${r._lastEval ? NRC.fmtDate(r._lastEval) : '<span class="muted">none</span>'}</td><td class="small" title="${NRC.esc(fmtTs(r._lastLogin))}">${r._lastLogin ? ago(r._lastLogin) : r.user_id ? '<span class="muted">unknown</span>' : '<span class="pill amber">never</span>'}</td><td class="small" title="${NRC.esc(fmtTs(r.updated_at))}">${r.updated_by_label ? ago(r.updated_at) + "<br><span class=\"muted\">" + NRC.esc(r.updated_by_label) + "</span>" : '<span class="muted">' + ago(r.updated_at) + "</span>"}</td><td><button class="btn sm ghost" onclick="event.stopPropagation();openRef('${r.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="12">No referee matches.</td></tr>';
+    $("#ref-all").checked = list.length > 0 && list.every(r => refSel.has(r.id));
+    const b = $("#btn-ref-email"); b.disabled = !refSel.size; b.textContent = refSel.size ? `Email selected (${refSel.size})` : "Email selected";
+  }
+  window.toggleRefSel = (id, on) => { on ? refSel.add(id) : refSel.delete(id); renderRefs(); };
+  $("#ref-all").addEventListener("change", e => { shownRefs().forEach(r => e.target.checked ? refSel.add(r.id) : refSel.delete(r.id)); renderRefs(); });
+  ["#r-q", "#r-level", "#r-inactive", "#r-login"].forEach(s => $(s).addEventListener("input", renderRefs));
+
+  // ---------- messages to referees ----------
+  const REF_SIGN = "\n\nNational Referee Committee\n{contact_email}";
+  function refMsgPreview() {
+    const f = $("#form-refmsg"); const r = refs.find(x => refSel.has(x.id)); if (!r) return;
+    const v = { first_name: r.first_name, last_name: r.last_name, hub_url: location.origin, profile_url: location.origin + "/profile.html", contact_email: NRC_CONFIG.CONTACT_EMAIL };
+    const fill = t => t.replace(/\{(\w+)\}/g, (m, k) => v[k] != null ? String(v[k]) : m);
+    $("#refmsg-preview").innerHTML = `<div class="muted" style="margin-bottom:6px">Preview for ${NRC.esc(r.first_name + " " + r.last_name)}, to ${NRC.esc(r.email)}</div><strong>${NRC.esc(fill(f.subject.value))}</strong>\n\n${NRC.esc(fill(f.body.value))}`;
+  }
+  window.openRefComposer = function () {
+    const sel = refs.filter(r => refSel.has(r.id)); if (!sel.length) { alert("Select at least one referee."); return; }
+    const ok = sel.filter(r => r.email && !/@demo\.nrc$/i.test(r.email)), skip = sel.filter(r => !ok.includes(r));
+    const names = ok.map(r => NRC.esc(r.first_name + " " + r.last_name));
+    $("#refmsg-to").innerHTML = `<p style="margin-top:0"><strong>To:</strong> ${names.slice(0, 25).join(", ")}${names.length > 25 ? " and " + (names.length - 25) + " more" : ""} (${ok.length} referee${ok.length === 1 ? "" : "s"})</p>${skip.length ? `<div class="notice">${skip.length} without a usable email will be skipped: ${skip.map(r => NRC.esc(r.first_name + " " + r.last_name)).join(", ")}.</div>` : ""}`;
+    const f = $("#form-refmsg"); if (!f.body.value) f.body.value = "Hi {first_name},\n\n" + REF_SIGN.trim();
+    $("#btn-refmsg-send").disabled = !ok.length; $("#btn-refmsg-send").textContent = ok.length ? `Send to ${ok.length} referee${ok.length === 1 ? "" : "s"}` : "Send";
+    refMsgPreview(); $("#dlg-refmsg").showModal();
+  };
+  ["subject", "body"].forEach(n => $("#form-refmsg")[n].addEventListener("input", refMsgPreview));
+  window.copyRefEmails = async function () {
+    const list = refs.filter(r => refSel.has(r.id) && r.email && !/@demo\.nrc$/i.test(r.email)).map(r => r.email);
+    try { await navigator.clipboard.writeText(list.join(", ")); alert(list.length + " address(es) copied."); } catch (e) { prompt("Copy the addresses:", list.join(", ")); }
+  };
+  window.sendRefMessage = async function (test) {
+    const f = $("#form-refmsg");
+    if (!f.subject.value.trim() || !f.body.value.trim()) { alert("Subject and message are required."); return; }
+    if (!test && !confirm(`Send this message now to ${refSel.size} referee(s)? Each receives their own email.`)) return;
+    const { data: sess } = await sb().auth.getSession();
+    const res = await fetch("/api/referee-message", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ referee_ids: [...refSel], subject: f.subject.value, body: f.body.value, test: !!test }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { alert("Failed: " + (d.error || res.status)); return; }
+    const sent = d.results.filter(r => r.sent).length, failed = d.results.filter(r => !r.sent);
+    alert(test ? (sent ? "Test sent to " + d.results[0].email + "." : "Test not sent: " + (failed[0] && failed[0].error)) : sent + " email(s) sent." + (failed.length ? " Not sent: " + failed.map(r => (r.name || r.email) + " (" + String(r.error || "").slice(0, 60) + ")").join("; ") : ""));
+    if (!test) { $("#dlg-refmsg").close(); f.reset(); refSel.clear(); renderRefs(); }
+  };
+  $("#form-refmsg").addEventListener("submit", e => { e.preventDefault(); sendRefMessage(false); });
   window.exportCsv = function () {
     const cols = ["first_name", "last_name", "email", "phone", "cert_level", "cert_date", "home_city", "home_state", "home_airport_iata", "departure_airport_iata", "usath_member_id", "usath_membership_valid_until", "safesport_valid_until", "background_check_valid_until", "active"];
     const club = id => (clubs.find(c => c.id === id) || {}).name || "";
@@ -158,7 +212,8 @@
         training = tot ? `${tot} questions answered, ${Math.round(ok / tot * 100)}% correct. ` + (weak.length ? "Weak rules: " + weak.map(r => `Rule ${r} (${Math.round(m[r].c / m[r].n * 100)}%)`).join(", ") + "." : "No rule below 70%.") : "No training activity yet.";
       } else training = "Has not signed in yet.";
       const [L, { data: tests }] = await Promise.all([NRC.latestEvals(currentRef.id, currentRef.user_id), sb().from("referee_tests").select("*").eq("referee_id", currentRef.id).order("tested_on", { ascending: false })]);
-      ex.innerHTML = `<h3 style="margin-top:16px">Latest evaluations</h3>` + NRC.latestEvalsHtml(L)
+      const { data: chg } = await sb().from("referee_changes").select("*").eq("referee_id", currentRef.id).order("changed_at", { ascending: false }).limit(50);
+      ex.innerHTML = recordHtml(currentRef, chg || []) + `<h3 style="margin-top:16px">Latest evaluations</h3>` + NRC.latestEvalsHtml(L)
         + `<h3 style="margin-top:16px">Tournaments and games</h3>` + NRC.historyHtml(hist, glog || []) + '<div class="small muted">Click a tournament for its games. Add or correct from Tournaments, Officiated tab.</div>'
         + `<h3 style="margin-top:16px">Physical tests and theory exams</h3>` + ((tests || []).map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${t.result ? " " + NRC.esc(t.result) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.evaluator_name ? ", " + NRC.esc(t.evaluator_name) : ""} <a href="#" onclick="delTest('${t.id}');return false" class="muted">remove</a></div>`).join("") || '<div class="small muted">None recorded.</div>')
         + `<h3 style="margin-top:16px">Training</h3><div class="small">${training}</div>`
@@ -167,6 +222,15 @@
     }
     if (!$("#dlg-ref").open) $("#dlg-ref").showModal();
   };
+  const FIELD = { first_name: "First name", last_name: "Last name", email: "Email", phone: "Phone", club_id: "Club", cert_level: "Level", cert_date: "Certified on", cert_by: "Certified by", level_confirmed: "Level confirmed", level1_theory_passed_on: "Level 1 theory passed", home_city: "Home city", home_state: "State", home_airport_iata: "Home airport", departure_airport_iata: "Departure airport", usath_member_id: "USATH member ID", usath_membership_valid_until: "Membership valid until", safesport_valid_until: "SafeSport valid until", background_check_valid_until: "Background check valid until", admin_notes: "Admin notes", availability_notes: "Availability notes", active: "Active", photo_url: "Photo", user_id: "Sign in account", share_contact: "Shares contact details" };
+  function recordHtml(r, chg) {
+    const val = (k, v) => { if (v == null || v === "") return "empty"; if (k === "club_id") return clubName(v) || "club"; if (k === "cert_level") return NRC.levelLabel(v); if (k === "photo_url") return "photo"; if (k === "user_id") return "linked"; if (typeof v === "boolean") return v ? "yes" : "no"; const s = String(v); return s.length > 60 ? s.slice(0, 60) + "..." : s; };
+    const head = `<div class="card small" style="margin-top:16px;background:#F7F9FC"><strong>Record</strong><br>Created ${NRC.esc(fmtTs(r.created_at))}${r.created_by_label ? " by " + NRC.esc(r.created_by_label) : ""}<br>Last updated ${NRC.esc(fmtTs(r.updated_at))}${r.updated_by_label ? " by " + NRC.esc(r.updated_by_label) : " (author not recorded: before change tracking started)"}<br>Last sign in: ${r._lastLogin ? NRC.esc(fmtTs(r._lastLogin)) : r.user_id ? "unknown" : "never signed in"}${r._firstLogin ? ", first sign in " + NRC.esc(fmtTs(r._firstLogin)) : ""}</div>`;
+    const rows = chg.map(c => { const ch = c.changes || {}; const keys = Object.keys(ch).filter(k => FIELD[k] || !/^(id|_)/.test(k));
+      const what = c.action === "insert" ? "Record created" : keys.map(k => `${NRC.esc(FIELD[k] || k.replace(/_/g, " "))}: ${NRC.esc(val(k, ch[k][0]))} &rarr; <strong>${NRC.esc(val(k, ch[k][1]))}</strong>`).join("<br>");
+      return `<tr><td style="white-space:nowrap">${NRC.esc(fmtTs(c.changed_at))}</td><td>${NRC.esc(c.changed_by_label)}</td><td>${what}</td></tr>`; }).join("");
+    return head + `<details style="margin-top:8px"><summary class="small"><strong>Change history</strong> (${chg.length}${chg.length === 50 ? "+" : ""})</summary>${rows ? `<div class="table-wrap"><table class="small"><thead><tr><th>When</th><th>Who</th><th>What changed</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="small muted">No change recorded since tracking started on October 22, 2026.</p>'}</details>`;
+  }
   $("#form-ref").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const row = {};
     ["first_name", "last_name", "email", "phone", "club_id", "cert_level", "cert_date", "cert_by", "home_city", "home_state", "home_airport_iata", "departure_airport_iata", "usath_member_id", "usath_membership_valid_until", "safesport_valid_until", "background_check_valid_until", "admin_notes"].forEach(k => row[k] = f[k].value.trim() || null);

@@ -65,9 +65,9 @@
 
       <!-- Referees -->
       <div id="pane-referees" class="hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Referee roster</h1><button class="btn sm" onclick="openRef(null)">Add referee</button></div>
-        <div class="toolbar" style="margin-top:12px"><input id="r-q" placeholder="Search"><select id="r-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="r-inactive" style="width:auto"> show inactive</label><button class="btn ghost sm" onclick="exportCsv()">Export CSV</button></div>
-        <div class="table-wrap"><table id="refs"><thead><tr><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airport</th><th>Games</th><th>Last eval</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Referee roster</h1><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="btn-ref-email" onclick="openRefComposer()" disabled>Email selected</button><button class="btn sm ghost" onclick="openRef(null)">Add referee</button></div></div>
+        <div class="toolbar" style="margin-top:12px"><input id="r-q" placeholder="Search"><select id="r-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select><select id="r-login"><option value="">Any sign in status</option><option value="never">Never signed in</option><option value="30">Not signed in for 30 days</option><option value="yes">Signed in</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="r-inactive" style="width:auto"> show inactive</label><button class="btn ghost sm" onclick="exportCsv()">Export CSV</button></div>
+        <div class="table-wrap"><table id="refs"><thead><tr><th><input type="checkbox" id="ref-all" style="width:auto" title="Select all shown"></th><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airport</th><th>Games</th><th>Last eval</th><th>Last sign in</th><th>Last update</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Clubs -->
@@ -494,6 +494,18 @@
 </div></dialog>
 
 <!-- Message to clubs -->
+<dialog id="dlg-refmsg" style="max-width:760px"><div class="body">
+  <h3 style="margin-top:0">Message to referees</h3>
+  <div id="refmsg-to" class="small"></div>
+  <form id="form-refmsg">
+    <label>Subject</label><input name="subject" required>
+    <label>Message</label><textarea name="body" required style="min-height:220px"></textarea>
+    <p class="small muted" style="margin:4px 0 0">Each referee receives their own email. Fields filled per referee: {first_name} {last_name} {hub_url} {profile_url} {contact_email}. Replies go to the NRC address.</p>
+    <div id="refmsg-preview" class="card small" style="margin-top:10px;white-space:pre-wrap"></div>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="btn-refmsg-send">Send</button><button class="btn ghost" type="button" onclick="sendRefMessage(true)">Send me a test</button><button class="btn ghost" type="button" onclick="copyRefEmails()">Copy addresses</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-refmsg').close()">Cancel</button></p>
+  </form>
+</div></dialog>
+
 <dialog id="dlg-msg" style="max-width:760px"><div class="body">
   <h3 style="margin-top:0">Message to clubs</h3>
   <div id="msg-to" class="small"></div>

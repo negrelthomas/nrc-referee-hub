@@ -2,7 +2,7 @@
 
 Items raised by testers, the NRC or Thomas that are not built yet. Each item records where it came from, what it needs and what it depends on. Items move to the README or the guides once delivered.
 
-Last updated: October 21, 2026
+Last updated: October 22, 2026
 
 ## Parked: needs an NRC or USATH decision first
 
@@ -35,3 +35,9 @@ Last updated: October 21, 2026
 - Referees can opt in to share their email and phone with other signed in referees in the directory (Halina Lehto).
 - Referees see all upcoming tournaments on their weekend availability calendar (Halina Lehto; shipped in the previous commit).
 - Referees can no longer change their own level, confirmation or active status through the API (found while making the level change).
+
+## Delivered October 22
+
+- Admin can email all or a selection of referees from the roster (tick boxes, select all shown, test copy to self, one email per referee, logged).
+- Roster shows last sign in and last update with its author; filter on sign in status.
+- Change history on each referee record: who changed which field, from what to what, and when (admin by name, the referee, the hub server, or the database directly).
