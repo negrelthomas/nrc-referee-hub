@@ -814,13 +814,14 @@
   });
   window.setTourStatus = async function (id, status) { await sb().from("tournaments").update({ status }).eq("id", id); };
   let currentTour = null, pairsCache = [], availCache = [];
-  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "designated", "money", "officiated"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab));
+  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "designated", "money", "officiated", "log"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab));
     // each tab reads fresh data when opened, so a confirmation on one tab shows on the next
-    ({ invites: renderInvites, candidates: renderCandidates, designated: renderDesignated, money: renderMoney, officiated: renderTourAsg }[b.dataset.ttab] || (() => {}))(); });
+    ({ invites: renderInvites, candidates: renderCandidates, designated: renderDesignated, money: renderMoney, officiated: renderTourAsg, log: renderTourLog }[b.dataset.ttab] || (() => {}))(); });
   window.openTour = async function (id) {
     currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour"); renderTourAsg.mountedFor = null;
+    tourPublicChanges = 0; $("#tour-save-state").textContent = ""; NRC.$$("#form-tour .saved,#form-tour .err,#form-tour .saving").forEach(x => x.classList.remove("saved", "err", "saving"));
     $("#dlg-tour-title").textContent = currentTour.name;
-    $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs needed.`;
+    $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs staffed by the NRC${currentTour.pairs_organizer ? ", " + currentTour.pairs_organizer + " brought by the organizer" : ""}.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || ""; f.date_status.value = currentTour.date_status || "confirmed"; f.source_url.value = currentTour.source_url || ""; f.nrc_staffs.checked = currentTour.nrc_staffs !== false;
     $("#tour-div").innerHTML = NRC.divisionPicker("divisions", currentTour.divisions);
     ["start_date", "end_date", "venue_name", "venue_city", "pairs_needed", "pairs_organizer", "organizer_pairs_note", "travel_managed_by", "club_id", "staff_by"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
@@ -833,7 +834,7 @@
     $("#dlg-tour-sub").textContent += currentTour.supervisor_needed ? " Supervisor requested" + (currentTour.supervisor_notes ? ": " + currentTour.supervisor_notes : "") + "." : "";
     $("#btn-organizer").textContent = currentTour.organizer_notified_at ? "Notify organizer again" : "Notify organizer";
     const T = currentTour;
-    $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")} <a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. Travel booked by ${T.travel_managed_by === "nrc" ? "the NRC" : "the organizer"}; ${T.hotel_nights_covered || 0} hotel nights, ${T.flights_covered ? "flights" : "no flights"}, ${T.airport_transfers_covered ? "transfers" : "no transfers"}${T.food_stipend_per_day ? ", $" + T.food_stipend_per_day + " per day" : ""}.`;
+    $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")} <a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. Travel booked by ${T.travel_managed_by === "nrc" ? "the NRC" : T.travel_managed_by === "referee" ? "the referees" : "the organizer"}; ${T.hotel_nights_covered || 0} hotel nights, ${T.flights_covered ? "flights" : "no flights"}, ${T.airport_transfers_covered ? "transfers" : "no transfers"}${T.food_stipend_per_day ? ", $" + T.food_stipend_per_day + " per day" : ""}.`;
     await Promise.all([renderInvites(), renderDesignated(), renderMoney()]); renderCandidates();
     // past or calendar only events open on what is left to do: officials, games, evaluations
     const tab = (T.start_date <= today() || T.nrc_staffs === false) ? "officiated" : "invites";
@@ -981,7 +982,78 @@
     if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg(); loadAll();
   };
   window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
-  $("#form-tour").addEventListener("submit", async (e) => { e.preventDefault(); const f = e.target; const row = { sanction: f.sanction.value, nrc_staffs: f.nrc_staffs.checked, date_status: f.date_status.value, source_url: f.source_url.value.trim() || null, divisions: NRC.divisionsFrom(f, "divisions"), region: f.region.value || null, start_date: f.start_date.value || currentTour.start_date, end_date: f.end_date.value || currentTour.end_date, venue_name: f.venue_name.value || null, venue_city: f.venue_city.value || null, pairs_needed: isNaN(parseInt(f.pairs_needed.value, 10)) ? currentTour.pairs_needed : parseInt(f.pairs_needed.value, 10), pairs_organizer: parseInt(f.pairs_organizer.value, 10) || 0, organizer_pairs_note: (parseInt(f.pairs_organizer.value, 10) || 0) ? (f.organizer_pairs_note.value.trim() || null) : null, travel_managed_by: f.travel_managed_by.value, club_id: f.club_id.value || null }; if (f.staff_by.value) row.staff_by = f.staff_by.value; const { error } = await sb().from("tournaments").update(row).eq("id", currentTour.id); if (error) { alert(error.message); return; } Object.assign(currentTour, row); loadAll(); alert("Saved. Use Notify changes to tell the officials and the organizer."); });
+  // ---------- tournament window: autosave, notify on close, change log ----------
+  let tourPublicChanges = 0;
+  const INTERNAL = ["sanction", "region", "club_id", "divisions", "staff_by", "date_status", "nrc_staffs", "source_url"];
+  const TF = { start_date: "Start", end_date: "End", date_status: "Dates", venue_name: "Venue", venue_city: "City", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "Pairs the organizer brings", organizer_pairs_note: "Organizer pairs from", travel_managed_by: "Travel booked by", staff_by: "Staff by", nrc_staffs: "NRC staffs", sanction: "Sanction", region: "Region", club_id: "Hosting club", source_url: "Source link", divisions: "Divisions", name: "Name", status: "Status", venue_address: "Address", venue_state: "State", nearest_airport_iata: "Nearest airport", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers", airport_transfer_how: "Transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure", notes: "Notes", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
+  const saveState = (txt, cls) => { const el = $("#tour-save-state"); el.textContent = txt; el.style.color = cls === "err" ? "var(--red)" : cls === "ok" ? "#17532D" : "var(--muted)"; };
+  function tourPatch(f, el) {
+    const k = el.name || (el.closest("#tour-div") ? "divisions" : "");
+    if (k === "divisions") return { k, patch: { divisions: NRC.divisionsFrom(f, "divisions") } };
+    if (k === "nrc_staffs") return { k, patch: { nrc_staffs: el.checked } };
+    if (k === "pairs_needed") { const v = parseInt(el.value, 10); return isNaN(v) || v < 0 ? { err: "Enter a number of pairs (0 or more)." } : { k, patch: { pairs_needed: v } }; }
+    if (k === "pairs_organizer" || k === "organizer_pairs_note") {
+      const n = parseInt(f.pairs_organizer.value, 10) || 0, note = f.organizer_pairs_note.value.trim();
+      if (n && !note) return { wait: "Add the country or federation of the organizer's pairs to save." };
+      return { k, patch: { pairs_organizer: n, organizer_pairs_note: n ? note : null } };
+    }
+    if (k === "start_date" || k === "end_date") { const a = f.start_date.value, b = f.end_date.value; if (!a || !b) return { err: "Both dates are needed." }; if (b < a) return { err: "The end date is before the start date." }; return { k, patch: { start_date: a, end_date: b } }; }
+    if (!k) return {};
+    return { k, patch: { [k]: el.value.trim() === "" ? null : el.value.trim() } };
+  }
+  $("#form-tour").addEventListener("submit", e => e.preventDefault());
+  $("#form-tour").addEventListener("change", async (e) => {
+    const f = e.currentTarget, el = e.target; const r = tourPatch(f, el);
+    if (r.wait) { saveState(r.wait, "err"); return; }
+    if (r.err) { saveState(r.err, "err"); el.classList.add("err"); return; }
+    if (!r.patch) return;
+    el.classList.remove("saved", "err"); el.classList.add("saving"); saveState("Saving...");
+    const { error } = await sb().from("tournaments").update(r.patch).eq("id", currentTour.id);
+    el.classList.remove("saving");
+    if (error) {
+      el.classList.add("err"); saveState("Not saved: " + error.message, "err");
+      if (r.k && r.k !== "divisions" && f[r.k] && f[r.k].type !== "checkbox") f[r.k].value = currentTour[r.k] == null ? "" : currentTour[r.k];
+      return;
+    }
+    Object.assign(currentTour, r.patch); el.classList.add("saved"); setTimeout(() => el.classList.remove("saved"), 1500);
+    if (!Object.keys(r.patch).every(k => INTERNAL.includes(k))) tourPublicChanges++;
+    saveState("Saved " + new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + (tourPublicChanges ? ", officials and organizer told when you close" : ""), "ok");
+    $("#dlg-tour-title").textContent = currentTour.name;
+  });
+  window.closeTour = () => $("#dlg-tour").close();
+  $("#dlg-tour").addEventListener("close", async () => {
+    const T = currentTour, n = tourPublicChanges; tourPublicChanges = 0;
+    if (T && n && T.status !== "cancelled" && T.end_date >= today() && (desRows.length || !T.created_by_nrc)) {
+      toast(`Sending the update on ${T.name} to the designated officials and the organizer...`);
+      const { data: sess } = await sb().auth.getSession();
+      const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: T.id, kind: "changes" }) }).catch(() => null);
+      const d = res ? await res.json().catch(() => ({})) : {};
+      if (!res || !res.ok) toast("The update on " + T.name + " was not sent: " + ((d && d.error) || "network error") + ". Open the tournament and close it again to retry.", "error", 10000);
+      else if (d.nothing) toast("Saved. No detail that officials see changed, so nothing was sent.", "ok");
+      else { const ok = d.results.filter(r => r.sent).length, ko = d.results.filter(r => !r.sent); toast(`Update on ${T.name} sent: ${ok} email${ok === 1 ? "" : "s"}${ko.length ? ", " + ko.length + " not sent (" + ko.map(r => r.email).join(", ") + ")" : ""}.`, ko.length ? "error" : "ok", 8000); }
+    }
+    loadAll();
+  });
+  async function renderTourLog() {
+    const { data, error } = await sb().from("tournament_changes").select("*").eq("tournament_id", currentTour.id).order("created_at", { ascending: false });
+    const val = (k, v) => { if (v == null || v === "") return "empty"; if (k === "club_id") return clubName(v) || "club"; if (k === "travel_managed_by") return { nrc: "NRC", organizer: "Organizer", referee: "Referees" }[v] || v; if (v === "true" || v === true) return "yes"; if (v === "false" || v === false) return "no"; const s = String(v); return s.length > 80 ? s.slice(0, 80) + "..." : s; };
+    const ts = x => new Date(x).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+    $("#tour-log tbody").innerHTML = error ? `<tr><td colspan="4">${NRC.esc(error.message)}</td></tr>` : (data || []).map(c => `<tr><td class="small" style="white-space:nowrap">${ts(c.created_at)}</td><td class="small">${NRC.esc(c.changed_by_label || c.changed_by_role || "")}${c.changed_by_role && c.changed_by_label ? '<br><span class="muted">' + NRC.esc(c.changed_by_role) + "</span>" : ""}</td><td class="small">${Object.entries(c.changes || {}).map(([k, v]) => `${NRC.esc(TF[k] || k.replace(/_/g, " "))}: ${NRC.esc(val(k, v.from))} &rarr; <strong>${NRC.esc(val(k, v.to))}</strong>${INTERNAL.includes(k) ? ' <span class="muted">(internal)</span>' : ""}`).join("<br>")}</td><td class="small">${c.notified_at ? ts(c.notified_at) : '<span class="muted">not yet</span>'}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">No change recorded.</td></tr>';
+  }
+  // toast and sending locks: email buttons show "Sending..." and ignore a second click until the server answers
+  function toast(msg, kind, ms) {
+    let el = document.getElementById("nrc-toast"); if (!el) { el = document.createElement("div"); el.id = "nrc-toast"; el.setAttribute("role", "status"); document.body.appendChild(el); }
+    el.className = "nrc-toast " + (kind || ""); el.textContent = msg; el.hidden = false;
+    clearTimeout(toast.t); toast.t = setTimeout(() => { el.hidden = true; }, ms || (kind ? 6000 : 60000));
+  }
+  window.nrcToast = toast;
+  const busyWrap = (fn, label) => { let running = false; return async function (...args) {
+    if (running) { toast("Still sending, one moment..."); return; }
+    const b = document.activeElement && document.activeElement.tagName === "BUTTON" ? document.activeElement : null;
+    running = true; if (b) { b.disabled = true; b.classList.add("busy"); } toast(label || "Sending emails...");
+    try { return await fn.apply(this, args); } finally { running = false; if (b) { b.disabled = false; b.classList.remove("busy"); } const el = document.getElementById("nrc-toast"); if (el && !el.className.match(/ok|error/)) el.hidden = true; }
+  }; };
+  setTimeout(() => ["sendSelected", "notifyOrganizer", "sendBriefs", "sendRefMessage", "sendClubMessage", "notifyChanges"].forEach(n => { if (typeof window[n] === "function") window[n] = busyWrap(window[n]); }), 0);
   async function callMail(body) { const { data: sess } = await sb().auth.getSession(); const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, ...body }) }); const d = await res.json(); if (!res.ok) { alert("Failed: " + (d.error || res.status)); return null; } const ok = d.results.filter(r => r.sent).length; alert(ok + " email(s) sent." + (d.results.length - ok ? " Not sent: " + d.results.filter(r => !r.sent).map(r => r.email + " (" + (r.error || "").slice(0, 60) + ")").join("; ") : "")); return d; }
   window.notifyChanges = () => callMail({ kind: currentTour.status === "cancelled" ? "cancel" : "changes" });
   window.sendBriefs = () => { if (!desRows.length) { alert("Nobody designated yet."); return; } callMail({ kind: "brief", assignment_ids: desRows.map(a => a.id) }); };

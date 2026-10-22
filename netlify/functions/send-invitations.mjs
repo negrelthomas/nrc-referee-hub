@@ -44,8 +44,13 @@ export default async (req) => {
 
   if (kind === "changes" || kind === "cancel") {
     const { data: ch } = await admin.from("tournament_changes").select("*").eq("tournament_id", tournament_id).is("notified_at", null).order("created_at");
-    const rows = (ch || []).flatMap(c => Object.entries(c.changes || {}).map(([f, v]) => `<li>${esc(LABEL[f] || f)}: ${esc(v.from == null ? "none" : v.from)} to ${esc(v.to == null ? "none" : v.to)}</li>`));
+    const rows = (ch || []).flatMap(c => Object.entries(c.changes || {}).filter(([f]) => LABEL[f] && f !== "status").map(([f, v]) => `<li>${esc(LABEL[f] || f)}: ${esc(v.from == null ? "none" : v.from)} to ${esc(v.to == null ? "none" : v.to)}</li>`));
     const cancelled = kind === "cancel" || t.status === "cancelled";
+    // internal fields (club, staff by, sanction...) are logged for the NRC but not sent; nothing public changed: nothing to send
+    if (!cancelled && !rows.length) {
+      if (ch && ch.length) await admin.from("tournament_changes").update({ notified_at: new Date().toISOString() }).in("id", ch.map(c => c.id));
+      return json(200, { results: [], nothing: true });
+    }
     const subject = cancelled ? `Cancelled: ${t.name}, ${fmtDate(t.start_date)}` : `Update: ${t.name}, ${fmtDate(t.start_date)}`;
     const body = cancelled ? `<p><strong>${esc(t.name)}</strong> (${when}, ${esc(t.venue_city)}, ${esc(t.venue_state)}) is cancelled by the organizer. Any assignment for this event is void; the NRC cancels bookings it made and will confirm by email.</p>` : `<p>The details of <strong>${esc(t.name)}</strong> (${when}, ${esc(where)}) changed:</p><ul>${rows.join("") || "<li>See the event page for the current details.</li>"}</ul><p>Your assignment stands unless the NRC tells you otherwise. Check your trip on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p>`;
     const results = [];

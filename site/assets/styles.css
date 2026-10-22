@@ -587,3 +587,20 @@ tr.miss td{background:var(--red-tint)}
   .tc-body{padding:10px;font-size:14px}.tc-dots .dot{min-width:26px;padding:2px 5px}
   .path-top .btn{width:100%}
 }
+
+/* admin tournament window */
+.tour-details{margin-top:12px;border:1px solid var(--line);border-radius:10px;background:#F7F9FC}
+.tour-details>summary{cursor:pointer;padding:10px 14px;list-style-position:inside}
+.tour-form{display:grid;gap:12px;padding:0 14px 14px}
+.tf-group{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px 10px;align-items:end;background:#fff;border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.tf-group>div{grid-column:span 2}
+.tf-h{grid-column:1/-1!important;font-family:var(--display);font-weight:700;text-transform:uppercase;letter-spacing:.3px;font-size:13px;color:var(--navy-2)}
+.tf-group input.saving,.tf-group select.saving{border-color:#D99A00}
+.tf-group input.saved,.tf-group select.saved{border-color:#2E9E5B}
+.tf-group input.err,.tf-group select.err{border-color:var(--red)}
+@media (max-width:760px){.tf-group{grid-template-columns:1fr 1fr}.tf-group>div{grid-column:span 1}}
+.nrc-toast{position:fixed;right:18px;bottom:18px;z-index:1000;max-width:420px;background:var(--navy);color:#fff;padding:12px 16px;border-radius:10px;box-shadow:0 12px 30px -12px rgba(0,0,0,.5);font-size:14px;line-height:1.4}
+.nrc-toast.ok{background:#17532D}.nrc-toast.error{background:var(--red)}
+.btn.busy{position:relative;color:transparent!important}
+.btn.busy::after{content:"Sending...";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px}
+.btn.secondary.busy::after,.btn.ghost.busy::after{color:var(--navy)}
