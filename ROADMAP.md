@@ -2,13 +2,13 @@
 
 Items raised by testers, the NRC or Thomas that are not built yet. Each item records where it came from, what it needs and what it depends on. Items move to the README or the guides once delivered.
 
-Last updated: October 22, 2026 (evening)
+Last updated: October 23, 2026
 
 ## Parked: needs an NRC or USATH decision first
 
 | # | Item | Source | What it would take | Depends on |
 |---|------|--------|--------------------|------------|
-| 1 | Other technical officials: table officials (timekeeper, scorekeeper), technical delegates, observers | NRC feedback via the hub, Oct 21 | Generalize the referee record into an "official" with one or more functions; a training track and question set per function; staffing requests that ask for table officials and delegates alongside pairs; role filters on the roster and directory | NRC to define certification for each function and who manages them |
+| 1 | Other technical officials: table officials (timekeeper, scorekeeper), technical delegates, observers. Training started Oct 23: guide/table-officials.html and a Table officials and delegates track on the training page (IHF catalogue questions on the table, clock, substitution area, team officials and delegate) | NRC feedback via the hub, Oct 21 | Still to do: generalize the referee record into an "official" with one or more functions; a training track and question set per function; staffing requests that ask for table officials and delegates alongside pairs; role filters on the roster and directory | NRC to define certification for each function and who manages them |
 | 2 | Beach handball refereeing | NRC feedback via the hub, Oct 21 | Discipline flag on referees, events and certifications; separate beach question bank (IHF Beach Rules of the Game) and beach evaluation sheet; beach events in the calendar (currently excluded on purpose) | NRC decision to include beach; source for beach questions |
 | 3 | Referee pay and expenses: games reported per referee, fees, travel costs, per diem, receipts, scheduled payouts (Finnish model: payment twice a month for league games, tax withheld) | Halina Lehto, Oct 21 | Fee schedule per event type; games already logged become the pay basis; per diem rules; payout batches; receipts already stored with expense claims; exports for accounting; W-9 collection and 1099 reporting | USATH finance and legal: referee status (contractor vs employee), federal and state tax treatment, who pays (USATH, organizer, club) |
 | 4 | Ranking formula for evaluations | Evaluator track, Oct 21 | Proposal built (summary score, influence, weight by type of match); switch to the NRC's formula once agreed | Joshua to confirm |
@@ -37,6 +37,7 @@ Process agreed by Thomas, to confirm with Joshua: an AI pass logs each game from
 | 14 | AI pass pipeline: Gemini API script, game cut in segments, three passes (goals and score, whistles, personal punishments), fixed output format; reads the scanned score sheet, re-runs the goals pass until the score matches, turns other sheet differences into flags; writes the log and flags to the hub | To build | Runs on the Gemini API free tier (allow generativelanguage.googleapis.com in Claude settings, API key from AI Studio). Gate before wider use: score exact, and at least 9 of 10 punishments caught, measured on broadcast games with official IHF or EHF match reports and one CalCup game checked by an evaluator, since CalCup sheets are not reliable for punishments |
 | 15 | Better score sheets at CalCup 2027 and NRC events: 7 m throws, timeouts, minute of every card and suspension | Ask organizers | Game 4 of CalCup 2026 had none of these; table officials often miss punishments and scorers, so only the score is used as a reference |
 | 16 | A camera that follows the referees, or a second angle, on games used for evaluation | Ask organizers | Single wide camera is the main limit found in testing |
+| 18 | Pool of remote evaluators reviewing games available online (streams, club video), giving referees feedback more often than on site supervision allows | Thomas, Oct 23 | Uses the existing evaluator track and video review; needs recruitment of candidates and the calibration library (item 8) |
 | 17 | Labelled clip library (EHF teaching materials, IHF Rule Interpretation app) as reference examples for the AI pass | Needs access | EHF platform is members only; ask whether the NRC has access |
 
 Test results, October 22: on CalCup 2026 Game 4 (NYC W 16, San Diego W 31) Gemini 3.8 Flash in AI Studio got the score exactly right at high resolution, but caught 1 of 4 personal punishments and a small share of free throws; runs were not consistent. On the Tokyo 2020 men's final broadcast it caught every punishment it reached.
@@ -49,6 +50,11 @@ Test results, October 22: on CalCup 2026 Game 4 (NYC W 16, San Diego W 31) Gemin
 - Referees can opt in to share their email and phone with other signed in referees in the directory (Halina Lehto).
 - Referees see all upcoming tournaments on their weekend availability calendar (Halina Lehto; shipped in the previous commit).
 - Referees can no longer change their own level, confirmation or active status through the API (found while making the level change).
+
+## Delivered October 23
+
+- Admin console Phone view: section picker instead of the side menu, one card per table row, full screen windows, larger inputs. Laptop and Phone switch at the top of the console; Auto picks Phone under 820px and the choice is kept per device.
+- Table officials and delegates: guide (guide/table-officials.html, draft for NRC review) and a training track with four themes, core and advanced quizzes from the IHF catalogue.
 
 ## Delivered October 22
 

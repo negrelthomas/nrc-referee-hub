@@ -25,7 +25,25 @@
     { key: "exec", title: "Executing throws", rules: [15], fam: "restarts", icon: "arrow" },
     { key: "officials", title: "Referees, timekeeper, scorekeeper", rules: [17, 18], fam: "officials", icon: "table" }
   ].map(t => Object.assign(t, { color: FAM[t.fam].deep, accent: FAM[t.fam].accent, family: FAM[t.fam].name }));
+  // Table officials and technical delegates: same IHF catalogue, filtered to the questions that involve the table,
+  // the clock, the substitution area, team officials or the delegate. Two quizzes per theme (core, advanced).
+  const TABLE_RX = /timekeeper|scorekeeper|technical delegate|delegate|score ?sheet|clock|time-?out|green card|substitution (zone|area)|substitution area regulations|bench|team official|stops? the time|time is stopped|final signal|suspension/i;
+  const TFAM = {
+    clock: { name: "Clock and time-outs", accent: "#2DD4BF", deep: "#0F766E" },
+    bench: { name: "Substitution area and bench", accent: "#60A5FA", deep: "#1D4ED8" },
+    desk: { name: "Table and delegate", accent: "#A78BFA", deep: "#6D28D9" }
+  };
+  NRC.TABLE_THEMES = [
+    { key: "t-clock", title: "Playing time, time-outs, final signal", rules: [2], fam: "clock", icon: "court", match: TABLE_RX },
+    { key: "t-sub", title: "Substitutions and the substitution area", rules: [4], fam: "bench", icon: "team", match: TABLE_RX },
+    { key: "t-bench", title: "Team officials, bench conduct, suspensions", rules: [8, 16], fam: "bench", icon: "card", match: TABLE_RX },
+    { key: "t-desk", title: "Timekeeper, scorekeeper, technical delegate", rules: [17, 18], fam: "desk", icon: "table", match: TABLE_RX, alsoDelegate: true }
+  ].map(t => Object.assign(t, { table: true, color: TFAM[t.fam].deep, accent: TFAM[t.fam].accent, family: TFAM[t.fam].name }));
   const LEVELS = [["level_1", "Level 1"], ["level_2", "Level 2"], ["level_3", "Level 3"]];
+  const TLEVELS = [["core", "Core", ["level_1", "level_2"]], ["adv", "Advanced", ["level_3"]]];
+  let track = /track=table/.test(location.search) ? "table" : "ref";
+  const themes = () => track === "table" ? NRC.TABLE_THEMES : NRC.THEMES;
+  const allThemes = () => NRC.THEMES.concat(NRC.TABLE_THEMES);
   const ICONS = {
     court: '<rect x="3" y="7" width="26" height="18" rx="1"/><line x1="16" y1="7" x2="16" y2="25"/><path d="M3 11a5 5 0 0 1 0 10M29 11a5 5 0 0 0 0 10"/>',
     team: '<circle cx="11" cy="11" r="4"/><circle cx="22" cy="11" r="4"/><path d="M4 26c0-5 3-8 7-8s7 3 7 8M15 26c0-5 3-8 7-8s7 3 7 8"/>',
@@ -45,8 +63,15 @@
 
   let ALL = [], results = {}, user = null, openTheme = null;
   const lessonKey = (t, lv) => t.key + "-" + lv;
-  const poolFor = (t, lv) => ALL.filter(q => q.src === "ihf" && q.options && q.options.length && t.rules.includes(q.rule) && q.diff === lv);
-  const lessonsOf = (t) => LEVELS.filter(([lv]) => poolFor(t, lv).length >= 5).map(([lv, label]) => ({ key: lessonKey(t, lv), lv, label, n: poolFor(t, lv).length }));
+  const isIhf = q => q.src === "ihf" && q.options && q.options.length;
+  const poolFor = (t, lv) => {
+    if (!t.table) return ALL.filter(q => isIhf(q) && t.rules.includes(q.rule) && q.diff === lv);
+    const diffs = (TLEVELS.find(x => x[0] === lv) || [, , []])[2];
+    // Each question sits in one table theme only: the delegate theme takes every question naming the delegate
+    const taken = (q) => NRC.TABLE_THEMES.some(o => o.alsoDelegate && o !== t && /delegate/i.test(q.q));
+    return ALL.filter(q => isIhf(q) && diffs.includes(q.diff) && ((t.rules.includes(q.rule) && t.match.test(q.q) && !taken(q)) || (t.alsoDelegate && /delegate/i.test(q.q))));
+  };
+  const lessonsOf = (t) => (t.table ? TLEVELS : LEVELS).filter(([lv]) => poolFor(t, lv).length >= 5).map(([lv, label]) => ({ key: lessonKey(t, lv), lv, label, n: poolFor(t, lv).length }));
 
   async function loadResults() {
     results = {};
@@ -68,32 +93,36 @@
     return { L, done, last, avg, complete: L.length && done === L.length };
   }
   function nextLesson() {
-    for (const t of NRC.THEMES) for (const l of lessonsOf(t)) if (!results[l.key] || results[l.key].best < PASS) return { t, l };
+    for (const t of themes()) for (const l of lessonsOf(t)) if (!results[l.key] || results[l.key].best < PASS) return { t, l };
     return null;
   }
 
   function render() {
     const host = $("#path-ui"); if (!host) return;
-    const all = NRC.THEMES.flatMap(t => lessonsOf(t)), passed = all.filter(l => results[l.key] && results[l.key].best >= PASS).length;
+    const all = themes().flatMap(t => lessonsOf(t)), passed = all.filter(l => results[l.key] && results[l.key].best >= PASS).length;
     const wk = Object.values(results).filter(r => r.lastDate && r.lastDate >= new Date(Date.now() - 7 * 864e5).toISOString()).length;
     const nx = nextLesson();
     const pct = all.length ? Math.round(100 * passed / all.length) : 0;
-    host.innerHTML = `<div class="path-top">
+    const fams = track === "table" ? TFAM : FAM;
+    host.innerHTML = `<div class="seg wide track-switch" role="tablist" aria-label="Training track"><label class="${track === "ref" ? "on" : ""}"><input type="radio" name="track" value="ref" ${track === "ref" ? "checked" : ""}>Referees</label><label class="${track === "table" ? "on" : ""}"><input type="radio" name="track" value="table" ${track === "table" ? "checked" : ""}>Table officials and delegates</label></div>
+      ${track === "table" ? '<p class="small muted" style="margin:0 0 10px">Questions from the IHF catalogue that involve the table, the clock, the substitution area, team officials or the technical delegate. Core covers levels 1 and 2, Advanced level 3. Read the <a href="guide/table-officials.html">table officials and delegates guide</a> first.</p>' : ""}
+      <div class="path-top">
         <div class="pt-ring">${ring(pct, "#E8EB2F", 76, "rgba(255,255,255,.15)")}<span>${pct}%</span></div>
-        <div class="pt-txt"><div class="pt-k">Your path through the IHF rules</div><div class="path-count"><strong>${passed}</strong> of ${all.length} quizzes passed</div>
+        <div class="pt-txt"><div class="pt-k">${track === "table" ? "Table officials and delegates" : "Your path through the IHF rules"}</div><div class="path-count"><strong>${passed}</strong> of ${all.length} quizzes passed</div>
         <div class="pt-sub">${PER} questions per quiz, ${PASS}% to pass.${wk ? " " + wk + " quiz" + (wk === 1 ? "" : "zes") + " this week." : ""}${user ? "" : ' <a href="login.html?next=training.html">Sign in</a> to keep your path across devices.'}</div></div>
         ${nx ? `<button class="btn yellow pt-next" type="button" data-start="${nx.l.key}"><span class="small" style="display:block;font-weight:600;opacity:.8">Up next</span>${esc(nx.t.title)}, ${nx.l.label}</button>` : '<span class="pill green">Every quiz passed. Retake the oldest to stay sharp.</span>'}
       </div>
-      <div class="fam-legend">${Object.values(FAM).map(f => `<span><i style="background:${f.accent}"></i>${f.name}</span>`).join("")}</div>
-      <div class="path-grid">${NRC.THEMES.map(t => { const s = themeStats(t); return `<button type="button" class="theme-card ${s.complete ? "complete" : ""} ${openTheme === t.key ? "open" : ""}" style="--fc:${t.accent};--tc:${t.color}" data-theme="${t.key}" aria-expanded="${openTheme === t.key}">
+      <div class="fam-legend">${Object.values(fams).map(f => `<span><i style="background:${f.accent}"></i>${f.name}</span>`).join("")}</div>
+      <div class="path-grid">${themes().map(t => { const s = themeStats(t); return `<button type="button" class="theme-card ${s.complete ? "complete" : ""} ${openTheme === t.key ? "open" : ""}" style="--fc:${t.accent};--tc:${t.color}" data-theme="${t.key}" aria-expanded="${openTheme === t.key}">
           <span class="tc-top"><span class="tc-ico">${icon(t.icon)}</span><span class="tc-rules">Rule${t.rules.length > 1 ? "s" : ""} ${t.rules.join(", ")}</span>${s.complete ? '<span class="tc-done" title="Completed">&#10003;</span>' : ""}</span>
           <span class="tc-title">${esc(t.title)}</span>
           <span class="tc-levels">${s.L.map(l => { const r = results[l.key]; return `<i class="lv ${r ? (r.best >= PASS ? "pass" : "try") : ""}" title="${l.label}${r ? ": best " + r.best + "%" : ": not started"}">${l.label.replace("Level ", "L")}</i>`; }).join("")}</span>
           <span class="tc-meta">${s.last ? (s.avg != null ? s.avg + "% average &middot; " : "") + NRC.fmtDate(NRC.localDate(new Date(s.last))) : "Not started"}</span></button>`; }).join("")}</div>
       <div id="path-detail"></div>`;
+    NRC.$$('input[name="track"]', host).forEach(i => i.onchange = () => { track = i.value; openTheme = null; try { history.replaceState(null, "", track === "table" ? "?track=table" : location.pathname); } catch (e) { } render(); });
     NRC.$$("[data-theme]", host).forEach(b => b.onclick = () => { openTheme = openTheme === b.dataset.theme ? null : b.dataset.theme; render(); if (openTheme) $("#path-detail").scrollIntoView({ behavior: "smooth", block: "nearest" }); });
     NRC.$$("[data-start]", host).forEach(b => b.onclick = () => start(b.dataset.start));
-    if (openTheme) renderDetail(NRC.THEMES.find(t => t.key === openTheme));
+    if (openTheme) renderDetail(themes().find(t => t.key === openTheme));
   }
   function renderDetail(t) {
     const s = themeStats(t);
@@ -104,10 +133,10 @@
 
   function start(key) {
     const [tk, lv] = [key.slice(0, key.lastIndexOf("-")), key.slice(key.lastIndexOf("-") + 1)];
-    const t = NRC.THEMES.find(x => x.key === tk); if (!t) return;
+    const t = allThemes().find(x => x.key === tk); if (!t) return;
     const qs = NRC.shuffle(poolFor(t, lv).slice()).slice(0, PER);
-    const label = (LEVELS.find(x => x[0] === lv) || [, ""])[1];
-    NRC.Training.startLesson({ key, title: t.title + ", " + label, color: t.color, questions: qs, difficulty: lv, onDone: async () => { await loadResults(); render(); } });
+    const label = ((t.table ? TLEVELS : LEVELS).find(x => x[0] === lv) || [, ""])[1];
+    NRC.Training.startLesson({ key, title: t.title + ", " + label, color: t.color, questions: qs, difficulty: t.table ? null : lv, onDone: async () => { await loadResults(); render(); } });
   }
 
   NRC.Path = {
