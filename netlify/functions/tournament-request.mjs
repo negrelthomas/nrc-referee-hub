@@ -61,7 +61,7 @@ export default async (req) => {
 <p><strong>${esc(t.name)}</strong><br>${when}<br>${esc([t.venue_name, t.venue_city, t.venue_state].filter(Boolean).join(", "))}<br>Club: ${esc(t.clubs ? t.clubs.name : "none")}<br>
 ${t.pairs_needed} pair(s) for the NRC to staff${t.pairs_organizer ? ", plus " + t.pairs_organizer + " international pair(s) brought by the organizer (" + esc(t.organizer_pairs_note || "") + ")" : ""}${t.supervisor_needed ? " and a supervisor" : ""}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? "each referee" : "the organizer"}, ${(t.divisions || []).join(", ") || "divisions not given"}<br>
 Organizer: ${esc(t.organizer_name)} (${esc(t.organizer_email)})<br>Staff by: <strong>${fmtDate(t.staff_by)}</strong></p>
-<p><a href="${base}/admin/#staffing">Open the Staffing page</a></p>`;
+<p><a href="${base}/admin/#tournaments">Open Tournaments in the admin</a></p>`;
   const r1 = await sendMail({ to: contact, subject: `New tournament request: ${t.name}`, html: nrcHtml, replyTo: t.organizer_email });
   await admin.from("email_log").insert({ to_email: contact, subject: `New tournament request: ${t.name}`, kind: "new_request", sent: r1.sent, error: r1.error });
   const orgHtml = `<p>Hello ${esc(t.organizer_name)},</p><p>The NRC received your request for <strong>${esc(t.name)}</strong>, ${when}. You will hear from the NRC by email as referees are designated.</p>

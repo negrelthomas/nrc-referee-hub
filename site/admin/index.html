@@ -24,7 +24,7 @@
       </div>
       <div class="nav-sec">
         <button type="button" class="sec-top" aria-expanded="false">Events</button>
-        <div class="sub"><a href="#tournaments">Tournaments</a><a href="#staffing">Staffing</a></div>
+        <div class="sub"><a href="#tournaments">Tournaments</a></div>
       </div>
       <div class="nav-sec">
         <button type="button" class="sec-top" aria-expanded="false">Training</button>
@@ -56,7 +56,7 @@
         <h2>Club coverage</h2>
         <div class="table-wrap"><table id="cov"><thead><tr><th>Club</th><th>City</th><th>Referees</th><th>Certified</th><th>Pair</th><th>Program status</th></tr></thead><tbody></tbody></table></div>
         <h2>Training: weakest rules across the pool</h2>
-        <p class="small muted">From every signed in referee's quiz answers. A direct input for clinic content. The <a href="training.html#board">timed challenge leaderboard</a> shows who trains the most, overall and by level.</p>
+        <p class="small muted">From every signed in referee's quiz answers. A direct input for clinic content. The <a href="training.html#board">timed challenge leaderboard</a> shows who trains the most (referees who opt in).</p>
         <div class="table-wrap"><table id="pool-rules"><thead><tr><th>Rule</th><th>Answered</th><th>Score</th></tr></thead><tbody></tbody></table></div>
         <h2>Compliance watch</h2>
         <p class="small muted">Referees whose USATH membership, SafeSport or background check is expired or missing.</p>
@@ -108,27 +108,17 @@
       </div>
 
       <!-- Staffing cards -->
-      <div id="pane-staffing" class="hidden">
-        <h1>Staffing</h1>
-        <div class="small muted" id="staff-settings-line" style="margin-bottom:10px"></div>
-        <div id="staff-dups"></div>
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
-          <div class="chips" id="staff-filter" style="margin:0"><span class="chip on" data-v="open">To staff</span><span class="chip" data-v="upcoming">All upcoming</span><span class="chip" data-v="past">Past</span><span class="chip" data-v="all">All</span></div>
-          <div class="chips" id="staff-view" style="margin:0"><span class="chip on" data-v="table">Table</span><span class="chip" data-v="cards">Cards</span></div>
-        </div>
-        <div class="table-wrap" id="staff-table-wrap"><table id="staff-table"><thead><tr><th>Tournament</th><th>Starts</th><th>Staff by</th><th>Designated</th><th title="Certified referees available that weekend">Avail.</th><th>Contacted</th><th>Answers</th></tr></thead><tbody></tbody></table></div>
-        <div class="grid c3 hidden" id="staff-cards"></div>
-        <p class="small muted" style="margin-top:8px">Available: certified referees who marked that weekend available and have no blocked dates over the event. Contacted: invitations sent. Answers: accepted, tentative, no answer yet, declined. Click a row for the tournament dashboard.</p>
-      </div>
-
       <!-- Tournaments -->
       <div id="pane-tournaments" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Tournaments</h1><button class="btn sm" onclick="openNewTour()">Add tournament</button></div>
         <p class="muted small">Organizer requests arrive here from the public form. Add the others yourself (nationals, international, club events). Click a tournament to staff it, log its games and enter evaluations. This feeds every referee's history, profile card and ranking.</p>
-        <div class="legend small"><span class="pill s-usath">USATH</span><span class="pill s-club">Club</span><span class="pill s-intl">International</span><span class="pill amber">Tentative dates</span> <span class="muted">tentative and calendar only events stay out of Staffing</span></div>
+        <div class="small muted" id="staff-settings-line" style="margin-bottom:10px"></div>
+        <div id="staff-dups"></div>
+
+        <div class="legend small"><span class="pill s-usath">USATH</span><span class="pill s-club">Club</span><span class="pill s-intl">International</span><span class="pill amber">Tentative dates</span> <span class="muted">calendar only: on the calendar, not staffed by the NRC</span></div>
         <div class="card" id="reports-card" style="margin:10px 0"><h3 style="margin-top:0">Games reported by referees <span class="pill amber hidden" id="reports-count"></span></h3><div class="table-wrap"><table id="reports"><thead><tr><th>Referee</th><th>Event</th><th>Games</th><th>Role</th><th>Partner</th><th>Reported</th><th></th></tr></thead><tbody></tbody></table></div><p class="small muted" style="margin-top:6px">Confirm records the referee in the event's Officiated tab with these games. Not confirmed sends the report back with your note.</p></div>
-        <div class="filterbar" id="tour-filter"><button type="button" class="chip on" data-f="upcoming">Upcoming</button><button type="button" class="chip" data-f="past">Past</button><button type="button" class="chip" data-f="todo">Games or evaluations to enter</button><button type="button" class="chip" data-f="all">All</button><input id="tour-q" placeholder="Search name, city, club" style="max-width:240px;margin-left:auto"></div>
-        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Type</th><th>Dates</th><th>Where</th><th title="Tentative contact for events the NRC placed on the calendar; Reach out invites them to place their request">Organizer</th><th title="Officials recorded on the event against referees needed">Officials</th><th title="Games logged one by one, against games expected">Games</th><th title="Referee evaluations entered">Evaluations</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div class="filterbar" id="tour-filter"><button type="button" class="chip on" data-f="upcoming">All upcoming</button><button type="button" class="chip" data-f="norequest">No request yet</button><button type="button" class="chip" data-f="none">Request in, nobody designated</button><button type="button" class="chip" data-f="partial">Partially staffed</button><button type="button" class="chip" data-f="full">Fully staffed</button><button type="button" class="chip" data-f="calendar">Calendar only</button><button type="button" class="chip" data-f="todo">Past, games or evaluations to enter</button><button type="button" class="chip" data-f="past">Past</button><button type="button" class="chip" data-f="all">All</button><input id="tour-q" placeholder="Search name, city, club" style="max-width:240px;margin-left:auto"></div>
+        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Type</th><th>Dates</th><th>Where</th><th title="Tentative contact for events the NRC placed on the calendar; Reach out invites them to place their request">Organizer</th><th title="Referees designated against referees the NRC staffs; staff by date and invitations for upcoming events">Staffing</th><th title="Games logged one by one, against games expected">Games</th><th title="Referee evaluations entered">Evaluations</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <div id="pane-rankings" class="hidden">
@@ -230,7 +220,7 @@
           <p><strong>Messages.</strong> Pick a template or write your own. Each contact receives a separate email with their club's figures filled in. Send yourself a test first; every email is logged and shows on the club page. "Copy addresses" gives the list for your own mailbox if you prefer to write from there.</p>
           <p><strong>Action plan.</strong> The dashboard ranks what to do next to grow the pool: prospects to introduce to their club, clubs hosting tournaments without a local referee, clubs one referee short of a pair, clubs with none, regional clinics where several clubs share a state, candidates to push through Level 1, and clubs with no contact on file. Each line opens a prepared draft for the clubs concerned.</p></div>
 
-        <div class="card"><h3 style="margin-top:0">5. Staffing, tournament requests and travel</h3>
+        <div class="card"><h3 style="margin-top:0">5. Tournaments: requests, staffing and travel</h3>
           <p>Organizers submit a request on the public page: dates, venue, pairs needed, whether a supervisor is needed, who books travel (the organizer, or the NRC with the organizer reimbursing), and what they cover (hotel nights, flights, transfers, food, earliest departure). The request arrives with status submitted. The organizer can sign in with the email of the request and follow it on their own page: progress, designated officials with contact details, and travel bookings when the NRC books. The Staffing page shows one card per event to staff with progress; a card opens the full dashboard. The intended flow:</p>
           <ol class="steps small">
             <li><strong>Review.</strong> Open the request, set the sanction and region, set status to reviewing. Note the supervisor need in the header.</li>
@@ -324,7 +314,7 @@
     <label><input type="checkbox" name="level_confirmed" style="width:auto" checked> Level confirmed by the NRC (untick to show an "NRC to confirm" badge)</label>
     <label><input type="checkbox" name="active" style="width:auto" checked> Active</label>
     <div id="ref-extra"></div>
-    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-ref').close()">Cancel</button><button class="btn ghost" type="button" id="btn-eval" onclick="openEval()">Add evaluation</button><a class="btn ghost" id="btn-game" href="#" target="_blank" rel="noopener">View as the referee</a><button class="btn ghost" type="button" id="btn-phys" onclick="openTest('physical')">Record physical test</button><button class="btn ghost" type="button" id="btn-theory" onclick="openTest('theory')">Record theory exam</button></p>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-ref').close()">Cancel</button><button class="btn ghost hidden" type="button" id="btn-eval" onclick="openEval()">Add evaluation</button><a class="btn ghost" id="btn-game" href="#" target="_blank" rel="noopener">View as the referee</a><button class="btn ghost" type="button" id="btn-phys" onclick="openTest('physical')">Record physical test</button><button class="btn ghost" type="button" id="btn-theory" onclick="openTest('theory')">Record theory exam</button></p>
   </form>
 </div></dialog>
 
@@ -393,6 +383,7 @@
     <div><h3 id="dlg-tour-title" style="margin:0">Tournament</h3><div class="small muted" id="dlg-tour-sub"></div></div>
     <div style="display:flex;gap:10px;align-items:center"><span class="small" id="tour-save-state" aria-live="polite"></span><button class="btn ghost sm" type="button" onclick="closeTour()">Close</button></div>
   </div>
+  <div id="tour-snap" class="snap"></div>
   <details id="tour-details" class="tour-details">
     <summary><strong>Event details</strong> <span class="small muted">changes save as you go; officials and the organizer are told when you close this window</span></summary>
     <form id="form-tour" class="tour-form" autocomplete="off">
@@ -426,7 +417,7 @@
     <button data-ttab="candidates">Find referees</button>
     <button data-ttab="designated">Designated and travel</button>
     <button data-ttab="money">Expenses</button>
-    <button data-ttab="officiated">Officiated, games, evaluations</button>
+    <button data-ttab="officiated">Games and evaluations</button>
     <button data-ttab="log">Change log</button>
   </div>
 
@@ -468,11 +459,12 @@
     <div id="report-view" style="margin-top:12px"></div>
   </div>
   <div id="ttab-officiated" class="hidden">
-    <div class="table-wrap"><table id="tour-asg"><thead><tr><th>Referee</th><th>Role</th><th>Games</th><th></th></tr></thead><tbody></tbody></table></div>
-    <div class="row" style="margin-top:10px"><div><label>Add referee</label><select id="asg-ref"></select></div><div><label>Games officiated</label><input id="asg-games" type="number" min="0"></div></div>
-    <p style="margin-top:10px"><button class="btn sm secondary" type="button" onclick="addAssignment()">Add</button> <span class="small muted">Games officiated counts the games when they are not logged one by one below.</span></p>
-    <h3 style="margin-top:18px">Games and evaluations</h3>
+    <p class="small muted" style="margin-top:0">Log every game below with its referee pair: it counts each referee's games and opens the observation reports. The team comes from Designated and travel.</p>
     <div id="tour-games"></div>
+    <details style="margin-top:16px"><summary class="small"><strong>Games per official</strong> <span class="muted">(totals for past events without game by game detail)</span></summary>
+      <div class="table-wrap" style="margin-top:8px"><table id="tour-asg"><thead><tr><th>Official</th><th>Role</th><th>Games logged</th><th title="Only when the games were not logged one by one: a total reported by the referee or from past records">Total without detail</th></tr></thead><tbody></tbody></table></div>
+      <select id="asg-ref" class="hidden"></select><input id="asg-games" type="hidden">
+    </details>
   </div>
   <div id="ttab-log" class="hidden">
     <p class="small muted">Every change to this tournament, by whom and when. Internal fields (club, sanction, region, divisions, staff by, published, NRC staffs, source link) are logged here but not sent to officials or the organizer.</p>

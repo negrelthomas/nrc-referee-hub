@@ -33,7 +33,7 @@
     <input id="q" placeholder="Search name, club, state">
     <select id="f-sort"><option value="name">Sort by name</option><option value="since">Sort by certified since</option><option value="last">Sort by last certification</option></select>
   </div>
-  <div class="table-wrap"><table id="tbl"><thead><tr><th></th><th>Referee</th><th>Certified since</th><th>Last certification</th><th>Club</th><th>State</th></tr></thead><tbody></tbody></table></div>
+  <div class="table-wrap ref-list"><table id="tbl"><thead><tr><th></th><th>Referee</th><th>Certified since</th><th>Last certification</th><th>Club</th><th>State</th></tr></thead><tbody></tbody></table></div>
   <p class="small muted" style="margin-top:10px">To request referees for an event, use the <a href="request-referees.html">tournament request page</a>. For anything else, write to the NRC at <a href="mailto:referee@handballusa.org">referee@handballusa.org</a>. Signed in referees can open the <a href="directory.html">referee directory</a>.</p>
 </section>
 </div>
@@ -62,8 +62,8 @@ function render() {
   const list = rows.filter(r => (!q || [r.first_name, r.last_name, r.club_name, r.home_state].join(" ").toLowerCase().includes(q)));
   list.sort((a, b) => sort === "since" ? String(a.certified_since || "9").localeCompare(String(b.certified_since || "9"))
     : sort === "last" ? String(b.last_certified_on || "").localeCompare(String(a.last_certified_on || ""))
-    : a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name));
-  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr class="clickable" tabindex="0" data-id="${r.id}"><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" loading="lazy"></td><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
+    : NRC.byLastName(a, b));
+  list.forEach(r => tb.insertAdjacentHTML("beforeend", `<tr class="clickable" tabindex="0" data-id="${r.id}"><td class="rc-photo"><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt="" loading="lazy"></td><td class="rc-name"><strong>${NRC.esc(r.last_name + ", " + r.first_name)}</strong><div class="rc-sub small muted">${NRC.esc([r.club_name, r.home_state].filter(Boolean).join(", "))}${r.certified_since ? " &middot; since " + NRC.esc(String(r.certified_since).slice(0, 4)) : ""}</div></td><td>${NRC.fmtDate(r.certified_since) || '<span class="muted">on file with the NRC</span>'}</td><td>${NRC.fmtDate(r.last_certified_on) || ""}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc(r.home_state || "")}</td></tr>`));
   if (!list.length) tb.innerHTML = '<tr><td colspan="6">No referee matches.</td></tr>';
 }
 function openProfile(id) {

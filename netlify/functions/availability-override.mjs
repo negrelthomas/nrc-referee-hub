@@ -38,7 +38,7 @@ export default async (req) => {
     await admin.from("availability_overrides").update({ status, responded_at: new Date().toISOString(), response_note: note }).eq("id", o.id);
     const name = o.referees.first_name + " " + o.referees.last_name;
     const subject = `${name} ${status === "accepted" ? "accepted" : "reverted"} the availability change for ${o.tournaments.name}`;
-    const html = `<p>${esc(name)} ${status === "accepted" ? "<strong>accepted</strong> the change: they are available for" : "<strong>reverted</strong> the change: they are not available for"} <strong>${esc(o.tournaments.name)}</strong>, ${fmtDate(o.tournaments.start_date)} to ${fmtDate(o.tournaments.end_date)}.</p>${note ? `<p>Their note: ${esc(note)}</p>` : ""}<p>Reason you gave: ${esc(o.reason)}</p><p>${base}/admin/#staffing</p>`;
+    const html = `<p>${esc(name)} ${status === "accepted" ? "<strong>accepted</strong> the change: they are available for" : "<strong>reverted</strong> the change: they are not available for"} <strong>${esc(o.tournaments.name)}</strong>, ${fmtDate(o.tournaments.start_date)} to ${fmtDate(o.tournaments.end_date)}.</p>${note ? `<p>Their note: ${esc(note)}</p>` : ""}<p>Reason you gave: ${esc(o.reason)}</p><p>${base}/admin/#tournaments</p>`;
     const r = await sendMail({ to: contact, subject, html });
     await admin.from("email_log").insert({ to_email: contact, subject, kind: "override_answer", sent: r.sent, error: r.error });
     return json(200, { status });

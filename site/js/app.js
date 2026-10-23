@@ -113,7 +113,12 @@
     NRC.currentUser().then((u) => {
       const a = NRC.$("#nav-login");
       if (!a) return;
-      if (u) { a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : u.role === "evaluator" ? "My evaluations" : "My profile"; a.href = NRC.homeFor(u); }
+      if (u) {
+        a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : u.role === "evaluator" ? "My evaluations" : "My home"; a.href = NRC.homeFor(u);
+        if (u.role === "referee" || u.role === "admin") a.insertAdjacentHTML("beforebegin", `<a href="directory.html" class="${active === "directory.html" ? "active" : ""}">Directory</a>`);
+        a.insertAdjacentHTML("afterend", `<a href="#" class="nav-out" onclick="NRC.signOut();return false">Sign out</a>`);
+        NRC.renderFeedback();
+      }
     });
   };
 
@@ -122,14 +127,13 @@
     if (!host) return;
     host.innerHTML = `<div class="wrap">
       <div>USA Team Handball, National Referee Committee. Questions: <a href="mailto:${NRC.esc(C.CONTACT_EMAIL)}">${NRC.esc(C.CONTACT_EMAIL)}</a> &middot; <a href="guide/index.html">How to use the hub</a></div>
-      <img src="assets/usath-logo.png" alt="USA Team Handball"></div>`;
-    NRC.renderFeedback();
+      <span class="foot-logo"><img src="assets/usath-logo.png" alt="USA Team Handball"></span></div>`;
   };
 
   // ---------- "Give feedback" button, every page. Goes straight to the hub owner by email. ----------
   NRC.renderFeedback = function () {
     if (document.getElementById("fb-btn")) return;
-    document.body.insertAdjacentHTML("beforeend", `<button type="button" class="fb-btn" id="fb-btn" aria-haspopup="dialog">Give feedback</button>
+    document.body.insertAdjacentHTML("beforeend", `<button type="button" class="fb-btn" id="fb-btn" aria-haspopup="dialog" title="Give feedback on the hub"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>Feedback</span></button>
 <dialog id="dlg-feedback"><div class="body">
   <h3 style="margin-top:0">Feedback on the hub</h3>
   <p class="small muted">Anything: a bug, a confusing screen, a missing feature, a word to change. It goes directly to the person building the site; no email or text needed.</p>

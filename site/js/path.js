@@ -3,20 +3,28 @@
 (function () {
   const $ = NRC.$, esc = NRC.esc;
   const PASS = 80, PER = 10;
+  // Five families of rules, one accent each: bright on the dark cards, deep on white panels
+  const FAM = {
+    setup: { name: "Game set-up", accent: "#2DD4BF", deep: "#0F766E" },
+    play: { name: "Play and the goal area", accent: "#60A5FA", deep: "#1D4ED8" },
+    fouls: { name: "Fouls and punishments", accent: "#FB7185", deep: "#BE123C" },
+    restarts: { name: "Scoring and throws", accent: "#FBBF24", deep: "#B45309" },
+    officials: { name: "Officials", accent: "#A78BFA", deep: "#6D28D9" }
+  };
   NRC.THEMES = [
-    { key: "court", title: "Court, time and ball", rules: [1, 2, 3], color: "#1E5AB8", icon: "court" },
-    { key: "team", title: "Team, substitutions, equipment", rules: [4], color: "#0F6E56", icon: "team" },
-    { key: "gk", title: "The goalkeeper", rules: [5], color: "#7B3FA0", icon: "glove" },
-    { key: "area", title: "The goal area", rules: [6], color: "#C8102E", icon: "arc" },
-    { key: "play", title: "Playing the ball, passive play", rules: [7], color: "#D97A00", icon: "ball" },
-    { key: "fouls", title: "Fouls and unsportsmanlike conduct", rules: [8], color: "#9E0B23", icon: "whistle" },
-    { key: "score", title: "Scoring and the throw-off", rules: [9, 10], color: "#04234F", icon: "goal" },
-    { key: "throws", title: "Throw-in, goalkeeper throw, free throw", rules: [11, 12, 13], color: "#0B7A8F", icon: "throw" },
-    { key: "seven", title: "The 7-metre throw", rules: [14], color: "#B5179E", icon: "seven" },
-    { key: "exec", title: "Executing throws", rules: [15], color: "#5C6B00", icon: "arrow" },
-    { key: "punish", title: "Punishments", rules: [16], color: "#E0A100", icon: "card" },
-    { key: "officials", title: "Referees, timekeeper, scorekeeper", rules: [17, 18], color: "#3A4A5C", icon: "table" }
-  ];
+    { key: "court", title: "Court, time and ball", rules: [1, 2, 3], fam: "setup", icon: "court" },
+    { key: "team", title: "Team, substitutions, equipment", rules: [4], fam: "setup", icon: "team" },
+    { key: "gk", title: "The goalkeeper", rules: [5], fam: "setup", icon: "glove" },
+    { key: "area", title: "The goal area", rules: [6], fam: "play", icon: "arc" },
+    { key: "play", title: "Playing the ball, passive play", rules: [7], fam: "play", icon: "ball" },
+    { key: "fouls", title: "Fouls and unsportsmanlike conduct", rules: [8], fam: "fouls", icon: "whistle" },
+    { key: "punish", title: "Punishments", rules: [16], fam: "fouls", icon: "card" },
+    { key: "score", title: "Scoring and the throw-off", rules: [9, 10], fam: "restarts", icon: "goal" },
+    { key: "throws", title: "Throw-in, goalkeeper throw, free throw", rules: [11, 12, 13], fam: "restarts", icon: "throw" },
+    { key: "seven", title: "The 7-metre throw", rules: [14], fam: "restarts", icon: "seven" },
+    { key: "exec", title: "Executing throws", rules: [15], fam: "restarts", icon: "arrow" },
+    { key: "officials", title: "Referees, timekeeper, scorekeeper", rules: [17, 18], fam: "officials", icon: "table" }
+  ].map(t => Object.assign(t, { color: FAM[t.fam].deep, accent: FAM[t.fam].accent, family: FAM[t.fam].name }));
   const LEVELS = [["level_1", "Level 1"], ["level_2", "Level 2"], ["level_3", "Level 3"]];
   const ICONS = {
     court: '<rect x="3" y="7" width="26" height="18" rx="1"/><line x1="16" y1="7" x2="16" y2="25"/><path d="M3 11a5 5 0 0 1 0 10M29 11a5 5 0 0 0 0 10"/>',
@@ -33,7 +41,7 @@
     table: '<rect x="4" y="12" width="24" height="6" rx="1"/><path d="M7 18v8M25 18v8M10 12V8h12v4"/>'
   };
   const icon = (k) => `<svg viewBox="0 0 32 32" width="34" height="34" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k] || ""}</svg>`;
-  const ring = (pct, color) => { const r = 15, c = 2 * Math.PI * r, v = pct == null ? 0 : pct; return `<svg viewBox="0 0 36 36" width="44" height="44" aria-hidden="true"><circle cx="18" cy="18" r="${r}" fill="none" stroke="#E3E8EF" stroke-width="4"/><circle cx="18" cy="18" r="${r}" fill="none" stroke="${color}" stroke-width="4" stroke-dasharray="${c * v / 100} ${c}" transform="rotate(-90 18 18)" stroke-linecap="round"/><text x="18" y="21.5" text-anchor="middle" font-size="10" font-weight="700" fill="currentColor">${pct == null ? "" : pct + "%"}</text></svg>`; };
+  const ring = (pct, color, size, track) => { const r = 15, c = 2 * Math.PI * r, v = pct == null ? 0 : pct; return `<svg viewBox="0 0 36 36" width="${size || 44}" height="${size || 44}" aria-hidden="true"><circle cx="18" cy="18" r="${r}" fill="none" stroke="${track || "#E3E8EF"}" stroke-width="4"/><circle cx="18" cy="18" r="${r}" fill="none" stroke="${color}" stroke-width="4" stroke-linecap="round" stroke-dasharray="${c * v / 100} ${c}" transform="rotate(-90 18 18)"/></svg>`; };
 
   let ALL = [], results = {}, user = null, openTheme = null;
   const lessonKey = (t, lv) => t.key + "-" + lv;
@@ -69,17 +77,19 @@
     const all = NRC.THEMES.flatMap(t => lessonsOf(t)), passed = all.filter(l => results[l.key] && results[l.key].best >= PASS).length;
     const wk = Object.values(results).filter(r => r.lastDate && r.lastDate >= new Date(Date.now() - 7 * 864e5).toISOString()).length;
     const nx = nextLesson();
-    host.innerHTML = `<div class="path-top card">
-        <div><div class="small muted">Your path through the IHF rules</div><div class="path-count"><strong>${passed}</strong> of ${all.length} quizzes passed</div>
-        <div class="path-bar"><div style="width:${all.length ? Math.round(100 * passed / all.length) : 0}%"></div></div>
-        <div class="small muted">${PER} questions per quiz from the IHF Catalogue. ${PASS}% marks it complete. ${wk ? wk + " quiz" + (wk === 1 ? "" : "zes") + " in the last 7 days." : ""}${user ? "" : ' <a href="login.html?next=training.html">Sign in</a> to keep your path across devices.'}</div></div>
-        ${nx ? `<button class="btn yellow" type="button" data-start="${nx.l.key}">Up next: ${esc(nx.t.title)}, ${nx.l.label}</button>` : '<span class="pill green">Every quiz passed. Retake the oldest to stay sharp.</span>'}
+    const pct = all.length ? Math.round(100 * passed / all.length) : 0;
+    host.innerHTML = `<div class="path-top">
+        <div class="pt-ring">${ring(pct, "#E8EB2F", 76, "rgba(255,255,255,.15)")}<span>${pct}%</span></div>
+        <div class="pt-txt"><div class="pt-k">Your path through the IHF rules</div><div class="path-count"><strong>${passed}</strong> of ${all.length} quizzes passed</div>
+        <div class="pt-sub">${PER} questions per quiz, ${PASS}% to pass.${wk ? " " + wk + " quiz" + (wk === 1 ? "" : "zes") + " this week." : ""}${user ? "" : ' <a href="login.html?next=training.html">Sign in</a> to keep your path across devices.'}</div></div>
+        ${nx ? `<button class="btn yellow pt-next" type="button" data-start="${nx.l.key}"><span class="small" style="display:block;font-weight:600;opacity:.8">Up next</span>${esc(nx.t.title)}, ${nx.l.label}</button>` : '<span class="pill green">Every quiz passed. Retake the oldest to stay sharp.</span>'}
       </div>
-      <div class="path-grid">${NRC.THEMES.map(t => { const s = themeStats(t); return `<button type="button" class="theme-card ${s.complete ? "complete" : ""} ${openTheme === t.key ? "open" : ""}" style="--tc:${t.color}" data-theme="${t.key}" aria-expanded="${openTheme === t.key}">
-          <div class="tc-band">${icon(t.icon)}<span class="tc-rules">Rule${t.rules.length > 1 ? "s" : ""} ${t.rules.join(", ")}</span>${s.complete ? '<span class="tc-done" title="Completed">&#10003;</span>' : ""}</div>
-          <div class="tc-body"><strong>${esc(t.title)}</strong>
-            <div class="tc-dots">${s.L.map(l => { const r = results[l.key]; return `<span class="dot ${r ? (r.best >= PASS ? "pass" : "try") : ""}" title="${l.label}${r ? ": best " + r.best + "%" : ""}">${l.label.replace("Level ", "L")}</span>`; }).join("")}</div>
-            <div class="small muted">${s.last ? (s.avg != null ? s.avg + "% average, " : "") + "last tested " + NRC.fmtDate(NRC.localDate(new Date(s.last))) : "Not started"}</div></div></button>`; }).join("")}</div>
+      <div class="fam-legend">${Object.values(FAM).map(f => `<span><i style="background:${f.accent}"></i>${f.name}</span>`).join("")}</div>
+      <div class="path-grid">${NRC.THEMES.map(t => { const s = themeStats(t); return `<button type="button" class="theme-card ${s.complete ? "complete" : ""} ${openTheme === t.key ? "open" : ""}" style="--fc:${t.accent};--tc:${t.color}" data-theme="${t.key}" aria-expanded="${openTheme === t.key}">
+          <span class="tc-top"><span class="tc-ico">${icon(t.icon)}</span><span class="tc-rules">Rule${t.rules.length > 1 ? "s" : ""} ${t.rules.join(", ")}</span>${s.complete ? '<span class="tc-done" title="Completed">&#10003;</span>' : ""}</span>
+          <span class="tc-title">${esc(t.title)}</span>
+          <span class="tc-levels">${s.L.map(l => { const r = results[l.key]; return `<i class="lv ${r ? (r.best >= PASS ? "pass" : "try") : ""}" title="${l.label}${r ? ": best " + r.best + "%" : ": not started"}">${l.label.replace("Level ", "L")}</i>`; }).join("")}</span>
+          <span class="tc-meta">${s.last ? (s.avg != null ? s.avg + "% average &middot; " : "") + NRC.fmtDate(NRC.localDate(new Date(s.last))) : "Not started"}</span></button>`; }).join("")}</div>
       <div id="path-detail"></div>`;
     NRC.$$("[data-theme]", host).forEach(b => b.onclick = () => { openTheme = openTheme === b.dataset.theme ? null : b.dataset.theme; render(); if (openTheme) $("#path-detail").scrollIntoView({ behavior: "smooth", block: "nearest" }); });
     NRC.$$("[data-start]", host).forEach(b => b.onclick = () => start(b.dataset.start));

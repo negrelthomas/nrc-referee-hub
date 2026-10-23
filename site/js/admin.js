@@ -11,6 +11,7 @@
   // ---------- routing ----------
   function route() {
     const [h, arg] = (location.hash || "#dashboard").slice(1).split("/");
+    if (h === "staffing") { location.replace("#tournaments"); return; }
     const pane = h === "club" ? "clubs" : h === "referee" ? "referees" : h;
     NRC.$$(".admin-nav a:not(.sec-top)").forEach(a => a.classList.toggle("active", a.getAttribute("href") === "#" + pane));
     // the section holding the current page stays open; the others fold to their title
@@ -188,7 +189,7 @@
     currentRef = id ? refs.find(r => r.id === id) : null;
     const f = $("#form-ref"); f.reset();
     $("#dlg-ref-title").textContent = currentRef ? currentRef.first_name + " " + currentRef.last_name : "New referee";
-    ["#btn-eval", "#btn-game", "#btn-phys", "#btn-theory"].forEach(b => $(b).classList.toggle("hidden", !currentRef));
+    ["#btn-game", "#btn-phys", "#btn-theory"].forEach(b => $(b).classList.toggle("hidden", !currentRef));
     if (currentRef) $("#btn-game").href = "profile.html?as=" + currentRef.id;
     if (id && !currentRef) { alert("Referee not found."); return; }
     $("#ref-photo").src = (currentRef && currentRef.photo_url) || "assets/avatar.svg";
@@ -354,7 +355,7 @@
     $("#cp-name").textContent = c.name;
     $("#cp-sub").innerHTML = [CTYPE[c.club_type], [c.city, c.state].filter(Boolean).join(", "), c.nearest_airport_iata ? "airport " + c.nearest_airport_iata : "", c.website ? `<a href="${NRC.esc(c.website)}" target="_blank" rel="noopener">website</a>` : ""].filter(Boolean).map(x => x.startsWith("<a") ? x : NRC.esc(x)).join(" · ");
     $("#cp-refs").textContent = s.refs.length; $("#cp-cert").textContent = s.certified.length; $("#cp-train").textContent = s.candidates.length; $("#cp-tour").textContent = s.tours.length;
-    $("#cp-actions").innerHTML = clubActions(c, s).map(a => `<div class="task"><div style="flex:1"><div class="t">${NRC.esc(a.title)}</div><div class="small">${NRC.esc(a.why)}</div></div>${a.template ? `<button class="btn sm" onclick="openComposer(['${c.id}'],'${a.template}')">Prepare message</button>` : a.href ? `<a class="btn sm ghost" href="${a.href}">Open</a>` : ""}</div>`).join("") || '<div class="notice ok">Nothing pending for this club.</div>';
+    $("#cp-actions").innerHTML = clubActions(c, s).map(a => `<div class="task"><div style="flex:1"><div class="t">${NRC.esc(a.title)}</div><div class="small">${NRC.esc(a.why)}</div></div>${a.template ? `<button class="btn sm secondary" onclick="openComposer(['${c.id}'],'${a.template}')">Prepare message</button>` : a.href ? `<a class="btn sm ghost" href="${a.href}">Open</a>` : ""}</div>`).join("") || '<div class="notice ok">Nothing pending for this club.</div>';
     $("#cp-contacts").innerHTML = s.contacts.map(x => `<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)"><div><strong>${NRC.esc(x.name || "No name")}</strong>${x.is_primary ? ' <span class="pill green">primary</span>' : ""}${x.receives_messages ? "" : ' <span class="pill">no messages</span>'}<br>${NRC.esc(x.role || "")}${x.email ? ` <a href="mailto:${NRC.esc(x.email)}">${NRC.esc(x.email)}</a>` : ""}${x.phone ? " · " + NRC.esc(x.phone) : ""}${x.source ? `<br><span class="muted">${NRC.esc(x.source)}</span>` : ""}</div><button class="btn sm ghost" style="align-self:flex-start" onclick="openContact('${x.id}')">Edit</button></div>`).join("") || '<span class="muted">No contact on file. Add one to message this club.</span>';
     $("#cp-pair").innerHTML = `<p style="margin-top:0"><span class="pill ${s.pair ? "green" : c.pair_program_status === "none" ? "red" : "amber"}">${PROG[c.pair_program_status]}</span>${s.pair ? ' <span class="pill green">certified pair on the roster</span>' : ""}</p>${c.pair_program_notes ? "<p>" + NRC.esc(c.pair_program_notes) + "</p>" : '<p class="muted">No notes. Update the status and notes with Edit club.</p>'}`;
     const prog = id => { const p = pstat.find(x => x.referee_id === id); if (!p) return ""; const r = refs.find(x => x.id === id);
@@ -488,7 +489,7 @@
   }
   function renderPlan() {
     const chip = id => `<a class="chip" href="#club/${id}">${NRC.esc(clubName(id))}</a>`;
-    $("#plan").innerHTML = planActions().map((a, i) => `<div class="task"><div class="pill" style="min-width:28px;text-align:center">${i + 1}</div><div style="flex:1;min-width:0"><div class="t">${NRC.esc(a.title)}</div><div class="small">${NRC.esc(a.why)}</div>${a.clubs ? `<div class="chips" style="margin:6px 0 0">${a.clubs.slice(0, 8).map(chip).join("")}${a.clubs.length > 8 ? `<span class="chip" onclick="this.parentNode.innerHTML=${NRC.esc(JSON.stringify(a.clubs.map(chip).join("")))}">+${a.clubs.length - 8} more</span>` : ""}</div>` : ""}</div>${a.template ? `<button class="btn sm" onclick='openComposer(${JSON.stringify(a.clubs)},"${a.template}")'>Prepare message</button>` : a.href ? `<a class="btn sm ghost" href="${a.href}">Open</a>` : ""}</div>`).join("") || '<div class="notice ok">No action pending.</div>';
+    $("#plan").innerHTML = planActions().map((a, i) => `<div class="task"><div class="pill" style="min-width:28px;text-align:center">${i + 1}</div><div style="flex:1;min-width:0"><div class="t">${NRC.esc(a.title)}</div><div class="small">${NRC.esc(a.why)}</div>${a.clubs ? `<div class="chips" style="margin:6px 0 0">${a.clubs.slice(0, 8).map(chip).join("")}${a.clubs.length > 8 ? `<span class="chip" onclick="this.parentNode.innerHTML=${NRC.esc(JSON.stringify(a.clubs.map(chip).join("")))}">+${a.clubs.length - 8} more</span>` : ""}</div>` : ""}</div>${a.template ? `<button class="btn sm secondary" onclick='openComposer(${JSON.stringify(a.clubs)},"${a.template}")'>Prepare message</button>` : a.href ? `<a class="btn sm ghost" href="${a.href}">Open</a>` : ""}</div>`).join("") || '<div class="notice ok">No action pending.</div>';
   }
 
   // ---------- training sessions ----------
@@ -555,8 +556,6 @@
 
   // ---------- staffing cards ----------
   let staffFilter = "open";
-  NRC.$$("#staff-filter .chip").forEach(c => c.onclick = () => { NRC.$$("#staff-filter .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); staffFilter = c.dataset.v; renderStaffing(); });
-  NRC.$$("#staff-view .chip").forEach(c => c.onclick = () => { NRC.$$("#staff-view .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); staffView = c.dataset.v; renderStaffing(); });
   window.openStaffSettings = function () {
     const f = $("#form-staffset"), v = staffSettings || { staff_by_days_before: 42, remind_every_days: 7, remind_daily_within_days: 14, remind_to: "" };
     ["staff_by_days_before", "remind_every_days", "remind_daily_within_days", "remind_to"].forEach(k => f[k].value = v[k] == null ? "" : v[k]);
@@ -574,33 +573,6 @@
     const v = staffSettings;
     $("#staff-settings-line").innerHTML = v ? `Deadline to staff: ${v.staff_by_days_before} days before the event. Reminders to ${NRC.esc(v.remind_to || "the NRC contact email")}: on each new request, every ${v.remind_every_days} days while not staffed, daily in the last ${v.remind_daily_within_days} days before the deadline. <a href="#" onclick="openStaffSettings();return false">Change</a>` : "Run supabase/staffing_overview.sql to enable deadlines and reminders.";
     $("#staff-dups").innerHTML = staffDups.length ? `<div class="alert"><div><div class="t">Possible duplicate requests (${staffDups.length})</div>${staffDups.map(d => `<div class="small"><a href="#" onclick="openTour('${d.id_a}');return false">${NRC.esc(d.name_a)}</a> (${NRC.fmtDate(d.start_a)}, ${NRC.esc(d.email_a)}) and <a href="#" onclick="openTour('${d.id_b}');return false">${NRC.esc(d.name_b)}</a> (${NRC.fmtDate(d.start_b)}, ${NRC.esc(d.email_b)}): ${NRC.esc(d.reason)}. Cancel the one to drop.</div>`).join("")}</div></div>` : "";
-    const open = s => !["completed", "cancelled"].includes(s.status) && s.end_date >= t;
-    const need = s => s.referees_needed != null ? s.referees_needed : s.pairs_needed * 2;
-    const list = staffing.filter(s => staffFilter === "all" || (staffFilter === "open" ? open(s) && s.confirmed < need(s) : staffFilter === "upcoming" ? s.end_date >= t && s.status !== "cancelled" : s.end_date < t))
-      .sort((a, b) => staffFilter === "past" ? String(b.start_date).localeCompare(String(a.start_date)) : String(a.staff_by || a.start_date).localeCompare(String(b.staff_by || b.start_date)));
-    $("#staff-table-wrap").classList.toggle("hidden", staffView !== "table"); $("#staff-cards").classList.toggle("hidden", staffView !== "cards");
-    const n = v => v == null ? '<span class="muted">-</span>' : v;
-    $("#staff-table tbody").innerHTML = list.map(s => {
-      const left = s.staff_by ? Math.round((new Date(s.staff_by + "T12:00:00") - new Date(t + "T12:00:00")) / 864e5) : null;
-      const full = s.confirmed >= need(s);
-      const dl = s.staff_by ? `${NRC.fmtDate(s.staff_by)}<br>${full ? '<span class="pill green">staffed</span>' : left < 0 ? `<span class="pill red">${-left} days late</span>` : `<span class="pill ${left <= 14 ? "amber" : ""}">${left} days left</span>`}${s.last_reminder_at && !full ? '<div class="small muted">reminded ' + new Date(s.last_reminder_at).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + "</div>" : ""}` : '<span class="muted">-</span>';
-      return `<tr class="clickable" onclick="openTour('${s.id}')"><td style="min-width:170px"><strong>${NRC.esc(s.name)}</strong>${s.status === "cancelled" ? ' <span class="pill">cancelled</span>' : ""}<div class="small muted">${NRC.esc(s.club_name || "no club")}${s.divisions && s.divisions.length ? ", " + s.divisions.map(NRC.divisionLabel).join(", ") : ""}</div></td>
-        <td style="white-space:nowrap">${NRC.fmtDate(s.start_date)}</td><td style="white-space:nowrap">${dl}</td>
-        <td><span class="pill ${full ? "green" : s.confirmed ? "amber" : "red"}">${s.confirmed}/${need(s)}</span><div class="small muted">referees</div>${s.supervisor_needed ? '<div class="small ' + (s.officials ? "muted" : "") + '">supervisor ' + (s.officials ? "set" : "needed") + "</div>" : ""}</td>
-        <td>${n(s.available)}</td><td>${n(s.contacted)}</td><td class="small" style="white-space:nowrap">${s.contacted ? `<strong style="color:var(--green)">${s.accepted} yes</strong>, ${s.tentative} maybe<br>${s.no_answer} waiting, <span style="color:var(--red)">${s.declined} no</span>` : '<span class="muted">none sent</span>'}</td></tr>`;
-    }).join("") || '<tr><td colspan="7">Nothing here. New requests appear in To staff.</td></tr>';
-    // cards view
-    $("#staff-cards").innerHTML = list.map(s => {
-      const need = s.pairs_needed * 2; const pct = Math.min(100, Math.round(s.confirmed / need * 100));
-      const travel = s.travel_managed_by === "nrc" ? `<div class="small" style="margin-top:6px">Travel by the NRC: ${s.bookings_done} booked, ${s.bookings_pending} pending</div>` : s.travel_managed_by === "referee" ? `<div class="small" style="margin-top:6px">Travel by the referees: ${s.bookings_done} booked, ${s.bookings_pending} pending</div>` : '<div class="small muted" style="margin-top:6px">Travel booked by the organizer</div>';
-      const pairsLine = `<div class="small muted" style="margin-top:4px">${(s.pairs_needed || 0) + (s.pairs_organizer || 0)} pairs at the event: ${s.pairs_needed} NRC${s.pairs_organizer ? ", " + s.pairs_organizer + " organizer (" + NRC.esc(s.organizer_pairs_note || "international") + ")" : ""}</div>`;
-      const days = Math.ceil((new Date(s.start_date) - new Date()) / 864e5);
-      return `<div class="card" style="cursor:pointer" onclick="openTour('${s.id}')"><div style="display:flex;justify-content:space-between;gap:8px"><strong>${NRC.esc(s.name)}</strong><span class="pill ${s.confirmed >= need ? "green" : s.status === "submitted" ? "red" : "amber"}">${s.confirmed >= need ? "staffed" : s.status}</span></div>
-        <div class="small muted">${NRC.fmtDate(s.start_date)}, ${NRC.esc([s.venue_city, s.venue_state].filter(Boolean).join(", "))}${days >= 0 ? ", in " + days + " days" : ""}</div>
-        <div class="timer" style="margin:10px 0 6px;height:8px"><div style="width:${pct}%;background:${pct >= 100 ? "var(--green)" : "var(--red)"}"></div></div>
-        <div class="small">${s.confirmed}/${need} referees confirmed, ${s.accepted} accepted, ${s.waiting} waiting${s.supervisor_needed ? ", supervisor " + (s.officials ? "assigned" : "needed") : ""}</div>${pairsLine}${travel}
-        ${s.organizer_notified_at ? '<div class="small muted" style="margin-top:4px">Organizer notified ' + NRC.fmtDate(s.organizer_notified_at) + "</div>" : ""}</div>`;
-    }).join("") || '<div class="card">Nothing to staff. New requests appear here.</div>';
   }
 
   // ---------- designated and travel ----------
@@ -616,6 +588,8 @@
   $("#form-accept").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const ids = f.ids.value.split(",").filter(Boolean); const reason = f.reason.value.trim();
     if (reason.length < 15) { alert("Say how and when they accepted, in a full sentence."); return; }
+    const sb_ = f.querySelector("[type=submit]"); if (sb_.disabled) return; sb_.disabled = true; sb_.classList.add("busy"); toast("Recording" + (f.send.checked ? " and sending the confirmation emails" : "") + "...");
+    try {
     const by = (user && (user.full_name || user.email)) || "NRC admin";
     const now = new Date().toISOString();
     const { data: rows, error } = await sb().from("assignment_requests").insert(ids.map(id => ({ tournament_id: currentTour.id, referee_id: id, status: "confirmed", sent_at: now, responded_at: now, response_note: "Recorded by " + by + ": " + reason }))).select("id,referee_id");
@@ -630,7 +604,8 @@
         msg += res.ok ? ` ${d.results.filter(r => r.sent).length} confirmation email(s) sent.` : " Emails not sent: " + (d.error || res.status);
       }
     }
-    alert(msg); $("#dlg-accept").close(); renderInvites(); renderDesignated();
+    toast(msg, "ok", 8000); $("#dlg-accept").close(); renderInvites(); renderDesignated();
+    } finally { sb_.disabled = false; sb_.classList.remove("busy"); }
   });
   const KIND = { flight: "Flight", hotel: "Hotel", car: "Car", train: "Train", other: "Other" };
   const fmtDT = (d) => d ? new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
@@ -651,6 +626,7 @@
       const st = availState(a.referee_id);
       return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong>${noInvite.includes(a.referee_id) ? ` <span class="pill amber" title="Designated without an invitation on the hub">no acceptance on file</span> <button class="btn sm ghost" type="button" onclick="openRecordAccept(['${a.referee_id}'])">Record acceptance</button>` : ""}${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared on the referee's home">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join("; "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>'}<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)">Add booking</button></div></td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Confirm accepted referees on the Invitations tab.</td></tr>';
     $("#des-ref").innerHTML = refs.filter(r => r.active && !desRows.find(d => d.referee_id === r.id)).map(r => `<option value="${r.id}">${NRC.esc(r.last_name + ", " + r.first_name)} (${NRC.levelLabel(r.cert_level).replace(" (National)", "")})</option>`).join("");
+    renderSnap();
   }
   window.addDesignated = async function () {
     const rid = $("#des-ref").value; if (!rid) return;
@@ -716,17 +692,23 @@
     renderReports();
     const q = ($("#tour-q").value || "").toLowerCase(), now = today();
     const clubName = (id) => (clubs.find(c => c.id === id) || {}).name || "";
+    // staffing status of each event: one bucket per upcoming event, past ones split by what is left to enter
+    const bucket = t => { const st = tourStats[t.id] || {}, need = (t.pairs_needed || 0) * 2;
+      if (t.status === "cancelled") return "cancelled";
+      if (t.end_date < now) return "past";
+      if (t.nrc_staffs === false) return "calendar";
+      if (t.created_by_nrc) return "norequest";
+      return !st.referees ? "none" : st.referees < need ? "partial" : "full"; };
+    const todo = t => { const st = tourStats[t.id] || {}; return t.start_date <= now && t.status !== "cancelled" && st.referees > 0 && (st.games === 0 || st.gameEvals < st.slots); };
+    const match = (t, f) => f === "all" ? true : f === "upcoming" ? !["past", "cancelled"].includes(bucket(t)) : f === "todo" ? todo(t) : f === "past" ? bucket(t) === "past" : bucket(t) === f;
+    NRC.$$("#tour-filter .chip").forEach(b => { const n = tournaments.filter(t => match(t, b.dataset.f)).length; b.textContent = b.textContent.replace(/ \(\d+\)$/, "") + " (" + n + ")"; });
     const list = tournaments.filter(t => {
-      const st = tourStats[t.id] || {}, past = t.start_date <= now && t.status !== "cancelled";
       if (q && ![t.name, t.venue_city, t.venue_state, t.region, clubName(t.club_id)].join(" ").toLowerCase().includes(q)) return false;
-      if (tourFilter === "upcoming") return t.end_date >= now && t.status !== "cancelled";
-      if (tourFilter === "past") return t.end_date < now;
-      if (tourFilter === "todo") return past && st.referees > 0 && (st.games === 0 || st.gameEvals < st.slots);
-      return true;
-    }).sort((a, b) => tourFilter === "upcoming" ? a.start_date.localeCompare(b.start_date) : b.start_date.localeCompare(a.start_date));
+      return match(t, tourFilter);
+    }).sort((a, b) => ["past", "todo", "all"].includes(tourFilter) ? b.start_date.localeCompare(a.start_date) : a.start_date.localeCompare(b.start_date));
     const STAT = { submitted: "amber", reviewing: "amber", staffed: "green", completed: "", cancelled: "red" };
     $("#tour tbody").innerHTML = list.map(t => { const st = tourStats[t.id] || {}, need = t.pairs_needed * 2, past = t.start_date <= now;
-      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="9">No tournament in this view.</td></tr>';
+      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}${(() => { const sx = staffing.find(x => x.id === t.id); if (!sx || t.end_date < now || bucket(t) === "full") return ""; const left = sx.staff_by ? Math.round((new Date(sx.staff_by + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5) : null; return `<div class="small muted" style="margin-top:4px;white-space:nowrap">${sx.staff_by ? "staff by " + NRC.fmtDate(sx.staff_by) + (left < 0 ? ' <span style="color:var(--red)">' + (-left) + " days late</span>" : "") : ""}${sx.contacted ? "<br>" + sx.contacted + " invited, " + sx.accepted + " yes, " + sx.waiting + " waiting" : ""}</div>`; })()}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="9">No tournament in this view.</td></tr>';
   }
   // ---------- organizer outreach ----------
   // Events the NRC placed on the calendar carry a tentative organizer contact: the one saved on the event, otherwise the
@@ -862,17 +844,34 @@
   $("#form-override").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const reason = f.reason.value.trim();
     if (reason.length < 15) { alert("Give the reason in a full sentence."); return; }
+    const sb_ = f.querySelector("[type=submit]"); if (sb_.disabled) return; sb_.disabled = true; sb_.classList.add("busy"); toast("Recording the override and emailing the referee...");
+    try {
     const { data: sess } = await sb().auth.getSession();
     const res = await fetch("/api/availability-override", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ action: "create", tournament_id: currentTour.id, referee_id: f.referee_id.value, reason, declared: declaredWord(f.referee_id.value) }) });
     const d = await res.json().catch(() => ({}));
     if (!res.ok) { alert("Failed: " + (d.error || res.status)); return; }
-    alert(d.sent ? `Override recorded. ${refName(f.referee_id.value)} was emailed at ${d.email} to accept or revert.` : "Override recorded, but the email did not go out: " + (d.error || ""));
+    toast(d.sent ? `Override recorded. ${refName(f.referee_id.value)} was emailed at ${d.email} to accept or revert.` : "Override recorded, but the email did not go out: " + (d.error || ""), d.sent ? "ok" : "error", 8000);
     $("#dlg-override").close();
     const { data: ov } = await sb().from("availability_overrides").select("*").eq("tournament_id", currentTour.id); overrideCache = ov || [];
     renderInvites(); renderCandidates(); renderDesignated();
+    } finally { sb_.disabled = false; sb_.classList.remove("busy"); }
   });
   const availPill = id => { if (overrideCache.find(x => x.referee_id === id)) return ovPill(id) + (overrideOf(id) ? "" : ' <span class="pill red">' + NRC.esc(declaredWord(id)) + "</span>"); const u = unavailable(id); if (u) return `<span class="pill red">blocked ${NRC.fmtDate(u.start_date)}</span>`; const w = weekendStatus(id); return w === "available" ? '<span class="pill green">available</span>' : w === "tentative" ? '<span class="pill amber">tentative</span>' : w === "unavailable" ? '<span class="pill red">unavailable</span>' : '<span class="pill">not declared</span>'; };
 
+  // snapshot at the top of the tournament window
+  function renderSnap() {
+    const T = currentTour; if (!T) return;
+    const need = (T.pairs_needed || 0) * 2, des = desRows.filter(a => a.role === "referee").length, sup = desRows.filter(a => a.role !== "referee").length;
+    const c = s => invites.filter(i => i.status === s).length;
+    const box = (n, l, cls) => `<div class="snap-i ${cls || ""}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
+    const travelOwn = T.travel_managed_by === "nrc" ? "NRC" : T.travel_managed_by === "referee" ? "Referees" : "Organizer";
+    $("#tour-snap").innerHTML = box(`${des}/${need}`, "referees designated" + (T.pairs_organizer ? `<br>+${T.pairs_organizer} organizer pair${T.pairs_organizer > 1 ? "s" : ""}` : ""), des >= need ? "good" : des ? "warn" : "bad")
+      + box(c("accepted"), "accepted, to confirm", c("accepted") ? "warn" : "")
+      + box(c("sent") + c("tentative"), "waiting or tentative")
+      + box(c("declined"), "declined")
+      + (T.supervisor_needed ? box(sup ? "set" : "needed", "supervisor", sup ? "good" : "bad") : "")
+      + box(travelOwn, "books travel");
+  }
   // Invitations
   let invites = [];
   async function renderInvites() {
@@ -882,6 +881,7 @@
     $("#inv-summary").innerHTML = [["draft", "Draft"], ["sent", "Waiting"], ["tentative", "Tentative"], ["accepted", "Accepted"], ["declined", "Declined"], ["confirmed", "Confirmed"]].map(([k, l]) => `<span class="chip ${c(k) ? "on" : ""}">${l}: ${c(k)}</span>`).join("") + `<span class="chip">Needed: ${currentTour.pairs_needed * 2} referees</span>`;
     const STATUS = { draft: "", sent: "amber", tentative: "amber", accepted: "green", declined: "red", confirmed: "green", no_response: "red", cancelled: "" };
     $("#inv tbody").innerHTML = invites.map(i => `<tr><td><input type="checkbox" class="inv-sel" value="${i.id}" style="width:auto"></td><td><strong>${NRC.esc(refName(i.referee_id))}</strong> ${availPill(i.referee_id)}${partnerOf(i.referee_id) ? '<div class="small muted">pair with ' + NRC.esc(refName(partnerOf(i.referee_id))) + "</div>" : ""}</td><td><span class="pill ${STATUS[i.status] || ""}">${i.status.replace("_", " ")}</span>${i.reminder_count ? ` <span class="small muted">${i.reminder_count} reminder${i.reminder_count > 1 ? "s" : ""}</span>` : ""}</td><td class="small">${i.sent_at ? NRC.fmtDate(i.sent_at) : ""}</td><td class="small">${i.responded_at ? NRC.fmtDate(i.responded_at) : ""}</td><td class="small">${NRC.esc(i.response_note || "")}</td></tr>`).join("") || '<tr><td colspan="6">No invitations yet. Use Find referees to add candidates.</td></tr>';
+    renderSnap();
   }
   const selectedInv = () => NRC.$$(".inv-sel:checked").map(x => x.value);
   window.sendSelected = async function (kind) {
@@ -972,7 +972,8 @@
     const { data } = await sb().from("assignments").select("*").eq("tournament_id", currentTour.id);
     const { data: gl } = await sb().from("games").select("referee_1,referee_2").eq("tournament_id", currentTour.id);
     const logged = (rid) => (gl || []).filter(g => g.referee_1 === rid || g.referee_2 === rid).length;
-    $("#tour-asg tbody").innerHTML = (data || []).map(a => `<tr><td><a href="#" onclick="openRef('${a.referee_id}');return false">${NRC.esc(refName(a.referee_id))}</a></td><td>${NRC.esc(a.role)}</td><td><input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" placeholder="${logged(a.referee_id) || ""}" title="${logged(a.referee_id)} logged below" style="width:80px" onchange="setAsgGames('${a.id}',this.value)">${logged(a.referee_id) ? ' <span class="small muted">' + logged(a.referee_id) + " logged</span>" : ""}</td><td><button class="btn sm ghost" onclick="delAssignment('${a.id}')">Remove</button></td></tr>`).join("") || '<tr><td colspan="4">Nobody recorded yet. Confirmed invitations land here automatically.</td></tr>';
+    $("#tour-asg tbody").innerHTML = (data || []).sort((x, y) => refName(x.referee_id).localeCompare(refName(y.referee_id))).map(a => { const n = logged(a.referee_id);
+      return `<tr><td><a href="#" onclick="openRef('${a.referee_id}');return false">${NRC.esc(refName(a.referee_id))}</a></td><td>${NRC.esc(a.role === "delegate" ? "supervisor" : a.role)}</td><td>${n || '<span class="muted">0</span>'}</td><td>${n ? '<span class="small muted">from the game log</span>' : `<input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" style="width:90px" onchange="setAsgGames('${a.id}',this.value)">`}</td></tr>`; }).join("") || '<tr><td colspan="4" class="muted">Nobody designated yet.</td></tr>';
     // games panel: mounted once per tournament opened, refreshed by its own saves
     if (renderTourAsg.mountedFor !== currentTour.id) { renderTourAsg.mountedFor = currentTour.id; await NRC.Games.mount($("#tour-games"), { tournament: currentTour, mode: "admin", user, evaluatorName: (user && (user.full_name || user.email)) || "NRC", nameOf: refName, onChange: () => { renderTourAsg(); loadAll(); } }); }
   }

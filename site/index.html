@@ -21,8 +21,8 @@
     <h1>USATH referees, in one place</h1>
     <p class="sub">Roster, certification, training, tournament staffing and travel, run by the National Referee Committee.</p>
     <div class="actions">
-      <a class="btn lg" href="login.html">Referees: sign in here</a>
-      <a class="btn lg yellow" href="request-referees.html">Tournament organizers: submit a request here</a>
+      <a class="btn lg" href="login.html">Referees: sign in</a>
+      <a class="btn lg yellow" href="request-referees.html">Organizers: request referees</a>
     </div>
     <p class="sub" style="margin-top:18px;font-size:16px">Not a referee yet? <a href="become-a-referee.html" style="color:#fff;text-decoration:underline">See what Level 1 takes</a>, or <a href="try.html" style="color:#fff;text-decoration:underline">find out in ten questions whether you could be one</a>.</p>
   </div>
@@ -35,7 +35,7 @@
   <div class="band">
     <div><div class="n" id="st-refs">&nbsp;</div><div class="l">Certified referees on the roster</div></div>
     <div><div class="n" id="st-clubs">&nbsp;</div><div class="l">Active USATH clubs</div></div>
-    <div><div class="n" id="st-with-pair">&nbsp;</div><div class="l">Clubs with their own certified pair</div></div>
+    <div><div class="n" id="st-events">&nbsp;</div><div class="l">Tournaments on the calendar</div></div>
     <div><div class="n" id="st-questions">545</div><div class="l">Rules questions in the training module</div></div>
   </div>
 </section>
@@ -97,12 +97,13 @@
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
   if (!NRC.sb) return;
-  const [{ data }, { count }] = await Promise.all([NRC.sb.from("club_coverage").select("*"), NRC.sb.from("referee_directory").select("id", { count: "exact", head: true })]);
+  const [{ data }, { count }, { count: ev }] = await Promise.all([NRC.sb.from("club_coverage").select("*"), NRC.sb.from("referee_directory").select("id", { count: "exact", head: true }), NRC.sb.from("event_calendar").select("id", { count: "exact", head: true }).gte("end_date", NRC.localDate())]);
+  NRC.$("#st-events").textContent = ev == null ? "" : ev;
   if (!data) return;
   NRC.$("#st-refs").textContent = count == null ? "" : count;
   NRC.$("#st-clubs").textContent = data.length;
   const pairs = data.filter(c => c.has_certified_pair).length;
-  NRC.$("#st-with-pair").textContent = pairs; NRC.$("#st-with-pair-2").textContent = pairs;
+  NRC.$("#st-with-pair-2").textContent = pairs;
   NRC.$("#st-with-ref").textContent = data.filter(c => c.referee_count > 0).length;
   NRC.$("#st-none").textContent = data.filter(c => c.referee_count == 0).length;
 });
