@@ -23,7 +23,7 @@
 <div class="wrap guide" id="main">
 <section>
   <div class="guide-toc">
-    <a href="#who">Who can evaluate</a><a href="#cert">Certification</a><a href="#scale">The rating scale</a><a href="#report">Writing a report</a><a href="#review">NRC review</a><a href="#nrc">For the NRC</a>
+    <a href="#who">Who can evaluate</a><a href="#cert">Certification</a><a href="#scale">The rating scale</a><a href="#report">Writing a report</a><a href="#ai">AI assisted reviews</a><a href="#review">NRC review</a><a href="#nrc">For the NRC</a>
   </div>
 
   <h2 id="who">1. Who can evaluate</h2>
@@ -73,7 +73,18 @@
     <li><strong>Save draft</strong> at any time (the form also keeps your work on the device), then <strong>Submit to the NRC</strong> within three days of the game.</li>
   </ol>
 
-  <h2 id="review">5. NRC review</h2>
+  <h2 id="ai">5. AI assisted reviews</h2>
+  <p>There are not enough qualified evaluators to review every game. On some games the NRC loads an AI log first, so that evaluators spend their time on the moments that matter instead of the full 60 minutes.</p>
+  <ol class="steps">
+    <li><strong>AI pass.</strong> An AI model watches the game video and logs the facts: goals and score, timeouts, warnings, suspensions, 7 m throws, with the video time of each. It also flags moments worth a look, such as every personal punishment and 7 m decision. It does not rate the referees.</li>
+    <li><strong>Reconciliation with the score sheet.</strong> The AI compares its log with the official score sheet. Only the score on the sheet is trusted: the log must match it, half time and final. Table officials often miss cards, suspensions, 7 m throws and scorers, so where the sheet and the video differ on those, the AI flags the moment (Differs from score sheet) instead of correcting either side. No human step.</li>
+    <li><strong>Review.</strong> A certified evaluator opens the game. The AI log and the flagged moments show above the report. Press the time on a flag to play the video from just before the moment, then <strong>Confirm</strong> it (it becomes a key scene, which you complete with the item and what the call should have been) or <strong>Dismiss</strong> it. <strong>Use these match facts</strong> fills the match facts of your report.</li>
+    <li><strong>Your judgment.</strong> On a Differs from score sheet flag, trust what the video shows.  Rate the 21 items, the summary, type of match and influence, and write the remarks yourself, as in any report. The AI misses things, in particular on single camera footage: watch enough of the game to judge positioning, cooperation and consistency.</li>
+    <li><strong>Release.</strong> The report goes to the NRC as usual. Referees see it marked as an AI assisted review; the ratings and remarks are yours.</li>
+  </ol>
+  <p class="small muted">Your Confirm and Dismiss decisions are kept with the report. They show the NRC which kinds of flags are worth an evaluator's time, and they improve the next AI passes.</p>
+
+  <h2 id="review">6. NRC review</h2>
   <ul>
     <li>Every report goes to the NRC first. The NRC releases it to both referees or returns it with a note.</li>
     <li>A returned report reopens for editing under My reports; submit it again once corrected.</li>
@@ -81,13 +92,14 @@
     <li>Ranking score: summary verdict (Positive 4, Neutral 3, Negative 2), plus or minus 1 for the referees' influence, weighted by type of match (Easy 0.75 to Very difficult 1.5). Proposal for the NRC to confirm.</li>
   </ul>
 
-  <h2 id="nrc">6. For the NRC</h2>
+  <h2 id="nrc">7. For the NRC</h2>
   <ol class="steps">
     <li><strong>Admin > Referees > Evaluators.</strong> Reports to review, evaluators with their exam and calibration results, the calibration library and the certification rules.</li>
     <li><strong>Founding evaluator.</strong> The NRC chair is certified directly and sets the reference ratings. Other founding evaluators can be ticked in the evaluator record.</li>
     <li><strong>Calibration library.</strong> Add a reference game (title, video link, what to watch), then rate it. Or open a released report with a video and use it as a reference. Keep five to eight games of different levels so a candidate who fails can attempt new ones.</li>
     <li><strong>Add an evaluator.</strong> Name, email, club or no club affiliation, background. They sign in with that email and land on the evaluator page.</li>
     <li><strong>Video.</strong> Games need a video link in the game log to be reviewed remotely. Ask organizers and clubs to add stream links when they log games.</li>
+    <li><strong>AI log.</strong> The AI pass writes the log and its flags to the game directly. To load one by hand, press <strong>AI log</strong> on the game in the tournament's Games and evaluations tab, load the CSV and pick which team in the log is home and away. The game then shows "AI log" to evaluators. Keep collecting the official score sheets: the score on them is the reference the AI must match.</li>
   </ol>
 </section>
 </div>

@@ -63,6 +63,8 @@
       ctx.mode === "admin" ? sb.from("observation_reports").select("id,game_id,status,overall,evaluator_name,method").eq("tournament_id", t.id) : Promise.resolve({ data: [] }),
       NRC.loadCriteria()
     ]);
+    ctx.ai = {};
+    if (ctx.mode === "admin" && (games || []).length) { const { data: al } = await sb.from("game_ai_logs").select("game_id,facts_checked").in("game_id", games.map(g => g.id)); (al || []).forEach(l => ctx.ai[l.game_id] = l); }
     if (error) { ctx.el.innerHTML = '<p class="notice error">Games could not be loaded: ' + esc(error.message) + "</p>"; return; }
     ctx.officials = (off || []).filter(o => o.role === "referee").map(o => ({ id: o.referee_id, name: o.first_name + " " + o.last_name }));
     if (ctx.extraReferees) ctx.extraReferees.forEach(r => { if (!ctx.officials.find(o => o.id === r.id)) ctx.officials.push(r); });
@@ -74,7 +76,7 @@
     const t = ctx.tournament, admin = ctx.mode === "admin";
     const repOf = (gid) => ctx.evals.filter(r => r.game_id === gid);
     const cell = (rid) => rid ? esc(refName(rid)) : "";
-    const reps = (g) => repOf(g.id).map(r => `<a href="#" onclick="NRC.Report.openView('${r.id}');return false" title="${esc((r.evaluator_name || "") + ", " + (r.method === "live" ? "live" : "video"))}">${r.overall != null ? NRC.scoreHtml(r.overall) : ""} ${NRC.Report.statusPill(r.status)}</a>`).join(" ") + ` <a class="btn sm ghost" href="evaluator.html#game=${g.id}">Write report</a>`;
+    const reps = (g) => repOf(g.id).map(r => `<a href="#" onclick="NRC.Report.openView('${r.id}');return false" title="${esc((r.evaluator_name || "") + ", " + (r.method === "live" ? "live" : "video"))}">${r.overall != null ? NRC.scoreHtml(r.overall) : ""} ${NRC.Report.statusPill(r.status)}</a>`).join(" ") + ` <a class="btn sm ghost" href="evaluator.html#game=${g.id}">Write report</a> <button class="btn sm ghost" type="button" onclick="NRC.Games.aiLog('${g.id}')" title="Load the AI log and flagged moments for this game">${ctx.ai && ctx.ai[g.id] ? (ctx.ai[g.id].facts_checked ? "AI log" : "AI log, not reconciled") : "AI log"}</button>`;
     const done = ctx.games.length, evaluated = new Set(ctx.evals.filter(r => r.status !== "draft").map(r => r.game_id)).size;
     ctx.el.innerHTML = `<div class="filterbar"><span class="tag"><strong>${done}</strong> game${done === 1 ? "" : "s"} logged${t.games_expected ? " of " + t.games_expected + " expected" : ""}</span>${admin ? `<span class="tag"><strong>${evaluated}</strong> of ${done} games with an observation report</span><span class="tag"><strong>${ctx.games.filter(g => g.video_url).length}</strong> with video</span>` : ""}<span style="flex:1"></span><button class="btn sm" type="button" onclick="NRC.Games.newGame()">Add a game</button></div>` +
       (ctx.officials.length ? "" : `<p class="small muted">No referee designated on this event yet. ${admin ? "Add them in Designated and travel." : "Games can be logged once the NRC has designated the referees."}</p>`) +
@@ -83,6 +85,8 @@
         : '<p class="small muted">No game logged yet. Add each game with its referee pair and, when there is one, the video or stream link.</p>') +
       `<p class="small muted" style="margin-top:8px">${admin ? "Certified evaluators write one observation report per pair from the game video or live (IHF sheet). Reports are reviewed and released in Referees > Evaluators." : "Log each game with its referee pair and the video or stream link when there is one. Certified NRC evaluators review the referees from the video; organizers evaluate once certified as evaluators."}</p>`;
   }
+
+  G.aiLog = function (id) { const g = ctx.games.find(x => x.id === id); if (g && NRC.AI) NRC.AI.openAdmin(g, () => G.refresh()); };
 
   // ---------- games ----------
   function divisionOptions(sel) {

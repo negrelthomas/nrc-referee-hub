@@ -178,7 +178,7 @@
     if (!current()) { T.innerHTML = `<div class="card"><p>Games open once you are certified: rules exam and video calibration passed${ev.status === "certified" && !ev.founding ? ", and both still valid" : ""}.</p></div>`; return; }
     const list = games.filter(g => gFilter === "all" ? true : gFilter === "video" ? g.video_url && !g.reports && !g.my_report_id : !g.reports && !g.my_report_id);
     T.innerHTML = `<div class="filterbar"><select id="g-filter"><option value="video">With video, not yet evaluated</option><option value="open">Not yet evaluated</option><option value="all">All played games</option></select><span class="tag">${list.length} game${list.length === 1 ? "" : "s"}</span><span class="tag">${weekLine()}</span></div>
-      ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Game</th><th>Referees</th><th>Reports</th><th></th></tr></thead><tbody>${list.map(g => `<tr><td>${NRC.fmtDate(g.game_date)}</td><td><strong>${esc(g.tournament || "")}</strong><div class="small">${esc([g.home_team, g.away_team].filter(Boolean).join(" v ") || "teams not entered")}${g.division ? " &middot; " + esc(NRC.divisionLabel(g.division)) : ""}</div>${g.video_url ? '<a class="small" href="' + esc(g.video_url) + '" target="_blank" rel="noopener">video</a>' : '<span class="small muted">no video</span>'}</td><td class="small">${esc(g.referee_1_name || "")}${g.referee_2_name ? "<br>" + esc(g.referee_2_name) : ""}</td><td>${g.reports || ""}${g.my_report_status ? " " + NRC.Report.statusPill(g.my_report_status) : ""}</td><td>${g.conflict ? '<span class="small muted">You refereed this game</span>' : `<button class="btn sm ${g.my_report_id ? "ghost" : ""}" type="button" data-game="${g.game_id}">${g.my_report_id ? (["draft", "returned"].includes(g.my_report_status) ? "Continue" : "View") : "Evaluate"}</button>`}</td></tr>`).join("")}</tbody></table></div>`
+      ${list.length ? `<div class="table-wrap"><table><thead><tr><th>Date</th><th>Game</th><th>Referees</th><th>Reports</th><th></th></tr></thead><tbody>${list.map(g => `<tr><td>${NRC.fmtDate(g.game_date)}</td><td><strong>${esc(g.tournament || "")}</strong><div class="small">${esc([g.home_team, g.away_team].filter(Boolean).join(" v ") || "teams not entered")}${g.division ? " &middot; " + esc(NRC.divisionLabel(g.division)) : ""}</div>${g.video_url ? '<a class="small" href="' + esc(g.video_url) + '" target="_blank" rel="noopener">video</a>' : '<span class="small muted">no video</span>'}${g.ai_log ? ' <span class="pill" title="An AI log with flagged moments is loaded on this game">AI log, ' + (g.ai_flags || 0) + ' flags</span>' : ""}</td><td class="small">${esc(g.referee_1_name || "")}${g.referee_2_name ? "<br>" + esc(g.referee_2_name) : ""}</td><td>${g.reports || ""}${g.my_report_status ? " " + NRC.Report.statusPill(g.my_report_status) : ""}</td><td>${g.conflict ? '<span class="small muted">You refereed this game</span>' : `<button class="btn sm ${g.my_report_id ? "ghost" : ""}" type="button" data-game="${g.game_id}">${g.my_report_id ? (["draft", "returned"].includes(g.my_report_status) ? "Continue" : "View") : "Evaluate"}</button>`}</td></tr>`).join("")}</tbody></table></div>`
         : `<p class="small muted">${gFilter === "video" ? "No game with a video link is waiting. Ask organizers and clubs to add their stream links to the game log, or switch the filter." : "No game in this list."}</p>`}`;
     $("#g-filter").value = gFilter; $("#g-filter").onchange = (e) => { gFilter = e.target.value; renderGames(); };
     NRC.$$("[data-game]", T).forEach(b => b.onclick = () => openReport(b.dataset.game));
@@ -204,6 +204,7 @@
     W.innerHTML = `<div class="card" style="margin-top:16px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2 style="margin:0">Observation report</h2><button class="btn sm ghost" type="button" id="rep-back">Back</button></div>
       ${rep && rep.status === "returned" && rep.nrc_note ? '<div class="notice"><strong>Returned by the NRC.</strong> ' + esc(rep.nrc_note) + "</div>" : ""}
       ${ytEmbed(g.video_url)}
+      <div id="rep-ai"></div>
       <div id="rep-form"></div><div id="rep-miss" class="notice error hidden"></div>
       <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="button" id="rep-submit">Submit to the NRC</button><button class="btn ghost" type="button" id="rep-draft">Save draft</button>${rep && rep.status === "draft" ? '<button class="btn ghost" type="button" id="rep-del">Delete draft</button>' : ""}</p>
       <p class="small muted">The NRC reads every report before releasing it to the referees. Drafts are saved on this device as you type.</p></div>`;
@@ -211,13 +212,17 @@
     const form = $("#rep-form");
     await NRC.Report.render(form, { mode: "report", items, game: g, value: local || rep || {}, onChange: () => { try { localStorage.setItem(key, JSON.stringify(NRC.Report.read(form))); } catch (e) { } } });
     form.addEventListener("input", () => { try { localStorage.setItem(key, JSON.stringify(NRC.Report.read(form))); } catch (e) { } });
+    // AI log and flagged moments, when the NRC has loaded one on this game
+    const aiKey = "nrc-ai-" + gameId; let aiLocal = null; try { aiLocal = JSON.parse(localStorage.getItem(aiKey) || "null"); } catch (e) { }
+    const ai = g.ai_log && NRC.AI ? await NRC.AI.panel($("#rep-ai"), { game: g, form, decisions: aiLocal || (rep && rep.ai_flag_decisions) || {}, onChange: () => { try { localStorage.setItem(key, JSON.stringify(NRC.Report.read(form))); localStorage.setItem(aiKey, JSON.stringify(ai ? ai.decisions() : {})); } catch (e) { } } }) : null;
     async function save(status) {
       const v = NRC.Report.read(form);
       if (status === "submitted") { const miss = NRC.Report.missing(form, items, true); if (miss.length) { NRC.notice($("#rep-miss"), "Missing: " + miss.join(", ") + ".", "error"); return; } }
       const row = Object.assign(v, { game_id: gameId, evaluator_id: ev.id, evaluator_user_id: user.id, status, video_url: g.video_url || null });
+      if (ai) { row.ai_flag_decisions = ai.decisions(); row.ai_assisted = true; }
       const res = rep ? await sb().from("observation_reports").update(row).eq("id", rep.id).select().single() : await sb().from("observation_reports").insert(row).select().single();
       if (res.error) { NRC.notice($("#rep-miss"), esc(res.error.message), "error"); return; }
-      rep = res.data; try { localStorage.removeItem(key); } catch (e) { }
+      rep = res.data; try { localStorage.removeItem(key); localStorage.removeItem("nrc-ai-" + gameId); } catch (e) { }
       if (status === "submitted") { msg("Report submitted. The NRC will review it before the referees see it.", "ok"); load(); }
       else NRC.notice($("#rep-miss"), "Draft saved.", "ok");
     }

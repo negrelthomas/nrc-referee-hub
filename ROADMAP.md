@@ -2,7 +2,7 @@
 
 Items raised by testers, the NRC or Thomas that are not built yet. Each item records where it came from, what it needs and what it depends on. Items move to the README or the guides once delivered.
 
-Last updated: October 22, 2026
+Last updated: October 22, 2026 (evening)
 
 ## Parked: needs an NRC or USATH decision first
 
@@ -26,6 +26,20 @@ Last updated: October 22, 2026
 | 10 | Season reports and exports (referee activity, games, evaluations) | README phase 3 | CSV exports from admin first |
 | 11 | Load USATH member data at go live (clubs, referees) | Go live plan | Ask USATH for exports; import through the existing CSV tools |
 | 12 | Move CONTACT_EMAIL, SMTP sender and hosting to USATH | Transfer checklist | See README, Transfer to USATH checklist |
+
+## AI assisted reviews (started October 22)
+
+Process agreed by Thomas, to confirm with Joshua: an AI pass logs each game from its video and flags moments; the AI reconciles its log with the official score sheet (only the score is trusted; table officials often miss cards, suspensions, 7 m throws and scorers, so other differences become flags); a certified evaluator reviews the flags and writes the IHF report; the NRC releases it. No human fact check. The AI never rates referees. Referees see the report marked as AI assisted.
+
+| # | Item | Status | Notes |
+|---|------|--------|-------|
+| 13 | Hub support: AI log on the game, fact check, flags beside the video with Confirm and Dismiss, match facts fill, AI assisted mark, flag statistics | Delivered Oct 22 (run supabase/ai_assist.sql) | See guide/evaluators.html#ai |
+| 14 | AI pass pipeline: Gemini API script, game cut in segments, three passes (goals and score, whistles, personal punishments), fixed output format; reads the scanned score sheet, re-runs the goals pass until the score matches, turns other sheet differences into flags; writes the log and flags to the hub | To build | Runs on the Gemini API free tier (allow generativelanguage.googleapis.com in Claude settings, API key from AI Studio). Gate before wider use: score exact, and at least 9 of 10 punishments caught, measured on broadcast games with official IHF or EHF match reports and one CalCup game checked by an evaluator, since CalCup sheets are not reliable for punishments |
+| 15 | Better score sheets at CalCup 2027 and NRC events: 7 m throws, timeouts, minute of every card and suspension | Ask organizers | Game 4 of CalCup 2026 had none of these; table officials often miss punishments and scorers, so only the score is used as a reference |
+| 16 | A camera that follows the referees, or a second angle, on games used for evaluation | Ask organizers | Single wide camera is the main limit found in testing |
+| 17 | Labelled clip library (EHF teaching materials, IHF Rule Interpretation app) as reference examples for the AI pass | Needs access | EHF platform is members only; ask whether the NRC has access |
+
+Test results, October 22: on CalCup 2026 Game 4 (NYC W 16, San Diego W 31) Gemini 3.8 Flash in AI Studio got the score exactly right at high resolution, but caught 1 of 4 personal punishments and a small share of free throws; runs were not consistent. On the Tokyo 2020 men's final broadcast it caught every punishment it reached.
 
 ## Delivered from the October 21 feedback
 

@@ -80,6 +80,12 @@
     count();
     return { items };
   };
+  // add a key scene row to an open report form (used by the AI flags panel)
+  R.addScene = async function (el, s) {
+    const items = await R.items(), box = el.querySelector(".rep-scenes"); if (!box) return;
+    const dup = NRC.$$(".rep-scene", box).some(r => { const t = r.querySelector('[data-k="t"]'); return t && t.value.trim() === (s.t || ""); });
+    if (!dup) box.insertAdjacentHTML("beforeend", sceneRow(s, items, false));
+  };
   function sceneRow(s, items, ro) {
     if (ro) { const it = items.find(c => c.code === s.item); return `<div class="rep-scene small"><strong>${esc(s.t || "")}</strong> ${it ? esc(it.label) + ": " : ""}${esc(s.note || "")}</div>`; }
     return `<div class="rep-scene"><input data-k="t" placeholder="12:34" value="${esc(s.t || "")}"><select data-k="item"><option value="">Item</option>${items.map(c => `<option value="${c.code}" ${c.code === s.item ? "selected" : ""}>${esc(c.label)}</option>`).join("")}</select><input data-k="note" placeholder="What happened, what the call should be" value="${esc(s.note || "")}"><button type="button" class="btn sm ghost" data-act="del-scene" aria-label="Remove">&times;</button></div>`;
@@ -126,7 +132,7 @@
     const names = {}; const ids = [r.referee_1, r.referee_2].filter(Boolean);
     if (ids.length) { const { data: rf } = await NRC.sb.from("referees").select("id,first_name,last_name").in("id", ids); (rf || []).forEach(x => names[x.id] = x.first_name + " " + x.last_name); }
     const game = Object.assign({}, g || {}, { tournament: g && g.tournaments ? g.tournaments.name : "", venue_name: g && g.tournaments ? g.tournaments.venue_name : "", venue_city: g && g.tournaments ? g.tournaments.venue_city : "", venue_state: g && g.tournaments ? g.tournaments.venue_state : "", referee_1_name: names[r.referee_1], referee_2_name: names[r.referee_2], referee_2: r.referee_2 });
-    NRC.$("#rep-view-meta").innerHTML = `${R.statusPill(r.status)} ${esc(r.evaluator_name || "")} (${esc(r.evaluator_club || "")}), ${r.method === "live" ? "live" : "video review"}${r.submitted_at ? ", submitted " + NRC.fmtDate(r.submitted_at.slice(0, 10)) : ""}${r.overall != null ? " &middot; overall " + NRC.scoreHtml(r.overall) : ""}${r.nrc_note ? `<div class="notice" style="margin-top:6px"><strong>NRC note.</strong> ${esc(r.nrc_note)}</div>` : ""}`;
+    NRC.$("#rep-view-meta").innerHTML = `${R.statusPill(r.status)} ${esc(r.evaluator_name || "")} (${esc(r.evaluator_club || "")}), ${r.method === "live" ? "live" : "video review"}${r.submitted_at ? ", submitted " + NRC.fmtDate(r.submitted_at.slice(0, 10)) : ""}${r.overall != null ? " &middot; overall " + NRC.scoreHtml(r.overall) : ""}${r.ai_assisted ? ' &middot; <span class="pill" title="The evaluator worked from an AI log of the game and flagged moments. The ratings and remarks are the evaluator\'s own.">AI assisted review</span>' : ""}${r.nrc_note ? `<div class="notice" style="margin-top:6px"><strong>NRC note.</strong> ${esc(r.nrc_note)}</div>` : ""}`;
     await R.render(NRC.$("#rep-view-body"), { mode: "view", game, value: r });
     NRC.$("#rep-view-extra").innerHTML = "";
     if (extra) extra(NRC.$("#rep-view-extra"), r);
