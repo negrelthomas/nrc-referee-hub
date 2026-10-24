@@ -26,9 +26,6 @@ create index if not exists guest_officials_pair_idx on public.guest_officials (p
 alter table public.guest_officials enable row level security;
 drop policy if exists guest_admin on public.guest_officials;
 create policy guest_admin on public.guest_officials for all using (public.is_admin()) with check (public.is_admin());
-drop policy if exists guest_organizer_read on public.guest_officials;
-create policy guest_organizer_read on public.guest_officials for select
-  using (id in (select guest_official_id from public.assignments where tournament_id in (select public.organizer_tournament_ids())));
 grant select, insert, update, delete on public.guest_officials to authenticated;
 
 -- An assignment is either a USATH referee or a guest, never both
@@ -38,6 +35,11 @@ alter table public.assignments drop constraint if exists assignments_one_person;
 alter table public.assignments add constraint assignments_one_person check (num_nonnulls(referee_id, guest_official_id) = 1);
 alter table public.assignments drop constraint if exists assignments_tournament_guest_key;
 alter table public.assignments add constraint assignments_tournament_guest_key unique (tournament_id, guest_official_id);
+
+-- Organizers read the guests on their events (needs assignments.guest_official_id, added above)
+drop policy if exists guest_organizer_read on public.guest_officials;
+create policy guest_organizer_read on public.guest_officials for select
+  using (id in (select guest_official_id from public.assignments where tournament_id in (select public.organizer_tournament_ids())));
 
 -- Guests are referee pairs only, and named pairs never exceed the pairs the organizer declared outside USATH
 alter table public.assignments drop constraint if exists assignments_guest_referee;
