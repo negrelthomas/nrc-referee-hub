@@ -853,7 +853,7 @@
     }).sort((a, b) => ["past", "todo", "all"].includes(tourFilter) ? b.start_date.localeCompare(a.start_date) : a.start_date.localeCompare(b.start_date));
     const STAT = { submitted: "amber", reviewing: "amber", staffed: "green", completed: "", cancelled: "red" };
     $("#tour tbody").innerHTML = list.map(t => { const st = tourStats[t.id] || {}, need = t.pairs_needed * 2, past = t.start_date <= now;
-      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}${st.guests ? '<div class="small muted">+' + st.guests + " guest" + (st.guests > 1 ? "s" : "") + "</div>" : ""}${(() => { const sx = staffing.find(x => x.id === t.id); if (!sx || t.end_date < now || bucket(t) === "full") return ""; const left = sx.staff_by ? Math.round((new Date(sx.staff_by + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5) : null; return `<div class="small muted" style="margin-top:4px;white-space:nowrap">${sx.staff_by ? "staff by " + NRC.fmtDate(sx.staff_by) + (left < 0 ? ' <span style="color:var(--red)">' + (-left) + " days late</span>" : "") : ""}${sx.contacted ? "<br>" + sx.contacted + " invited, " + sx.accepted + " yes, " + sx.waiting + " waiting" : ""}</div>`; })()}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="9">No tournament in this view.</td></tr>';
+      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}${st.guests ? '<div class="small muted">+' + st.guests + " guest" + (st.guests > 1 ? "s" : "") + "</div>" : ""}${(() => { const sx = staffing.find(x => x.id === t.id); if (!sx || t.end_date < now || bucket(t) === "full") return ""; const left = sx.staff_by ? Math.round((new Date(sx.staff_by + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5) : null; return `<div class="small muted" style="margin-top:4px;white-space:nowrap">${sx.staff_by ? "staff by " + NRC.fmtDate(sx.staff_by) + (left < 0 ? ' <span style="color:var(--red)">' + (-left) + " days late</span>" : "") : ""}${sx.contacted ? "<br>" + sx.contacted + " invited, " + sx.accepted + " yes, " + sx.waiting + " waiting" : ""}</div>`; })()}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option value="${x}" ${x === t.status ? "selected" : ""}>${x[0].toUpperCase() + x.slice(1)}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="9">No tournament in this view.</td></tr>';
   }
   // ---------- organizer outreach ----------
   // Events the NRC placed on the calendar carry a tentative organizer contact: the one saved on the event, otherwise the
@@ -951,7 +951,8 @@
     $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_total ?? currentTour.pairs_needed} pairs required: ${currentTour.pairs_needed} staffed by the NRC${currentTour.pairs_organizer ? ", " + currentTour.pairs_organizer + " sourced by the organizer outside USATH" : ""}.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || ""; f.date_status.value = currentTour.date_status || "confirmed"; f.source_url.value = currentTour.source_url || ""; f.nrc_staffs.checked = currentTour.nrc_staffs !== false;
     $("#tour-div").innerHTML = NRC.divisionPicker("divisions", currentTour.divisions);
-    ["start_date", "end_date", "venue_name", "venue_city", "pairs_total", "pairs_organizer", "organizer_pairs_note", "travel_managed_by", "club_id", "staff_by"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
+    ["start_date", "end_date", "venue_name", "venue_city", "pairs_total", "pairs_organizer", "organizer_pairs_note", "travel_managed_by", "club_id", "staff_by", "flights_covered", "hotel_nights_covered", "food_stipend_per_day", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport", "meals_provided"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : String(currentTour[k]); });
+    f.agreed_note.value = ""; tourAgreedNote = "";
     tourPairsCalc(f);
     $("#asg-ref").innerHTML = refs.filter(r => r.active).map(r => `<option value="${r.id}">${NRC.esc(r.last_name + ", " + r.first_name)}</option>`).join("");
     // weekends touched by the tournament (Saturday keys)
@@ -1020,6 +1021,22 @@
       + box(c("declined"), "declined")
       + (T.supervisor_needed ? box(sup ? "set" : "needed", "supervisor", sup ? "good" : "bad") : "")
       + box(travelOwn, "books travel");
+    $("#tour-cover").innerHTML = coverRecap(T, des + gst + sup);
+  }
+  // what the organizer agreed to cover, by category; USD only where the request gives an amount
+  function coverRecap(T, officials) {
+    const days = Math.round((new Date(T.end_date + "T12:00:00") - new Date(T.start_date + "T12:00:00")) / 864e5) + 1;
+    const usd = n => "$" + Number(n).toLocaleString("en-US", { maximumFractionDigits: 2 });
+    const yes = (v, txt) => v ? '<span class="pill green">Covered</span>' + (txt ? " " + NRC.esc(txt) : "") : '<span class="pill">Not covered</span>';
+    const nights = T.hotel_nights_covered || 0, stip = +T.food_stipend_per_day || 0, per = stip * days;
+    const rows = [
+      ["Flights", yes(T.flights_covered), "Not set in the request"],
+      ["Hotel", nights ? `<span class="pill green">Covered</span> ${nights} night${nights === 1 ? "" : "s"} per official` : '<span class="pill">Not covered</span>', "Not set in the request"],
+      ["Airport transfers", yes(T.airport_transfers_covered, T.airport_transfer_how ? "(" + T.airport_transfer_how + ")" : ""), "Not set in the request"],
+      ["Hotel to venue", T.hotel_to_venue_transport ? NRC.esc(T.hotel_to_venue_transport) : '<span class="muted">Not stated</span>', ""],
+      ["Food stipend", stip ? `${usd(stip)} per day` : '<span class="pill">None</span>', stip ? `${usd(per)} per official (${days} day${days === 1 ? "" : "s"})${officials ? ", " + usd(per * officials) + " for " + officials + " designated" : ""}` : ""],
+      ["Meals on site", T.meals_provided ? NRC.esc(T.meals_provided) : '<span class="muted">Not stated</span>', ""]];
+    return `<h4 style="margin:14px 0 6px">What the organizer covers</h4><div class="table-wrap"><table class="cover-recap"><thead><tr><th>Category</th><th>Agreed</th><th>Amount (USD)</th></tr></thead><tbody>${rows.map(r => `<tr><td><strong>${r[0]}</strong></td><td class="small">${r[1]}</td><td class="small">${r[2] || '<span class="muted">-</span>'}</td></tr>`).join("")}</tbody></table></div><p class="small muted">Edit in Event details, What the organizer covers. The request form records an amount for the food stipend only; flights, hotel and transfers are covered or not, at cost.</p>`;
   }
   // Invitations
   let invites = [];
@@ -1134,7 +1151,7 @@
   };
   window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
   // ---------- tournament window: autosave, notify on close, change log ----------
-  let tourPublicChanges = 0;
+  let tourPublicChanges = 0, tourAgreedNote = "";
   const INTERNAL = ["sanction", "region", "club_id", "divisions", "staff_by", "date_status", "nrc_staffs", "source_url"];
   const TF = { start_date: "Start", end_date: "End", date_status: "Dates", venue_name: "Venue", venue_city: "City", pairs_total: "Total pairs required", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "Pairs sourced outside USATH", organizer_pairs_note: "Organizer pairs from", travel_managed_by: "Travel booked by", staff_by: "Staff by", nrc_staffs: "NRC staffs", sanction: "Sanction", region: "Region", club_id: "Hosting club", source_url: "Source link", divisions: "Divisions", name: "Name", status: "Status", venue_address: "Address", venue_state: "State", nearest_airport_iata: "Nearest airport", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers", airport_transfer_how: "Transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure", notes: "Notes", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
   const saveState = (txt, cls) => { const el = $("#tour-save-state"); el.textContent = txt; el.style.color = cls === "err" ? "var(--red)" : cls === "ok" ? "#17532D" : "var(--muted)"; };
@@ -1147,6 +1164,10 @@
     const k = el.name || (el.closest("#tour-div") ? "divisions" : "");
     if (k === "divisions") return { k, patch: { divisions: NRC.divisionsFrom(f, "divisions") } };
     if (k === "nrc_staffs") return { k, patch: { nrc_staffs: el.checked } };
+    // not a tournament field: how the change was agreed, sent to the organizer and kept in the change log when the window closes
+    if (k === "agreed_note") { tourAgreedNote = el.value.trim(); saveState(tourAgreedNote ? "Agreement note kept for the update email" : "", "ok"); return {}; }
+    if (k === "flights_covered" || k === "airport_transfers_covered") return { k, patch: { [k]: el.value === "true" } };
+    if (k === "hotel_nights_covered" || k === "food_stipend_per_day") { const v = el.value.trim(); if (v !== "" && (isNaN(+v) || +v < 0)) return { err: "Enter a number, 0 or more." }; return { k, patch: { [k]: v === "" ? (k === "hotel_nights_covered" ? 0 : null) : +v } }; }
     if (k === "pairs_total" || k === "pairs_organizer" || k === "organizer_pairs_note") {
       // the NRC count is never entered: total less the pairs sourced outside USATH (the database recalculates it too)
       tourPairsCalc(f);
@@ -1174,18 +1195,18 @@
       if (r.k && r.k !== "divisions" && f[r.k] && f[r.k].type !== "checkbox") f[r.k].value = currentTour[r.k] == null ? "" : currentTour[r.k];
       return;
     }
-    Object.assign(currentTour, r.patch); el.classList.add("saved"); setTimeout(() => el.classList.remove("saved"), 1500);
+    Object.assign(currentTour, r.patch); renderSnap(); el.classList.add("saved"); setTimeout(() => el.classList.remove("saved"), 1500);
     if (!Object.keys(r.patch).every(k => INTERNAL.includes(k))) tourPublicChanges++;
     saveState("Saved " + new Date().toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) + (tourPublicChanges ? ", officials and organizer told when you close" : ""), "ok");
     $("#dlg-tour-title").textContent = currentTour.name;
   });
   window.closeTour = () => $("#dlg-tour").close();
   $("#dlg-tour").addEventListener("close", async () => {
-    const T = currentTour, n = tourPublicChanges; tourPublicChanges = 0;
+    const T = currentTour, n = tourPublicChanges, agreed = tourAgreedNote; tourPublicChanges = 0; tourAgreedNote = "";
     if (T && n && T.status !== "cancelled" && T.end_date >= today() && (desRows.length || !T.created_by_nrc)) {
       toast(`Sending the update on ${T.name} to the designated officials and the organizer...`);
       const { data: sess } = await sb().auth.getSession();
-      const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: T.id, kind: "changes" }) }).catch(() => null);
+      const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: T.id, kind: "changes", agreed_note: agreed || null }) }).catch(() => null);
       const d = res ? await res.json().catch(() => ({})) : {};
       if (!res || !res.ok) toast("The update on " + T.name + " was not sent: " + ((d && d.error) || "network error") + ". Open the tournament and close it again to retry.", "error", 10000);
       else if (d.nothing) toast("Saved. No detail that officials see changed, so nothing was sent.", "ok");
@@ -1197,7 +1218,7 @@
     const { data, error } = await sb().from("tournament_changes").select("*").eq("tournament_id", currentTour.id).order("created_at", { ascending: false });
     const val = (k, v) => { if (v == null || v === "") return "empty"; if (k === "club_id") return clubName(v) || "club"; if (k === "travel_managed_by") return { nrc: "NRC", organizer: "Organizer", referee: "Referees" }[v] || v; if (v === "true" || v === true) return "yes"; if (v === "false" || v === false) return "no"; const s = String(v); return s.length > 80 ? s.slice(0, 80) + "..." : s; };
     const ts = x => new Date(x).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
-    $("#tour-log tbody").innerHTML = error ? `<tr><td colspan="4">${NRC.esc(error.message)}</td></tr>` : (data || []).map(c => `<tr><td class="small" style="white-space:nowrap">${ts(c.created_at)}</td><td class="small">${NRC.esc(c.changed_by_label || c.changed_by_role || "")}${c.changed_by_role && c.changed_by_label ? '<br><span class="muted">' + NRC.esc(c.changed_by_role) + "</span>" : ""}</td><td class="small">${Object.entries(c.changes || {}).map(([k, v]) => `${NRC.esc(TF[k] || k.replace(/_/g, " "))}: ${NRC.esc(val(k, v.from))} &rarr; <strong>${NRC.esc(val(k, v.to))}</strong>${INTERNAL.includes(k) ? ' <span class="muted">(internal)</span>' : ""}`).join("<br>")}</td><td class="small">${c.notified_at ? ts(c.notified_at) : '<span class="muted">not yet</span>'}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">No change recorded.</td></tr>';
+    $("#tour-log tbody").innerHTML = error ? `<tr><td colspan="4">${NRC.esc(error.message)}</td></tr>` : (data || []).map(c => `<tr><td class="small" style="white-space:nowrap">${ts(c.created_at)}</td><td class="small">${NRC.esc(c.changed_by_label || c.changed_by_role || "")}${c.changed_by_role && c.changed_by_label ? '<br><span class="muted">' + NRC.esc(c.changed_by_role) + "</span>" : ""}</td><td class="small">${Object.entries(c.changes || {}).map(([k, v]) => `${NRC.esc(TF[k] || k.replace(/_/g, " "))}: ${NRC.esc(val(k, v.from))} &rarr; <strong>${NRC.esc(val(k, v.to))}</strong>${INTERNAL.includes(k) ? ' <span class="muted">(internal)</span>' : ""}`).join("<br>")}${c.agreed_note ? '<div class="small muted" style="margin-top:4px">Agreed with the organizer: ' + NRC.esc(c.agreed_note) + "</div>" : ""}</td><td class="small">${c.notified_at ? ts(c.notified_at) : '<span class="muted">not yet</span>'}</td></tr>`).join("") || '<tr><td colspan="4" class="muted">No change recorded.</td></tr>';
   }
   // toast and sending locks: email buttons show "Sending..." and ignore a second click until the server answers
   function toast(msg, kind, ms) {

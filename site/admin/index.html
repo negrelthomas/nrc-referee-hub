@@ -384,6 +384,7 @@
     <div style="display:flex;gap:10px;align-items:center"><span class="small" id="tour-save-state" aria-live="polite"></span><button class="btn ghost sm" type="button" onclick="closeTour()">Close</button></div>
   </div>
   <div id="tour-snap" class="snap"></div>
+  <div id="tour-cover"></div>
   <details id="tour-details" class="tour-details">
     <summary><strong>Event details</strong> <span class="small muted">changes save as you go; officials and the organizer are told when you close this window</span></summary>
     <form id="form-tour" class="tour-form" autocomplete="off">
@@ -402,6 +403,16 @@
         <div><label>Travel booked by</label><select name="travel_managed_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option><option value="referee">Referees</option></select></div>
         <div><label>Staff by</label><input name="staff_by" type="date"></div>
         <div><label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:26px"><input type="checkbox" style="width:auto" name="nrc_staffs"> The NRC staffs this event</label></div>
+        <div class="tip" style="grid-column:1/-1" data-tip="Use it when you change the request after agreeing it with the organizer by phone, WhatsApp or email. It goes into the update email to the organizer and the change log."><label>How the change was agreed with the organizer (optional)</label><input name="agreed_note" placeholder="Phone call with the organizer on Oct 23: two USATH pairs and two pairs from France"></div>
+      </div>
+      <div class="tf-group"><div class="tf-h">What the organizer covers</div>
+        <div><label>Flights</label><select name="flights_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div>
+        <div><label>Hotel nights per official</label><input name="hotel_nights_covered" type="number" min="0" max="30"></div>
+        <div><label>Food stipend per day (USD)</label><input name="food_stipend_per_day" type="number" min="0" step="1"></div>
+        <div><label>Airport transfers</label><select name="airport_transfers_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div>
+        <div style="grid-column:span 2"><label>How airport transfers work</label><input name="airport_transfer_how" placeholder="Organizer pickup, reimbursed rideshare..."></div>
+        <div style="grid-column:span 2"><label>Hotel to venue</label><input name="hotel_to_venue_transport" placeholder="Shuttle, rental car, walking distance..."></div>
+        <div style="grid-column:1/-1"><label>Meals on site</label><input name="meals_provided" placeholder="Lunch at the venue each day..."></div>
       </div>
       <div class="tf-group"><div class="tf-h">Classification</div>
         <div><label>Sanction</label><select name="sanction"><option value="club">Club</option><option value="regional">Regional</option><option value="usath">USATH</option><option value="international">International</option></select></div>
