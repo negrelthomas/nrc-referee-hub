@@ -58,10 +58,10 @@
     const [{ data: evals }, { data: gcount }, { data: acount }] = await Promise.all([
       sb().from("evaluations").select("referee_id,evaluated_on,tournament_id,game_id").order("evaluated_on", { ascending: false }),
       sb().from("games").select("id,tournament_id,referee_1,referee_2"),
-      sb().from("assignments").select("tournament_id,referee_id,role,games_officiated")]);
+      sb().from("assignments").select("tournament_id,referee_id,guest_official_id,role,games_officiated")]);
     tourStats = {};
     tournaments.forEach(t => { const A = (acount || []).filter(a => a.tournament_id === t.id), Gm = (gcount || []).filter(g => g.tournament_id === t.id);
-      tourStats[t.id] = { officials: A.length, referees: A.filter(a => a.role === "referee").length, games: Gm.length, gamesReported: A.reduce((n, a) => n + (a.games_officiated || 0), 0), slots: Gm.reduce((n, g) => n + (g.referee_1 ? 1 : 0) + (g.referee_2 ? 1 : 0), 0), evals: (evals || []).filter(e => e.tournament_id === t.id).length, gameEvals: (evals || []).filter(e => e.tournament_id === t.id && e.game_id).length }; });
+      tourStats[t.id] = { officials: A.filter(a => a.referee_id).length, referees: A.filter(a => a.role === "referee" && a.referee_id).length, guests: A.filter(a => a.guest_official_id).length, games: Gm.length, gamesReported: A.reduce((n, a) => n + (a.games_officiated || 0), 0), slots: Gm.reduce((n, g) => n + (g.referee_1 ? 1 : 0) + (g.referee_2 ? 1 : 0), 0), evals: (evals || []).filter(e => e.tournament_id === t.id).length, gameEvals: (evals || []).filter(e => e.tournament_id === t.id && e.game_id).length }; });
     const yr = new Date().getFullYear();
     const { data: logins } = await sb().rpc("admin_referee_logins");
     const LG = {}; (logins || []).forEach(x => LG[x.referee_id] = x);
@@ -610,24 +610,74 @@
   const KIND = { flight: "Flight", hotel: "Hotel", car: "Car", train: "Train", other: "Other" };
   const fmtDT = (d) => d ? new Date(d).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
   async function renderDesignated() {
-    const [{ data: asg }, { data: acc }] = await Promise.all([sb().from("assignments").select("*").eq("tournament_id", currentTour.id), sb().from("assignment_requests").select("referee_id,status").eq("tournament_id", currentTour.id).in("status", ["accepted", "tentative"])]);
+    const [{ data: asg }, { data: acc }] = await Promise.all([sb().from("assignments").select("*, guest_officials(*)").eq("tournament_id", currentTour.id), sb().from("assignment_requests").select("referee_id,status").eq("tournament_id", currentTour.id).in("status", ["accepted", "tentative"])]);
     desRows = asg || [];
+    const usath = desRows.filter(a => a.referee_id), guests = desRows.filter(a => a.guest_official_id);
     const { data: allReq } = await sb().from("assignment_requests").select("referee_id,status").eq("tournament_id", currentTour.id);
     const hasReq = new Set((allReq || []).map(q => q.referee_id));
-    noInvite = desRows.filter(a => a.role === "referee" && !hasReq.has(a.referee_id)).map(a => a.referee_id);
+    noInvite = usath.filter(a => a.role === "referee" && !hasReq.has(a.referee_id)).map(a => a.referee_id);
     const ids = desRows.map(a => a.id);
     const { data: tb } = ids.length ? await sb().from("travel_bookings").select("*").in("assignment_id", ids).order("start_at") : { data: [] };
     travelRows = tb || [];
-    const need = currentTour.pairs_needed * 2; const refsConfirmed = desRows.filter(a => a.role === "referee").length;
+    const need = currentTour.pairs_needed * 2; const refsConfirmed = usath.filter(a => a.role === "referee").length;
     const openList = (acc || []).filter(a => !desRows.find(d => d.referee_id === a.referee_id));
-    $("#des-summary").innerHTML = `<span class="chip ${refsConfirmed >= need ? "on" : ""}">${refsConfirmed}/${need} referees designated</span><span class="chip">${desRows.filter(a => a.role !== "referee").length} supervisor or observer${currentTour.supervisor_needed ? " (requested)" : ""}</span><span class="chip">${currentTour.travel_managed_by === "nrc" ? "NRC books travel" : "Organizer books travel"}</span>` + (openList.length ? `<span class="chip">Open to officiate, not designated: ${openList.map(a => NRC.esc(refName(a.referee_id)) + (a.status === "tentative" ? " (tentative)" : "")).join("; ")}</span>` : "");
+    $("#des-summary").innerHTML = `<span class="chip ${refsConfirmed >= need ? "on" : ""}">${refsConfirmed}/${need} referees designated</span><span class="chip">${usath.filter(a => a.role !== "referee").length} supervisor or observer${currentTour.supervisor_needed ? " (requested)" : ""}</span><span class="chip">${currentTour.travel_managed_by === "nrc" ? "NRC books travel" : "Organizer books travel"}</span>` + (openList.length ? `<span class="chip">Open to officiate, not designated: ${openList.map(a => NRC.esc(refName(a.referee_id)) + (a.status === "tentative" ? " (tentative)" : "")).join("; ")}</span>` : "");
     if (noInvite.length) $("#des-summary").insertAdjacentHTML("beforeend", `<span class="chip" style="background:#FFF4D6">${noInvite.length} designated without an acceptance on file <button class="btn sm" type="button" style="margin-left:6px" onclick="openRecordAccept()">Record acceptance</button></span>`);
-    $("#des tbody").innerHTML = desRows.map(a => { const r = refs.find(x => x.id === a.referee_id) || {}; const bk = travelRows.filter(b => b.assignment_id === a.id);
+    $("#des tbody").innerHTML = usath.map(a => { const r = refs.find(x => x.id === a.referee_id) || {};
       const st = availState(a.referee_id);
-      return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong>${noInvite.includes(a.referee_id) ? ` <span class="pill amber" title="Designated without an invitation on the hub">no acceptance on file</span> <button class="btn sm ghost" type="button" onclick="openRecordAccept(['${a.referee_id}'])">Record acceptance</button>` : ""}${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared on the referee's home">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join("; "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>'}<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)">Add booking</button></div></td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Confirm accepted referees on the Invitations tab.</td></tr>';
+      return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong>${noInvite.includes(a.referee_id) ? ` <span class="pill amber" title="Designated without an invitation on the hub">no acceptance on file</span> <button class="btn sm ghost" type="button" onclick="openRecordAccept(['${a.referee_id}'])">Record acceptance</button>` : ""}${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared on the referee's home">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join("; "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Confirm accepted referees on the Invitations tab.</td></tr>';
+    // guest pairs: grouped by pair, numbered in the order they were added
+    const keys = [...new Set(guests.map(a => a.guest_officials.pair_key || a.guest_official_id))];
+    guests.sort((x, y) => keys.indexOf(x.guest_officials.pair_key || x.guest_official_id) - keys.indexOf(y.guest_officials.pair_key || y.guest_official_id) || asgName(x).localeCompare(asgName(y)));
+    const declared = currentTour.pairs_organizer || 0;
+    $("#guest-summary").innerHTML = `<span class="chip ${declared && keys.length >= declared ? "on" : ""}">${keys.length}/${declared} organizer pair${declared === 1 ? "" : "s"} named${currentTour.organizer_pairs_note ? " (" + NRC.esc(currentTour.organizer_pairs_note) + ")" : ""}</span>`;
+    $("#btn-guest-add").disabled = keys.length >= declared;
+    $("#guests tbody").innerHTML = guests.map(a => { const g = a.guest_officials, k = g.pair_key || a.guest_official_id;
+      return `<tr><td><strong>${NRC.esc(asgName(a))}</strong> <span class="pill">pair ${keys.indexOf(k) + 1}</span><br><span class="small muted">${NRC.esc(g.email || "no email")}${g.phone ? ", " + NRC.esc(g.phone) : ""}</span></td><td class="small">${NRC.esc(g.federation)}</td><td class="small">${NRC.esc(g.home_city || "")}${g.home_airport_iata ? " (" + NRC.esc(g.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td style="white-space:nowrap"><button class="btn sm ghost" type="button" onclick="openGuestPair('${k}')">Edit</button> <button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove pair</button></td></tr>`; }).join("") || `<tr><td colspan="5" class="muted">${currentTour.pairs_organizer ? "No organizer pair named yet." : "The organizer declared no pair from outside USATH."}</td></tr>`;
     $("#des-ref").innerHTML = refs.filter(r => r.active && !desRows.find(d => d.referee_id === r.id)).map(r => `<option value="${r.id}">${NRC.esc(r.last_name + ", " + r.first_name)} (${NRC.levelLabel(r.cert_level).replace(" (National)", "")})</option>`).join("");
     renderSnap();
   }
+  function bookingsCell(a) {
+    const bk = travelRows.filter(b => b.assignment_id === a.id);
+    return (bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>') + `<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)">Add booking</button></div>`;
+  }
+  // ---------- organizer pairs from outside USATH (guests) ----------
+  // Rule: always the organizer's pairs; the NRC or the organizer names them, within pairs_organizer. Enforced in save_guest_pair.
+  let guestPool = [], guestEdit = null;
+  const guestFields = (f, x, g) => { f[x + "_first"].value = g ? g.first_name : ""; f[x + "_last"].value = g ? g.last_name : ""; f[x + "_email"].value = g ? g.email || "" : ""; f[x + "_phone"].value = g ? g.phone || "" : ""; f[x + "_city"].value = g ? g.home_city || "" : ""; f[x + "_iata"].value = g ? g.home_airport_iata || "" : ""; };
+  const pairOf = k => guestPool.filter(g => (g.pair_key || g.id) === k).sort((x, y) => x.created_at.localeCompare(y.created_at));
+  function fillGuestForm(k) {
+    const f = $("#form-guest"), P = k ? pairOf(k) : [];
+    guestFields(f, "a", P[0]); guestFields(f, "b", P[1]);
+    f.federation.value = P[0] ? P[0].federation : (currentTour.organizer_pairs_note || "");
+    f.payment_notes.value = P[0] ? P[0].payment_notes || "" : ""; f.notes.value = P[0] ? P[0].notes || "" : "";
+  }
+  window.openGuestPair = async function (pairKey) {
+    const named = Math.ceil(desRows.filter(a => a.guest_official_id).length / 2), declared = currentTour.pairs_organizer || 0;
+    if (!pairKey && named >= declared) { alert(declared ? `The organizer declared ${declared} pair${declared > 1 ? "s" : ""} from outside USATH and ${declared > 1 ? "all are" : "it is"} named. Raise "Pairs sourced outside USATH" in the event details first.` : `The organizer declared no pair from outside USATH. Set "Pairs sourced outside USATH" in the event details first; the pairs USATH staffs go down by the same number.`); return; }
+    const { data } = await sb().from("guest_officials").select("*").order("created_at");
+    guestPool = data || []; guestEdit = pairKey || null;
+    const f = $("#form-guest"); f.reset();
+    const onEvent = new Set(desRows.filter(a => a.guest_official_id).map(a => a.guest_officials.pair_key || a.guest_official_id));
+    const keys = [...new Set(guestPool.map(g => g.pair_key || g.id))].filter(k => k === pairKey || !onEvent.has(k)).filter(k => pairOf(k).length === 2);
+    f.reuse.innerHTML = '<option value="">New pair</option>' + keys.map(k => { const P = pairOf(k); return `<option value="${k}">${NRC.esc(P.map(g => g.last_name + ", " + g.first_name).join(" and "))} (${NRC.esc(P[0].federation)})</option>`; }).join("");
+    f.reuse.value = pairKey || ""; f.reuse.disabled = !!pairKey;
+    fillGuestForm(pairKey);
+    $("#dlg-guest h3").textContent = pairKey ? "Edit organizer pair" : "Organizer pair from outside USATH";
+    $("#dlg-guest").showModal();
+  };
+  $("#form-guest").reuse.addEventListener("change", e => fillGuestForm(e.target.value || null));
+  $("#form-guest").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target, k = f.reuse.value || guestEdit || null, P = k ? pairOf(k) : [];
+    const person = (x, old) => ({ id: old ? old.id : null, first_name: f[x + "_first"].value, last_name: f[x + "_last"].value, email: f[x + "_email"].value, phone: f[x + "_phone"].value, home_city: f[x + "_city"].value, home_airport_iata: f[x + "_iata"].value });
+    const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+    try {
+      const { error } = await sb().rpc("save_guest_pair", { p_tournament: currentTour.id, p_people: [person("a", P[0]), person("b", P[1])], p_federation: f.federation.value, p_payment_notes: f.payment_notes.value || null, p_notes: f.notes.value || null, p_pair_key: k && P[0] && P[0].pair_key ? P[0].pair_key : null });
+      if (error) { alert(error.message); return; }
+      toast(guestEdit ? "Pair details saved." : "Organizer pair named.", "ok");
+      $("#dlg-guest").close(); renderDesignated(); renderTourAsg(); renderMoney();
+    } finally { btn.disabled = false; }
+  });
   window.addDesignated = async function () {
     const rid = $("#des-ref").value; if (!rid) return;
     const { error } = await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: rid, role: $("#des-role").value }, { onConflict: "tournament_id,referee_id" });
@@ -635,7 +685,14 @@
     renderDesignated(); renderTourAsg();
   };
   window.removeDesignated = async function (id) {
-    const a = desRows.find(x => x.id === id); if (!a || !confirm("Remove " + refName(a.referee_id) + " from this tournament? Their invitation is marked declined so you can pick a replacement.")) return;
+    const a = desRows.find(x => x.id === id); if (!a) return;
+    if (a.guest_official_id) {
+      const k = a.guest_officials.pair_key || a.guest_official_id, both = desRows.filter(x => x.guest_official_id && (x.guest_officials.pair_key || x.guest_official_id) === k).map(asgName).join(" and ");
+      if (!confirm("Remove the organizer pair " + both + " from this tournament? Their bookings and expense claims on this event are deleted with it.")) return;
+      const { error } = await sb().rpc("remove_guest_pair", { p_tournament: currentTour.id, p_pair_key: k }); if (error) { alert(error.message); return; }
+      renderDesignated(); renderTourAsg(); return;
+    }
+    if (!confirm("Remove " + refName(a.referee_id) + " from this tournament? Their invitation is marked declined so you can pick a replacement.")) return;
     await sb().from("assignments").delete().eq("id", id);
     await sb().from("assignment_requests").update({ status: "declined", response_note: "Removed by the NRC after confirmation" }).eq("tournament_id", currentTour.id).eq("referee_id", a.referee_id);
     renderDesignated(); renderInvites(); renderTourAsg();
@@ -644,11 +701,24 @@
   const toLocal = (iso) => { if (!iso) return ""; const d = new Date(iso); const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; };
   window.openTravel = function (assignmentId, bookingId) {
     currentTravel = bookingId ? travelRows.find(b => b.id === bookingId) : null; const f = $("#form-travel"); f.reset(); f.assignment_id.value = assignmentId;
-    const a = desRows.find(x => x.id === assignmentId); $("#dlg-travel-title").textContent = "Travel booking, " + (a ? refName(a.referee_id) : "");
+    const a = desRows.find(x => x.id === assignmentId); $("#dlg-travel-title").textContent = "Travel booking, " + (a ? asgName(a) : "");
     if (currentTravel) { ["kind", "status", "provider", "reference", "from_place", "to_place", "cost", "paid_by", "notes"].forEach(k => { if (f[k]) f[k].value = currentTravel[k] == null ? "" : currentTravel[k]; }); f.start_at.value = toLocal(currentTravel.start_at); f.end_at.value = toLocal(currentTravel.end_at); }
     $("#btn-travel-delete").classList.toggle("hidden", !currentTravel);
+    $("#btn-travel-claim").classList.toggle("hidden", !(currentTravel && currentTravel.paid_by === "referee" && currentTravel.status === "booked" && currentTravel.cost));
     $("#dlg-travel").showModal();
   };
+  // a booking the official paid becomes an approved claim, linked to the booking so it is never claimed twice
+  const CLAIM_KIND = { flight: "flight", hotel: "hotel", car: "car", train: "transport", other: "other" };
+  $("#btn-travel-claim").addEventListener("click", async () => {
+    const b = currentTravel; if (!b) return;
+    const { data: ex } = await sb().from("expense_claims").select("id,status,amount").eq("booking_id", b.id).maybeSingle();
+    if (ex) { alert(`This booking is already claimed ($${Number(ex.amount).toFixed(2)}, ${ex.status}). See the Expenses tab.`); return; }
+    const guestClaim = !!(desRows.find(x => x.id === b.assignment_id) || {}).guest_official_id;
+    if (!confirm(`Create an approved claim of $${Number(b.cost).toFixed(2)} for this booking, reimbursed by ${guestClaim ? "the organizer (organizer pair)" : "the NRC"}? You can change who reimburses on the Expenses tab.`)) return;
+    const { error } = await sb().from("expense_claims").insert({ assignment_id: b.assignment_id, booking_id: b.id, kind: CLAIM_KIND[b.kind] || "other", amount: b.cost, description: [KIND[b.kind], b.provider, b.reference].filter(Boolean).join(" "), status: "approved", reimbursed_by: guestClaim ? "organizer" : "nrc", submitted_by: user.id, reviewed_by: user.id, reviewed_at: new Date().toISOString() });
+    if (error) { alert(error.message); return; }
+    toast("Claim created.", "ok"); $("#dlg-travel").close(); renderMoney();
+  });
   $("#form-travel").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const row = { assignment_id: f.assignment_id.value };
     ["kind", "status", "provider", "reference", "from_place", "to_place", "paid_by", "notes"].forEach(k => row[k] = f[k].value.trim() || null);
@@ -662,14 +732,53 @@
   // ---------- expenses and report ----------
   const CK = { flight: "Flight", hotel: "Hotel", car: "Car", mileage: "Mileage", transport: "Transport", per_diem: "Per diem", other: "Other" };
   async function renderMoney() {
-    const [{ data: asg }, { data: fin }, { data: rep }] = await Promise.all([sb().from("assignments").select("id,referee_id,role").eq("tournament_id", currentTour.id), sb().from("tournament_finance").select("*").eq("tournament_id", currentTour.id).maybeSingle(), sb().from("tournament_reports").select("*").eq("tournament_id", currentTour.id).maybeSingle()]);
+    const [{ data: asg }, { data: fin }, { data: rep }] = await Promise.all([sb().from("assignments").select("id,referee_id,guest_official_id,role,guest_officials(first_name,last_name,federation,payment_notes)").eq("tournament_id", currentTour.id), sb().from("tournament_finance").select("*").eq("tournament_id", currentTour.id).maybeSingle(), sb().from("tournament_reports").select("*").eq("tournament_id", currentTour.id).maybeSingle()]);
     const ids = (asg || []).map(a => a.id);
-    const { data: claims } = ids.length ? await sb().from("expense_claims").select("*").in("assignment_id", ids).order("created_at") : { data: [] };
+    const [{ data: claims }, { data: books }] = ids.length ? await Promise.all([sb().from("expense_claims").select("*").in("assignment_id", ids).order("created_at"), sb().from("travel_bookings").select("id,assignment_id,cost,status,paid_by").in("assignment_id", ids)]) : [{ data: [] }, { data: [] }];
+    moneyAsg = asg || []; renderPayees(claims || [], books || []);
     const F = fin || {};
     $("#money-summary").innerHTML = `<span class="chip">NRC paid bookings: $${Number(F.nrc_paid_bookings || 0).toFixed(0)}</span><span class="chip">Organizer paid bookings: $${Number(F.organizer_paid_bookings || 0).toFixed(0)}</span><span class="chip ${Number(F.referee_paid_bookings) ? "on" : ""}">Referee paid bookings: $${Number(F.referee_paid_bookings || 0).toFixed(0)}</span><span class="chip ${Number(F.claims_submitted) ? "on" : ""}">Claims to review: $${Number(F.claims_submitted || 0).toFixed(0)}</span><span class="chip">Approved: $${Number(F.claims_approved || 0).toFixed(0)}</span><span class="chip">Reimbursed: $${Number(F.claims_reimbursed || 0).toFixed(0)}</span>`;
-    $("#claims tbody").innerHTML = (claims || []).map(c => { const a = (asg || []).find(x => x.id === c.assignment_id) || {}; return `<tr><td>${NRC.esc(refName(a.referee_id))}</td><td>${CK[c.kind] || c.kind}</td><td class="small">${NRC.esc(c.description || "")}</td><td><strong>$${Number(c.amount).toFixed(2)}</strong></td><td>${c.receipt_url ? `<a href="#" onclick="openReceipt('${c.receipt_url}');return false">view</a>` : '<span class="muted">none</span>'}</td><td><span class="pill ${c.status === "reimbursed" || c.status === "approved" ? "green" : c.status === "rejected" ? "red" : "amber"}">${c.status}</span></td><td><select onchange="setClaim('${c.id}',{reimbursed_by:this.value})"><option value="organizer" ${c.reimbursed_by === "organizer" ? "selected" : ""}>Organizer</option><option value="nrc" ${c.reimbursed_by === "nrc" ? "selected" : ""}>NRC</option></select></td><td><input value="${NRC.esc(c.review_note || "")}" placeholder="note" onchange="setClaim('${c.id}',{review_note:this.value})" style="min-width:120px"></td><td style="white-space:nowrap"><button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'approved'})">Approve</button> <button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'rejected'})">Reject</button> <button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'reimbursed',paid_at:new Date().toISOString()})">Reimbursed</button></td></tr>`; }).join("") || '<tr><td colspan="9">No expense claim yet. Referees submit them from their home after the event.</td></tr>';
+    $("#claims tbody").innerHTML = (claims || []).map(c => { const a = (asg || []).find(x => x.id === c.assignment_id) || {}; return `<tr><td>${NRC.esc(asgName(a))}</td><td>${CK[c.kind] || c.kind}</td><td class="small">${NRC.esc(c.description || "")}</td><td><strong>$${Number(c.amount).toFixed(2)}</strong></td><td>${c.receipt_url ? `<a href="#" onclick="openReceipt('${c.receipt_url}');return false">view</a>` : '<span class="muted">none</span>'}</td><td><span class="pill ${c.status === "reimbursed" || c.status === "approved" ? "green" : c.status === "rejected" ? "red" : "amber"}">${c.status}</span></td><td><select onchange="setClaim('${c.id}',{reimbursed_by:this.value})"><option value="organizer" ${c.reimbursed_by === "organizer" ? "selected" : ""}>Organizer</option><option value="nrc" ${c.reimbursed_by === "nrc" ? "selected" : ""}>NRC</option></select></td><td><input value="${NRC.esc(c.review_note || "")}" placeholder="note" onchange="setClaim('${c.id}',{review_note:this.value})" style="min-width:120px"></td><td style="white-space:nowrap"><button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'approved'})">Approve</button> <button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'rejected'})">Reject</button> <button class="btn sm ghost" onclick="setClaim('${c.id}',{status:'reimbursed',paid_at:new Date().toISOString()})">Reimbursed</button></td></tr>`; }).join("") || '<tr><td colspan="9">No expense claim yet. Referees submit them from their home after the event; use Add expense for guests.</td></tr>';
     $("#report-view").innerHTML = rep ? `<div class="card"><h3 style="margin-top:0">Organizer report, ${NRC.fmtDate(rep.submitted_at)}</h3><p class="small">Games played: ${rep.games_played ?? "not given"}. Referee team ${rep.referee_rating ? rep.referee_rating + "/5" : "not rated"}${rep.supervisor_rating ? ", supervisor " + rep.supervisor_rating + "/5" : ""}. Would request again: ${rep.would_request_again ? "yes" : "no"}.</p>${rep.highlights ? "<p class='small'><strong>Went well:</strong> " + NRC.esc(rep.highlights) + "</p>" : ""}${rep.incidents ? "<p class='small'><strong>Incidents:</strong> " + NRC.esc(rep.incidents) + "</p>" : ""}</div>` : '<p class="small muted">No organizer report yet. The organizer is reminded three days after the event.</p>';
   }
+  let moneyAsg = [], payeeRows = [];
+  function renderPayees(claims, books) {
+    const sum = (arr, f) => arr.reduce((n, x) => n + Number(f(x) || 0), 0), usd = n => n ? "$" + n.toFixed(2) : '<span class="muted">0</span>';
+    payeeRows = moneyAsg.map(a => {
+      const C = claims.filter(c => c.assignment_id === a.id), B = books.filter(b => b.assignment_id === a.id && b.status === "booked" && b.paid_by === "referee");
+      const claimed = new Set(C.map(c => c.booking_id).filter(Boolean));
+      return { name: asgName(a), guest: !!a.guest_official_id, federation: a.guest_officials ? a.guest_officials.federation : "USATH", how: a.guest_officials ? a.guest_officials.payment_notes || "" : "",
+        paid: sum(B, b => b.cost), unclaimed: sum(B.filter(b => !claimed.has(b.id)), b => b.cost), review: sum(C.filter(c => c.status === "submitted"), c => c.amount), due: sum(C.filter(c => c.status === "approved"), c => c.amount), done: sum(C.filter(c => c.status === "reimbursed"), c => c.amount) };
+    }).filter(r => r.paid || r.review || r.due || r.done || r.guest).sort((x, y) => x.name.localeCompare(y.name));
+    const tot = k => payeeRows.reduce((n, r) => n + r[k], 0);
+    $("#payees tbody").innerHTML = payeeRows.length ? payeeRows.map(r => `<tr><td><strong>${NRC.esc(r.name)}</strong>${r.guest ? ' <span class="pill">guest, ' + NRC.esc(r.federation) + "</span>" : ""}</td><td>${usd(r.paid)}</td><td>${r.unclaimed ? '<span class="pill amber" title="Open the booking on Designated and travel and use Create claim">$' + r.unclaimed.toFixed(2) + "</span>" : usd(0)}</td><td>${usd(r.review)}</td><td><strong>${usd(r.due)}</strong></td><td>${usd(r.done)}</td><td class="small">${NRC.esc(r.how)}</td></tr>`).join("") + `<tr><td><strong>Total</strong></td><td>${usd(tot("paid"))}</td><td>${usd(tot("unclaimed"))}</td><td>${usd(tot("review"))}</td><td><strong>${usd(tot("due"))}</strong></td><td>${usd(tot("done"))}</td><td></td></tr>` : '<tr><td colspan="7" class="muted">Nothing paid or claimed yet.</td></tr>';
+  }
+  window.exportPayees = function () {
+    if (!payeeRows.length) { alert("Nothing to export yet."); return; }
+    const q = v => `"${String(v).replace(/"/g, '""')}"`;
+    const lines = [["Official", "Federation", "Paid by them", "Not claimed", "To review", "Approved to pay", "Reimbursed", "How to pay"].map(q).join(",")].concat(payeeRows.map(r => [r.name, r.federation, r.paid.toFixed(2), r.unclaimed.toFixed(2), r.review.toFixed(2), r.due.toFixed(2), r.done.toFixed(2), r.how].map(q).join(",")));
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
+    a.download = `reimbursements_${currentTour.name.replace(/[^\w]+/g, "_")}_${currentTour.start_date}.csv`; a.click();
+  };
+  window.openClaim = function () {
+    if (!moneyAsg.length) { alert("Nobody designated yet."); return; }
+    const f = $("#form-claim"); f.reset();
+    f.assignment_id.innerHTML = moneyAsg.slice().sort((x, y) => asgName(x).localeCompare(asgName(y))).map(a => `<option value="${a.id}">${NRC.esc(asgName(a))}${a.guest_official_id ? " (guest)" : ""}</option>`).join("");
+    const setPayer = () => { const a = moneyAsg.find(x => x.id === f.assignment_id.value); f.reimbursed_by.value = a && a.guest_official_id ? "organizer" : "nrc"; };
+    f.assignment_id.onchange = setPayer; setPayer();
+    $("#dlg-claim").showModal();
+  };
+  $("#form-claim").addEventListener("submit", async (e) => {
+    e.preventDefault(); const f = e.target, btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+    try {
+      let receipt_url = null; const file = f.receipt.files[0];
+      if (file) { const ext = (file.name.split(".").pop() || "jpg").toLowerCase(); const path = `${user.id}/${Date.now()}.${ext}`; const up = await sb().storage.from("receipts").upload(path, file, { contentType: file.type }); if (up.error) { alert("Receipt upload failed: " + up.error.message); return; } receipt_url = path; }
+      const approved = f.status.value === "approved";
+      const { error } = await sb().from("expense_claims").insert({ assignment_id: f.assignment_id.value, kind: f.kind.value, amount: parseFloat(f.amount.value), description: f.description.value.trim() || null, status: f.status.value, reimbursed_by: f.reimbursed_by.value, receipt_url, submitted_by: user.id, reviewed_by: approved ? user.id : null, reviewed_at: approved ? new Date().toISOString() : null });
+      if (error) { alert(error.message); return; }
+      $("#dlg-claim").close(); renderMoney();
+    } finally { btn.disabled = false; }
+  });
   window.setClaim = async function (id, patch) { if (patch.status) { patch.reviewed_by = user.id; patch.reviewed_at = new Date().toISOString(); } const { error } = await sb().from("expense_claims").update(patch).eq("id", id); if (error) alert(error.message); else renderMoney(); };
   window.openReceipt = async function (path) { const { data, error } = await sb().storage.from("receipts").createSignedUrl(path, 300); if (error) { alert(error.message); return; } window.open(data.signedUrl, "_blank"); };
 
@@ -708,7 +817,7 @@
     }).sort((a, b) => ["past", "todo", "all"].includes(tourFilter) ? b.start_date.localeCompare(a.start_date) : a.start_date.localeCompare(b.start_date));
     const STAT = { submitted: "amber", reviewing: "amber", staffed: "green", completed: "", cancelled: "red" };
     $("#tour tbody").innerHTML = list.map(t => { const st = tourStats[t.id] || {}, need = t.pairs_needed * 2, past = t.start_date <= now;
-      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}${(() => { const sx = staffing.find(x => x.id === t.id); if (!sx || t.end_date < now || bucket(t) === "full") return ""; const left = sx.staff_by ? Math.round((new Date(sx.staff_by + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5) : null; return `<div class="small muted" style="margin-top:4px;white-space:nowrap">${sx.staff_by ? "staff by " + NRC.fmtDate(sx.staff_by) + (left < 0 ? ' <span style="color:var(--red)">' + (-left) + " days late</span>" : "") : ""}${sx.contacted ? "<br>" + sx.contacted + " invited, " + sx.accepted + " yes, " + sx.waiting + " waiting" : ""}</div>`; })()}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="9">No tournament in this view.</td></tr>';
+      return `<tr class="clickable" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}${st.guests ? '<div class="small muted">+' + st.guests + " guest" + (st.guests > 1 ? "s" : "") + "</div>" : ""}${(() => { const sx = staffing.find(x => x.id === t.id); if (!sx || t.end_date < now || bucket(t) === "full") return ""; const left = sx.staff_by ? Math.round((new Date(sx.staff_by + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5) : null; return `<div class="small muted" style="margin-top:4px;white-space:nowrap">${sx.staff_by ? "staff by " + NRC.fmtDate(sx.staff_by) + (left < 0 ? ' <span style="color:var(--red)">' + (-left) + " days late</span>" : "") : ""}${sx.contacted ? "<br>" + sx.contacted + " invited, " + sx.accepted + " yes, " + sx.waiting + " waiting" : ""}</div>`; })()}</td><td>${past ? (st.games ? st.games + (t.games_expected ? '<span class="small muted">/' + t.games_expected + "</span>" : "") : st.gamesReported ? '<span class="small muted" title="Reported as a total, not logged one by one">' + st.gamesReported + " reported</span>" : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td>${past ? (st.slots ? `<span class="pill ${st.gameEvals >= st.slots ? "green" : "amber"}">${st.gameEvals}/${st.slots}</span>` : st.evals ? st.evals : '<span class="muted">none</span>') : '<span class="muted">-</span>'}</td><td><select class="tour-status" onclick="event.stopPropagation()" onchange="setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option ${x === t.status ? "selected" : ""}>${x}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="9">No tournament in this view.</td></tr>';
   }
   // ---------- organizer outreach ----------
   // Events the NRC placed on the calendar carry a tentative organizer contact: the one saved on the event, otherwise the
@@ -786,7 +895,7 @@
       venue_name: f.venue_name.value.trim() || null, venue_city: f.venue_city.value.trim() || null, venue_state: f.venue_state.value.trim().toUpperCase() || null,
       games_expected: f.games_expected.value === "" ? null : parseInt(f.games_expected.value, 10), club_id: f.club_id.value || null, divisions: NRC.divisionsFrom(f, "divisions"),
       organizer_name: "NRC", organizer_email: (window.NRC_CONFIG && NRC_CONFIG.CONTACT_EMAIL) || "referee@handballusa.org", organizer_user_id: user.id,
-      created_by_nrc: true, status: f.end_date.value < today() ? "completed" : "reviewing", pairs_needed: 1,
+      created_by_nrc: true, status: f.end_date.value < today() ? "completed" : "reviewing", pairs_total: 1, pairs_needed: 1,
       date_status: f.date_status.value, source_url: f.source_url.value.trim() || null, nrc_staffs: f.nrc_staffs.checked };
     if (row.end_date < row.start_date) { alert("End date is before the start date."); return; }
     const { data, error } = await sb().from("tournaments").insert(row).select().single();
@@ -803,10 +912,11 @@
     currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour"); renderTourAsg.mountedFor = null;
     tourPublicChanges = 0; $("#tour-save-state").textContent = ""; NRC.$$("#form-tour .saved,#form-tour .err,#form-tour .saving").forEach(x => x.classList.remove("saved", "err", "saving"));
     $("#dlg-tour-title").textContent = currentTour.name;
-    $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_needed} pairs staffed by the NRC${currentTour.pairs_organizer ? ", " + currentTour.pairs_organizer + " brought by the organizer" : ""}.`;
+    $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_total ?? currentTour.pairs_needed} pairs required: ${currentTour.pairs_needed} staffed by the NRC${currentTour.pairs_organizer ? ", " + currentTour.pairs_organizer + " sourced by the organizer outside USATH" : ""}.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || ""; f.date_status.value = currentTour.date_status || "confirmed"; f.source_url.value = currentTour.source_url || ""; f.nrc_staffs.checked = currentTour.nrc_staffs !== false;
     $("#tour-div").innerHTML = NRC.divisionPicker("divisions", currentTour.divisions);
-    ["start_date", "end_date", "venue_name", "venue_city", "pairs_needed", "pairs_organizer", "organizer_pairs_note", "travel_managed_by", "club_id", "staff_by"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
+    ["start_date", "end_date", "venue_name", "venue_city", "pairs_total", "pairs_organizer", "organizer_pairs_note", "travel_managed_by", "club_id", "staff_by"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : currentTour[k]; });
+    tourPairsCalc(f);
     $("#asg-ref").innerHTML = refs.filter(r => r.active).map(r => `<option value="${r.id}">${NRC.esc(r.last_name + ", " + r.first_name)}</option>`).join("");
     // weekends touched by the tournament (Saturday keys)
     const sat = (d) => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + ((6 - x.getDay() + 7) % 7)); return x.toISOString().slice(0, 10); };
@@ -824,6 +934,7 @@
     $("#dlg-tour").showModal();
   };
   const refName = id => { const r = refs.find(x => x.id === id); return r ? r.last_name + ", " + r.first_name : "?"; };
+  const asgName = a => a && a.guest_official_id ? (a.guest_officials ? a.guest_officials.last_name + ", " + a.guest_officials.first_name : "Guest") : refName(a && a.referee_id);
   const partnerOf = id => { const p = pairsCache.find(p => (p.referee_a === id || p.referee_b === id) && (!p.valid_until || p.valid_until >= today())); return p ? (p.referee_a === id ? p.referee_b : p.referee_a) : null; };
   const unavailable = id => availCache.find(b => b.referee_id === id);
   let weekendCache = [];
@@ -861,11 +972,11 @@
   // snapshot at the top of the tournament window
   function renderSnap() {
     const T = currentTour; if (!T) return;
-    const need = (T.pairs_needed || 0) * 2, des = desRows.filter(a => a.role === "referee").length, sup = desRows.filter(a => a.role !== "referee").length;
+    const need = (T.pairs_needed || 0) * 2, des = desRows.filter(a => a.role === "referee" && a.referee_id).length, sup = desRows.filter(a => a.role !== "referee").length, gst = desRows.filter(a => a.role === "referee" && a.guest_official_id).length;
     const c = s => invites.filter(i => i.status === s).length;
     const box = (n, l, cls) => `<div class="snap-i ${cls || ""}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
     const travelOwn = T.travel_managed_by === "nrc" ? "NRC" : T.travel_managed_by === "referee" ? "Referees" : "Organizer";
-    $("#tour-snap").innerHTML = box(`${des}/${need}`, "referees designated" + (T.pairs_organizer ? `<br>+${T.pairs_organizer} organizer pair${T.pairs_organizer > 1 ? "s" : ""}` : ""), des >= need ? "good" : des ? "warn" : "bad")
+    $("#tour-snap").innerHTML = box(`${des}/${need}`, "referees designated" + (T.pairs_organizer ? `<br>+${T.pairs_organizer} organizer pair${T.pairs_organizer > 1 ? "s" : ""}, ${Math.ceil(gst / 2)} named` : ""), des >= need ? "good" : des ? "warn" : "bad")
       + box(c("accepted"), "accepted, to confirm", c("accepted") ? "warn" : "")
       + box(c("sent") + c("tentative"), "waiting or tentative")
       + box(c("declined"), "declined")
@@ -969,11 +1080,11 @@
 
   // Officiated
   async function renderTourAsg() {
-    const { data } = await sb().from("assignments").select("*").eq("tournament_id", currentTour.id);
+    const { data } = await sb().from("assignments").select("*, guest_officials(first_name,last_name)").eq("tournament_id", currentTour.id);
     const { data: gl } = await sb().from("games").select("referee_1,referee_2").eq("tournament_id", currentTour.id);
     const logged = (rid) => (gl || []).filter(g => g.referee_1 === rid || g.referee_2 === rid).length;
-    $("#tour-asg tbody").innerHTML = (data || []).sort((x, y) => refName(x.referee_id).localeCompare(refName(y.referee_id))).map(a => { const n = logged(a.referee_id);
-      return `<tr><td><a href="#" onclick="openRef('${a.referee_id}');return false">${NRC.esc(refName(a.referee_id))}</a></td><td>${NRC.esc(a.role === "delegate" ? "supervisor" : a.role)}</td><td>${n || '<span class="muted">0</span>'}</td><td>${n ? '<span class="small muted">from the game log</span>' : `<input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" style="width:90px" onchange="setAsgGames('${a.id}',this.value)">`}</td></tr>`; }).join("") || '<tr><td colspan="4" class="muted">Nobody designated yet.</td></tr>';
+    $("#tour-asg tbody").innerHTML = (data || []).sort((x, y) => asgName(x).localeCompare(asgName(y))).map(a => { const n = a.referee_id ? logged(a.referee_id) : 0;
+      return `<tr><td>${a.referee_id ? `<a href="#" onclick="openRef('${a.referee_id}');return false">${NRC.esc(refName(a.referee_id))}</a>` : NRC.esc(asgName(a)) + ' <span class="pill">guest</span>'}</td><td>${NRC.esc(a.role === "delegate" ? "supervisor" : a.role)}</td><td>${n || '<span class="muted">0</span>'}</td><td>${n ? '<span class="small muted">from the game log</span>' : `<input type="number" min="0" value="${a.games_officiated == null ? "" : a.games_officiated}" style="width:90px" onchange="setAsgGames('${a.id}',this.value)">`}</td></tr>`; }).join("") || '<tr><td colspan="4" class="muted">Nobody designated yet.</td></tr>';
     // games panel: mounted once per tournament opened, refreshed by its own saves
     if (renderTourAsg.mountedFor !== currentTour.id) { renderTourAsg.mountedFor = currentTour.id; await NRC.Games.mount($("#tour-games"), { tournament: currentTour, mode: "admin", user, evaluatorName: (user && (user.full_name || user.email)) || "NRC", nameOf: refName, onChange: () => { renderTourAsg(); loadAll(); } }); }
   }
@@ -986,17 +1097,25 @@
   // ---------- tournament window: autosave, notify on close, change log ----------
   let tourPublicChanges = 0;
   const INTERNAL = ["sanction", "region", "club_id", "divisions", "staff_by", "date_status", "nrc_staffs", "source_url"];
-  const TF = { start_date: "Start", end_date: "End", date_status: "Dates", venue_name: "Venue", venue_city: "City", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "Pairs the organizer brings", organizer_pairs_note: "Organizer pairs from", travel_managed_by: "Travel booked by", staff_by: "Staff by", nrc_staffs: "NRC staffs", sanction: "Sanction", region: "Region", club_id: "Hosting club", source_url: "Source link", divisions: "Divisions", name: "Name", status: "Status", venue_address: "Address", venue_state: "State", nearest_airport_iata: "Nearest airport", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers", airport_transfer_how: "Transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure", notes: "Notes", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
+  const TF = { start_date: "Start", end_date: "End", date_status: "Dates", venue_name: "Venue", venue_city: "City", pairs_total: "Total pairs required", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "Pairs sourced outside USATH", organizer_pairs_note: "Organizer pairs from", travel_managed_by: "Travel booked by", staff_by: "Staff by", nrc_staffs: "NRC staffs", sanction: "Sanction", region: "Region", club_id: "Hosting club", source_url: "Source link", divisions: "Divisions", name: "Name", status: "Status", venue_address: "Address", venue_state: "State", nearest_airport_iata: "Nearest airport", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers", airport_transfer_how: "Transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure", notes: "Notes", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
   const saveState = (txt, cls) => { const el = $("#tour-save-state"); el.textContent = txt; el.style.color = cls === "err" ? "var(--red)" : cls === "ok" ? "#17532D" : "var(--muted)"; };
+  function tourPairsCalc(f) {
+    const total = parseInt(f.pairs_total.value, 10) || 0, n = parseInt(f.pairs_organizer.value, 10) || 0, usath = total - n;
+    $("#tour-pairs-usath").textContent = usath < 0 ? "check" : usath;
+    $("#tour-pairs-calc").classList.toggle("bad", usath < 0);
+  }
   function tourPatch(f, el) {
     const k = el.name || (el.closest("#tour-div") ? "divisions" : "");
     if (k === "divisions") return { k, patch: { divisions: NRC.divisionsFrom(f, "divisions") } };
     if (k === "nrc_staffs") return { k, patch: { nrc_staffs: el.checked } };
-    if (k === "pairs_needed") { const v = parseInt(el.value, 10); return isNaN(v) || v < 0 ? { err: "Enter a number of pairs (0 or more)." } : { k, patch: { pairs_needed: v } }; }
-    if (k === "pairs_organizer" || k === "organizer_pairs_note") {
-      const n = parseInt(f.pairs_organizer.value, 10) || 0, note = f.organizer_pairs_note.value.trim();
+    if (k === "pairs_total" || k === "pairs_organizer" || k === "organizer_pairs_note") {
+      // the NRC count is never entered: total less the pairs sourced outside USATH (the database recalculates it too)
+      tourPairsCalc(f);
+      const total = parseInt(f.pairs_total.value, 10), n = parseInt(f.pairs_organizer.value, 10) || 0, note = f.organizer_pairs_note.value.trim();
+      if (isNaN(total) || total < 0) return { err: "Enter the total number of pairs required (0 or more)." };
+      if (n > total) return { err: `The pairs sourced outside USATH (${n}) exceed the total pairs required (${total}).` };
       if (n && !note) return { wait: "Add the country or federation of the organizer's pairs to save." };
-      return { k, patch: { pairs_organizer: n, organizer_pairs_note: n ? note : null } };
+      return { k, patch: { pairs_total: total, pairs_organizer: n, pairs_needed: total - n, organizer_pairs_note: n ? note : null } };
     }
     if (k === "start_date" || k === "end_date") { const a = f.start_date.value, b = f.end_date.value; if (!a || !b) return { err: "Both dates are needed." }; if (b < a) return { err: "The end date is before the start date." }; return { k, patch: { start_date: a, end_date: b } }; }
     if (!k) return {};

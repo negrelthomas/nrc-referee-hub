@@ -712,3 +712,13 @@ body.admin-phone .tf-group{grid-template-columns:1fr}
 body.admin-phone .tf-group > div{grid-column:1/-1}
 body.admin-phone .snap-i{flex:1 1 calc(50% - 8px);min-width:0}
 body.admin-phone .nrc-toast{left:12px;right:12px;max-width:none}
+
+/* Hover tooltip on a form field: wrap the label and input in .tip with data-tip. Shows on hover and on focus (phones). */
+.tip{position:relative}
+.tip>label::after{content:"?";display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;margin-left:6px;border-radius:50%;background:var(--navy,#04234F);color:#fff;font-size:10px;font-weight:700;vertical-align:1px}
+.tip::before{content:attr(data-tip);position:absolute;left:0;right:0;bottom:calc(100% + 6px);z-index:30;padding:9px 11px;border-radius:8px;background:#04234F;color:#fff;font-size:13px;font-weight:400;line-height:1.4;text-transform:none;letter-spacing:0;box-shadow:0 6px 18px rgba(0,0,0,.18);opacity:0;visibility:hidden;transform:translateY(4px);transition:opacity .15s,transform .15s;pointer-events:none;max-width:340px}
+.tip:hover::before,.tip:focus-within::before{opacity:1;visibility:visible;transform:none}
+.calc-pairs{display:flex;align-items:baseline;gap:8px;padding:9px 12px;border-radius:8px;background:#EEF2F6;font-size:14px}
+.calc-pairs strong{font-family:"Barlow Condensed",sans-serif;font-size:22px;color:#04234F}
+.calc-pairs.bad{background:#FBE9EC;color:#8A0B20}
+.calc-pairs.bad strong{color:#C8102E}

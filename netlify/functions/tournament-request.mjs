@@ -6,7 +6,7 @@ import { sendMail, fmtDate } from "./mailer.mjs";
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const FIELDS = ["name", "sanction", "region", "divisions", "club_id", "organizer_name", "organizer_email", "organizer_phone", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata",
-  "start_date", "end_date", "pairs_needed", "games_expected", "hotel_nights_covered", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport",
+  "start_date", "end_date", "pairs_total", "games_expected", "hotel_nights_covered", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport",
   "food_stipend_per_day", "meals_provided", "earliest_return_last_day", "budget_owner", "notes", "supervisor_needed", "supervisor_notes", "travel_managed_by", "pairs_organizer", "organizer_pairs_note"];
 
 export default async (req) => {
@@ -19,8 +19,14 @@ export default async (req) => {
   FIELDS.forEach(k => { if (body[k] !== undefined && body[k] !== "") row[k] = body[k]; });
   if (!row.name || !row.organizer_email || !row.start_date || !row.end_date) return json(400, { error: "Name, organizer email and dates are required." });
   if (row.end_date < row.start_date) return json(400, { error: "The end date is before the start date." });
-  row.pairs_organizer = Math.max(0, Math.min(20, parseInt(row.pairs_organizer, 10) || 0));
-  if (row.pairs_organizer && !String(row.organizer_pairs_note || "").trim()) return json(400, { error: "Give the country or federation of the pairs you bring. Only pairs based outside the United States can be brought by the organizer." });
+  // The organizer gives the total and the pairs sourced outside USATH; the pairs USATH provides are calculated, never entered.
+  row.pairs_total = parseInt(row.pairs_total, 10);
+  row.pairs_organizer = parseInt(row.pairs_organizer, 10) || 0;
+  if (!Number.isInteger(row.pairs_total) || row.pairs_total < 1 || row.pairs_total > 60) return json(400, { error: "Enter the total number of referee pairs the tournament requires (1 to 60)." });
+  if (row.pairs_organizer < 0 || row.pairs_organizer > 20) return json(400, { error: "Pairs sourced outside USATH: enter 0 to 20." });
+  if (row.pairs_organizer > row.pairs_total) return json(400, { error: `The pairs sourced outside USATH (${row.pairs_organizer}) exceed the total pairs the tournament requires (${row.pairs_total}).` });
+  row.pairs_needed = row.pairs_total - row.pairs_organizer;
+  if (row.pairs_organizer && !String(row.organizer_pairs_note || "").trim()) return json(400, { error: "Give the country or federation of the pairs you source outside USATH, for example Canada or Europe." });
   if (!row.pairs_organizer) row.organizer_pairs_note = null;
   if (row.travel_managed_by && !["organizer", "nrc", "referee"].includes(row.travel_managed_by)) row.travel_managed_by = "organizer";
   row.organizer_email = String(row.organizer_email).trim().toLowerCase();
@@ -59,7 +65,7 @@ export default async (req) => {
   const when = `${fmtDate(t.start_date)} to ${fmtDate(t.end_date)}`;
   const nrcHtml = `<p>New tournament request on the hub.</p>
 <p><strong>${esc(t.name)}</strong><br>${when}<br>${esc([t.venue_name, t.venue_city, t.venue_state].filter(Boolean).join(", "))}<br>Club: ${esc(t.clubs ? t.clubs.name : "none")}<br>
-${t.pairs_needed} pair(s) for the NRC to staff${t.pairs_organizer ? ", plus " + t.pairs_organizer + " international pair(s) brought by the organizer (" + esc(t.organizer_pairs_note || "") + ")" : ""}${t.supervisor_needed ? " and a supervisor" : ""}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? "each referee" : "the organizer"}, ${(t.divisions || []).join(", ") || "divisions not given"}<br>
+${t.pairs_total} pair(s) required: ${t.pairs_needed} for the NRC to staff${t.pairs_organizer ? ", " + t.pairs_organizer + " sourced by the organizer outside USATH (" + esc(t.organizer_pairs_note || "") + ")" : ""}${t.supervisor_needed ? " and a supervisor" : ""}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? "each referee" : "the organizer"}, ${(t.divisions || []).join(", ") || "divisions not given"}<br>
 Organizer: ${esc(t.organizer_name)} (${esc(t.organizer_email)})<br>Staff by: <strong>${fmtDate(t.staff_by)}</strong></p>
 <p><a href="${base}/admin/#tournaments">Open Tournaments in the admin</a></p>`;
   const r1 = await sendMail({ to: contact, subject: `New tournament request: ${t.name}`, html: nrcHtml, replyTo: t.organizer_email });

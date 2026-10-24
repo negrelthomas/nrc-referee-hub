@@ -43,14 +43,14 @@
         <div><label>End date</label><input name="end_date" type="date" required></div>
       </div>
       <div class="row">
-        <div><label>Pairs the NRC staffs</label><input name="pairs_needed" type="number" min="0" value="2" required><div class="help">Referee pairs you need the NRC to designate. Every US based referee at your event comes through the NRC.</div></div>
-        <div><label>International pairs you bring yourself</label><input name="pairs_organizer" type="number" min="0" max="20" value="0"><div class="help">Only pairs from outside the United States, invited by you directly. Leave 0 if none.</div></div>
+        <div class="tip" data-tip="The total number of referee pairs the tournament requires, all courts and all days, whoever provides them."><label>Total referee pairs the tournament requires</label><input name="pairs_total" type="number" min="1" max="60" value="2" required><div class="help">Every pair needed to run the event.</div></div>
+        <div class="tip" data-tip="Pairs you source yourself outside USA Team Handball, for example from Canada or Europe. Leave 0 if USATH provides every pair."><label>Pairs you source outside USATH</label><input name="pairs_organizer" type="number" min="0" max="20" value="0"><div class="help">For example from Canada or Europe. Leave 0 if none.</div></div>
       </div>
+      <div class="calc-pairs" id="pairs-calc"><span>Pairs USATH provides (calculated)</span> <strong id="pairs-usath">2</strong></div>
       <div id="org-pairs" class="hidden">
-        <label>Country or federation of each pair you bring</label><input name="organizer_pairs_note" placeholder="Canada (Handball Canada), Mexico (FMH)">
-        <label style="font-weight:400"><input type="checkbox" id="org-pairs-ok" style="width:auto"> I confirm these pairs are based outside the United States.</label>
+        <label>Country or federation of the pairs you source</label><input name="organizer_pairs_note" placeholder="Canada (Handball Canada), Mexico (FMH)">
+        <label style="font-weight:400"><input type="checkbox" id="org-pairs-ok" style="width:auto"> I confirm these pairs are sourced outside USA Team Handball.</label>
       </div>
-      <p class="small" id="pairs-total" style="margin:6px 0 0"></p>
       <div class="row">
         <div><label>Earliest acceptable departure on the last day</label><input name="earliest_return_last_day" type="time"><div class="help">Pairs scheduled on the final games cannot leave before this time.</div></div>
       </div>
@@ -125,24 +125,27 @@ document.getElementById("div-host").innerHTML = NRC.divisionPicker("divisions", 
   if (keep) sel.value = keep;
 })();
 function pairsSummary() {
-  const f = document.getElementById("req-form"); const nrc = parseInt(f.pairs_needed.value, 10) || 0, own = parseInt(f.pairs_organizer.value, 10) || 0;
+  const f = document.getElementById("req-form"); const total = parseInt(f.pairs_total.value, 10) || 0, own = parseInt(f.pairs_organizer.value, 10) || 0, usath = total - own;
   NRC.$("#org-pairs").classList.toggle("hidden", !own);
   f.organizer_pairs_note.required = own > 0;
-  NRC.$("#pairs-total").innerHTML = `<strong>${nrc + own} pair${nrc + own === 1 ? "" : "s"} at the event</strong>: ${nrc} staffed by the NRC${own ? ", " + own + " international brought by you" : ""}.`;
+  NRC.$("#pairs-usath").textContent = usath < 0 ? "check" : usath;
+  NRC.$("#pairs-calc").classList.toggle("bad", usath < 0);
+  NRC.$("#pairs-calc").querySelector("span").textContent = usath < 0 ? "The pairs you source exceed the total. Pairs USATH provides:" : `Pairs USATH provides (calculated): ${total} total less ${own} you source =`;
 }
-["pairs_needed", "pairs_organizer"].forEach(n => document.querySelector(`#req-form [name=${n}]`).addEventListener("input", pairsSummary));
+["pairs_total", "pairs_organizer"].forEach(n => document.querySelector(`#req-form [name=${n}]`).addEventListener("input", pairsSummary));
 document.addEventListener("DOMContentLoaded", pairsSummary);
 document.getElementById("req-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const msg = NRC.$("#msg");
-  { const f = e.target, own = parseInt(f.pairs_organizer.value, 10) || 0, nrc = parseInt(f.pairs_needed.value, 10) || 0;
-    if (!own && !nrc) { NRC.notice(msg, "Enter at least one pair.", "error"); return; }
-    if (own && !NRC.$("#org-pairs-ok").checked) { NRC.notice(msg, "Pairs you bring yourself must be based outside the United States. Tick the confirmation, or ask the NRC to staff them.", "error"); NRC.$("#org-pairs-ok").focus(); return; } }
+  { const f = e.target, own = parseInt(f.pairs_organizer.value, 10) || 0, total = parseInt(f.pairs_total.value, 10) || 0;
+    if (total < 1) { NRC.notice(msg, "Enter the total number of referee pairs the tournament requires.", "error"); f.pairs_total.focus(); return; }
+    if (own > total) { NRC.notice(msg, `The pairs you source outside USATH (${own}) exceed the total pairs the tournament requires (${total}).`, "error"); f.pairs_organizer.focus(); return; }
+    if (own && !NRC.$("#org-pairs-ok").checked) { NRC.notice(msg, "Pairs you source yourself must come from outside USA Team Handball, for example Canada or Europe. Tick the confirmation, or count them in the pairs USATH provides.", "error"); NRC.$("#org-pairs-ok").focus(); return; } }
   if (!NRC.sb) { NRC.notice(msg, "The database is not configured yet. Email your request to referee@handballusa.org.", "error"); return; }
   const f = new FormData(e.target); const row = {};
   for (const [k, v] of f.entries()) row[k] = v === "" ? null : v;
   ["flights_covered", "airport_transfers_covered", "supervisor_needed"].forEach(k => row[k] = row[k] === "true");
-  ["pairs_needed", "pairs_organizer", "games_expected", "hotel_nights_covered"].forEach(k => row[k] = row[k] == null ? null : parseInt(row[k], 10));
+  ["pairs_total", "pairs_organizer", "games_expected", "hotel_nights_covered"].forEach(k => row[k] = row[k] == null ? null : parseInt(row[k], 10));
   if (row.food_stipend_per_day != null) row.food_stipend_per_day = parseFloat(row.food_stipend_per_day);
   if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();
   if (row.venue_state) row.venue_state = row.venue_state.toUpperCase();

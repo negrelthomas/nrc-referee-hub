@@ -34,13 +34,16 @@ export default async (req) => {
   const contact = process.env.CONTACT_EMAIL || "referee@handballusa.org";
 
   // Designated referees (confirmed) with their partner, used by the organizer and confirmation emails
-  const { data: confirmedRows } = await admin.from("assignments").select("id, role, referees(id, first_name, last_name, email, phone, cert_level, home_city, home_state, home_airport_iata, clubs(name))").eq("tournament_id", tournament_id);
-  const designated = (confirmedRows || []).map(a => ({ assignment_id: a.id, role: a.role, ...a.referees }));
+  // Guests (pairs from outside USATH) carry their federation in place of a club and have no hub account
+  const { data: confirmedRows } = await admin.from("assignments").select("id, role, referees(id, first_name, last_name, email, phone, cert_level, home_city, home_state, home_airport_iata, clubs(name)), guest_officials(id, first_name, last_name, email, phone, home_city, home_airport_iata, federation)").eq("tournament_id", tournament_id);
+  const designated = (confirmedRows || []).map(a => a.guest_officials
+    ? { assignment_id: a.id, role: a.role, ...a.guest_officials, clubs: { name: a.guest_officials.federation }, guest: true }
+    : { assignment_id: a.id, role: a.role, ...a.referees });
   const LEVEL = { candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3", nachc: "NACHC", ihf: "IHF" };
 
   const LABEL = { name: "Name", start_date: "Start date", end_date: "End date", venue_name: "Venue", venue_address: "Address", venue_city: "City", venue_state: "State", nearest_airport_iata: "Nearest airport", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "International pairs brought by the organizer", organizer_pairs_note: "Organizer pairs from", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights covered", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers covered", airport_transfer_how: "Airport transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure last day", travel_managed_by: "Travel booked by", notes: "Notes", status: "Status", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
   const logAndSend = async (to, subject, html, kindLabel) => { const r = await sendMail({ to, subject, html }); await admin.from("email_log").insert({ to_email: to, subject, kind: kindLabel, sent: r.sent, error: r.error }); return { email: to, sent: r.sent, error: r.error }; };
-  const recipients = () => { const list = designated.map(d => ({ email: d.email, name: d.first_name })); return list; };
+  const recipients = () => designated.filter(d => d.email).map(d => ({ email: d.email, name: d.first_name }));
 
   if (kind === "changes" || kind === "cancel") {
     const { data: ch } = await admin.from("tournament_changes").select("*").eq("tournament_id", tournament_id).is("notified_at", null).order("created_at");
@@ -64,15 +67,15 @@ export default async (req) => {
   if (kind === "brief") {
     if (!Array.isArray(assignment_ids) || !assignment_ids.length) return json(400, { error: "assignment_ids required" });
     const results = [];
-    for (const a of designated.filter(d => assignment_ids.includes(d.assignment_id))) {
+    for (const a of designated.filter(d => assignment_ids.includes(d.assignment_id) && d.email)) {
       const roleWord = a.role === "referee" ? "referee" : a.role === "delegate" ? "supervisor" : a.role;
       const others = designated.filter(d => d.id !== a.id).map(d => esc(d.first_name + " " + d.last_name) + (d.role && d.role !== "referee" ? " (" + (d.role === "delegate" ? "supervisor" : d.role) + ")" : "")).join(", ");
       const duties = a.role === "referee" ? "" : `<p><strong>Your role:</strong> you oversee the referee pairs, handle protests with the organizer, and record an evaluation for each pair on the hub after the event.${t.supervisor_notes ? " Organizer notes: " + esc(t.supervisor_notes) : ""}</p>`;
       const subject = `Confirmed as ${roleWord}: ${t.name}, ${fmtDate(t.start_date)}`;
       const html = `<p>Hi ${esc(a.first_name)},</p><p>You are confirmed as <strong>${roleWord}</strong> for <strong>${esc(t.name)}</strong>.</p>
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br><strong>Where:</strong> ${esc(where)}<br>${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + "<br>" : ""}${others ? "<strong>Officials:</strong> " + others + "<br>" : ""}<strong>Organizer:</strong> ${esc(t.organizer_name)}, ${esc(t.organizer_email)}${t.organizer_phone ? ", " + esc(t.organizer_phone) : ""}</p>${duties}
-        <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? "you (keep your receipts and record your bookings on the hub)" : "the organizer"}.</p>
-        <p>Your trip and bookings are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p><p>National Referee Committee</p>`;
+        <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? (a.guest ? "you (keep your receipts)" : "you (keep your receipts and record your bookings on the hub)") : "the organizer"}.</p>
+        ${a.guest ? `<p>You are invited by the organizer, ${esc(t.organizer_name || "")} (${esc(t.organizer_email || "")}), who arranges your travel and reimbursement. Keep your receipts and send them to the organizer after the event.</p>` : `<p>Your trip and bookings are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p>`}<p>National Referee Committee</p>`;
       results.push(await logAndSend(a.email, subject, html, "brief"));
     }
     return json(200, { results });

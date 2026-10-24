@@ -37,6 +37,22 @@
     <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-obook').close()">Cancel</button></p>
   </form>
 </div></dialog>
+<dialog id="dlg-guest" style="max-width:720px"><div class="body">
+  <h3 style="margin-top:0" id="guest-title">Your pair from outside USATH</h3>
+  <form id="form-guest">
+    <label>Federation or country</label><input name="federation" required placeholder="Canada (CHF)">
+    <div class="row"><div><label>First referee, first name</label><input name="a_first" required></div><div><label>Last name</label><input name="a_last" required></div></div>
+    <div class="row"><div><label>Email</label><input name="a_email" type="email"></div><div><label>Phone</label><input name="a_phone"></div></div>
+    <div class="row"><div><label>Home city</label><input name="a_city"></div><div><label>Home airport (IATA)</label><input name="a_iata" maxlength="3" style="text-transform:uppercase"></div></div>
+    <div class="row" style="margin-top:10px"><div><label>Second referee, first name</label><input name="b_first" required></div><div><label>Last name</label><input name="b_last" required></div></div>
+    <div class="row"><div><label>Email</label><input name="b_email" type="email"></div><div><label>Phone</label><input name="b_phone"></div></div>
+    <div class="row"><div><label>Home city</label><input name="b_city"></div><div><label>Home airport (IATA)</label><input name="b_iata" maxlength="3" style="text-transform:uppercase"></div></div>
+    <label>How they are reimbursed (method and payee)</label><input name="payment_notes" placeholder="Paid by the club on arrival, or transfer to each referee">
+    <p class="small muted" style="margin:4px 0 0">No bank or card numbers here.</p>
+    <label>Notes</label><textarea name="notes"></textarea>
+    <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-guest').close()">Cancel</button></p>
+  </form>
+</div></dialog>
 <dialog id="dlg-report"><div class="body">
   <h3 style="margin-top:0">After the event</h3>
   <p class="small muted">Takes two minutes. It feeds each official's record and tells the NRC how it went.</p>
@@ -57,8 +73,9 @@
     <input type="hidden" name="id">
     <label>Tournament name</label><input name="name" required>
     <div class="row"><div><label>Start date</label><input name="start_date" type="date" required></div><div><label>End date</label><input name="end_date" type="date" required></div></div>
-    <div class="row"><div><label>Pairs the NRC staffs</label><input name="pairs_needed" type="number" min="0" required></div><div><label>International pairs you bring</label><input name="pairs_organizer" type="number" min="0" max="20"><div class="help">Pairs based outside the United States only.</div></div></div>
-    <div class="row"><div><label>Country or federation of the pairs you bring</label><input name="organizer_pairs_note"></div><div><label>Expected games</label><input name="games_expected" type="number" min="1"></div></div>
+    <div class="row"><div class="tip" data-tip="The total number of referee pairs the tournament requires, all courts and all days, whoever provides them."><label>Total referee pairs required</label><input name="pairs_total" type="number" min="1" max="60" required></div><div class="tip" data-tip="Pairs you source yourself outside USA Team Handball, for example from Canada or Europe. Leave 0 if USATH provides every pair."><label>Pairs you source outside USATH</label><input name="pairs_organizer" type="number" min="0" max="20"><div class="help">For example from Canada or Europe.</div></div></div>
+    <div class="calc-pairs" id="edit-pairs-calc"><span>Pairs USATH provides (calculated)</span> <strong id="edit-pairs-usath"></strong></div>
+    <div class="row"><div><label>Country or federation of the pairs you source</label><input name="organizer_pairs_note"></div><div><label>Expected games</label><input name="games_expected" type="number" min="1"></div></div>
     <label>Divisions</label><div id="edit-div"></div>
     <div class="row"><div><label>Venue name</label><input name="venue_name" required></div><div><label>Nearest airport</label><input name="nearest_airport_iata" maxlength="3" style="text-transform:uppercase"></div></div>
     <label>Street address</label><input name="venue_address">
@@ -90,6 +107,7 @@ async function load() {
   if (!T.length) { $("#list").innerHTML = '<div class="card"><p>No request on file for this email. <a href="request-referees.html">Submit one</a>.</p></div>'; return; }
   const ids = T.map(t => t.id);
   const [{ data: des }, { data: book }, { data: fin }, { data: rep }] = await Promise.all([NRC.sb.from("organizer_designations").select("*").in("tournament_id", ids), NRC.sb.from("travel_bookings").select("*").order("start_at"), NRC.sb.from("tournament_finance").select("*").in("tournament_id", ids), NRC.sb.from("tournament_reports").select("*").in("tournament_id", ids)]);
+  const { data: gst } = await NRC.sb.from("guest_officials").select("*"); GUESTS = gst || [];
   const D = des || [], B = book || []; DES = D;
   F = {}; (fin || []).forEach(f => F[f.tournament_id] = f); R = {}; (rep || []).forEach(r => R[r.tournament_id] = r);
   const today = NRC.localDate();
@@ -101,12 +119,13 @@ async function load() {
     return `<div class="card" style="margin-top:14px">
       <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:baseline"><h2 style="margin:0">${NRC.esc(t.name)}</h2><span class="small muted">${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}, ${NRC.esc([t.venue_name, t.venue_city, t.venue_state].filter(Boolean).join(", "))}</span></div>
       ${cancelled ? '<p class="notice error">Cancelled.</p>' : '<div class="progress">' + STEPS.map((s, i) => `<div class="${i < idx ? "done" : i === idx ? "now" : ""}">${s[1]}</div>`).join("") + "</div>"}
-      <div class="grid c3"><div class="stat ${d.filter(x => x.role === "referee").length >= t.pairs_needed * 2 ? "good" : ""}"><div class="n">${d.filter(x => x.role === "referee").length}/${t.pairs_needed * 2}</div><div class="l">Referees designated</div></div><div class="stat"><div class="n">${d.filter(x => x.role !== "referee").length}${t.supervisor_needed ? "/1" : ""}</div><div class="l">Supervisor or observer</div></div><div class="stat"><div class="n" style="font-size:22px;padding-top:8px">${t.travel_managed_by === "nrc" ? "NRC" : t.travel_managed_by === "referee" ? "Referees" : "You"}</div><div class="l">Books travel</div></div></div>
-      <p class="small" style="margin:6px 0 0"><strong>${(t.pairs_needed || 0) + (t.pairs_organizer || 0)} pairs at the event</strong>: ${t.pairs_needed || 0} staffed by the NRC${t.pairs_organizer ? `, ${t.pairs_organizer} international brought by you (${NRC.esc(t.organizer_pairs_note || "")})` : ""}.</p>
+      <div class="grid c3"><div class="stat ${d.filter(x => x.role === "referee" && !x.is_guest).length >= t.pairs_needed * 2 ? "good" : ""}"><div class="n">${d.filter(x => x.role === "referee" && !x.is_guest).length}/${t.pairs_needed * 2}</div><div class="l">USATH referees designated${d.some(x => x.is_guest && x.role === "referee") ? "<br>+" + d.filter(x => x.is_guest && x.role === "referee").length + " from outside USATH" : ""}</div></div><div class="stat"><div class="n">${d.filter(x => x.role !== "referee").length}${t.supervisor_needed ? "/1" : ""}</div><div class="l">Supervisor or observer</div></div><div class="stat"><div class="n" style="font-size:22px;padding-top:8px">${t.travel_managed_by === "nrc" ? "NRC" : t.travel_managed_by === "referee" ? "Referees" : "You"}</div><div class="l">Books travel</div></div></div>
+      <p class="small" style="margin:6px 0 0"><strong>${t.pairs_total ?? ((t.pairs_needed || 0) + (t.pairs_organizer || 0))} pairs required</strong>: ${t.pairs_needed || 0} provided by USATH${t.pairs_organizer ? `, ${t.pairs_organizer} sourced by you outside USATH (${NRC.esc(t.organizer_pairs_note || "")})` : ""}.</p>
       <p class="cta-row" style="margin:4px 0 10px">${cancelled || t.status === "completed" ? "" : `<button class="btn sm secondary" type="button" onclick="editTour('${t.id}')">Edit the request</button> <button class="btn sm ghost" type="button" onclick="cancelTour('${t.id}')">Cancel the event</button>`}${t.end_date < today && !cancelled ? ` <button class="btn sm ${R[t.id] ? "ghost" : ""}" type="button" onclick="openReport('${t.id}')">${R[t.id] ? "Edit the post event report" : "Post event report"}</button>` : ""} <button class="btn sm ghost" type="button" onclick="duplicateTour('${t.id}')">Duplicate as a new request</button></p>
       ${F[t.id] ? `<p class="small muted" style="margin:0 0 8px">Money: bookings paid by the NRC to reimburse $${Number(F[t.id].nrc_paid_bookings).toFixed(0)}, bookings you paid $${Number(F[t.id].organizer_paid_bookings).toFixed(0)}, bookings paid by referees to reimburse $${Number(F[t.id].referee_paid_bookings || 0).toFixed(0)}, expense claims submitted $${Number(F[t.id].claims_submitted).toFixed(0)}, approved $${Number(F[t.id].claims_approved).toFixed(0)}, reimbursed $${Number(F[t.id].claims_reimbursed).toFixed(0)}.</p>` : ""}
       <h3 style="margin-top:16px">Designated officials</h3>
-      ${d.length ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Club</th><th>From</th><th>Contact</th><th>Travel</th></tr></thead><tbody>' + d.map(r => { const bk = B.filter(b => b.assignment_id === r.assignment_id); return `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong></td><td>${NRC.esc(r.role)}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small"><a href="mailto:${NRC.esc(r.email)}">${NRC.esc(r.email)}</a>${r.phone ? "<br>" + NRC.esc(r.phone) : ""}</td><td class="small">${bk.length ? bk.map(b => `${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span> <span class="muted">(${b.entered_by || "nrc"})</span>`).join("<br>") : '<span class="muted">' + (t.travel_managed_by === "nrc" ? "NRC booking in progress" : "Nothing recorded yet") + "</span>"}${r.travel_notes ? "<br>" + NRC.esc(r.travel_notes) : ""}${!cancelled ? `<br><button class="btn sm ghost" type="button" style="margin-top:4px" onclick="openObook('${r.assignment_id}','${NRC.esc(r.first_name + " " + r.last_name)}')">Add a booking we made</button>` : ""}</td></tr>`; }).join("") + "</tbody></table></div>" : '<p class="muted">Nobody confirmed yet. The NRC is working on it; names appear here as they are confirmed.</p>'}
+      ${t.pairs_organizer ? (() => { const named = pairKeys(t.id).length; return `<p class="small" style="margin:0 0 8px">Your pairs from outside USATH: <strong>${named}/${t.pairs_organizer} named</strong>${!cancelled && t.end_date >= today && named < t.pairs_organizer ? ` <button class="btn sm secondary" type="button" onclick="openGuestPair('${t.id}')">Name a pair</button>` : ""}<br><span class="muted">Record their names so the team, bookings and expenses are complete. To bring one more pair, edit the request first.</span></p>`; })() : ""}
+      ${d.length ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Club or federation</th><th>From</th><th>Contact</th><th>Travel</th></tr></thead><tbody>' + d.map(r => { const bk = B.filter(b => b.assignment_id === r.assignment_id); return `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.is_guest ? ` <span class="pill">your pair</span>${!cancelled ? `<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openGuestPair('${t.id}','${keyOf(r.guest_official_id)}')">Edit pair</button> <button class="btn sm ghost" type="button" onclick="removeGuestPair('${t.id}','${keyOf(r.guest_official_id)}')">Remove pair</button></div>` : ""}` : ""}</td><td>${NRC.esc(r.role)}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${r.email ? `<a href="mailto:${NRC.esc(r.email)}">${NRC.esc(r.email)}</a>` : ""}${r.phone ? "<br>" + NRC.esc(r.phone) : ""}</td><td class="small">${bk.length ? bk.map(b => `${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span> <span class="muted">(${b.entered_by || "nrc"})</span>`).join("<br>") : '<span class="muted">' + (t.travel_managed_by === "nrc" ? "NRC booking in progress" : "Nothing recorded yet") + "</span>"}${r.travel_notes ? "<br>" + NRC.esc(r.travel_notes) : ""}${!cancelled ? `<br><button class="btn sm ghost" type="button" style="margin-top:4px" onclick="openObook('${r.assignment_id}','${NRC.esc(r.first_name + " " + r.last_name)}')">Add a booking we made</button>` : ""}</td></tr>`; }).join("") + "</tbody></table></div>" : '<p class="muted">Nobody confirmed yet. The NRC is working on it; names appear here as they are confirmed.</p>'}
       ${!cancelled && t.start_date <= today && d.some(x => x.role === "referee") ? `<h3 style="margin-top:16px">Game log</h3><p class="small muted" style="margin:0 0 8px">Log each game with its referee pair and the video or stream link when there is one. Certified NRC evaluators review the referees from the video.</p><div id="og-${t.id}"><button class="btn sm" type="button" onclick="openGames('${t.id}')">Open the game log</button></div>` : ""}
       <p class="small muted" style="margin:12px 0 0">You committed to: ${covers.map(NRC.esc).join(", ")}.${t.supervisor_needed ? " Supervisor requested." : ""}</p>
     </div>`;
@@ -119,11 +138,19 @@ window.openGames = async function (id) {
   const t = TOURS.find(x => x.id === id);
   NRC.Games.mount(document.getElementById("og-" + id), { tournament: t, mode: "organizer", user: ME, evaluatorName: (ME && ME.full_name) || t.organizer_name || (ME && ME.email) || "" });
 };
-const FIELDS = ["name", "start_date", "end_date", "pairs_needed", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "nearest_airport_iata", "venue_address", "venue_city", "venue_state", "supervisor_needed", "travel_managed_by", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "hotel_to_venue_transport", "earliest_return_last_day", "notes"];
+const FIELDS = ["name", "start_date", "end_date", "pairs_total", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "nearest_airport_iata", "venue_address", "venue_city", "venue_state", "supervisor_needed", "travel_managed_by", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "hotel_to_venue_transport", "earliest_return_last_day", "notes"];
+function editPairs() {
+  const f = $("#form-edit"), total = parseInt(f.pairs_total.value, 10) || 0, own = parseInt(f.pairs_organizer.value, 10) || 0, usath = total - own;
+  $("#edit-pairs-usath").textContent = usath < 0 ? "check" : usath;
+  $("#edit-pairs-calc").classList.toggle("bad", usath < 0);
+  $("#edit-pairs-calc").querySelector("span").textContent = usath < 0 ? "The pairs you source exceed the total. Pairs USATH provides:" : `Pairs USATH provides (calculated): ${total} total less ${own} you source =`;
+}
+["pairs_total", "pairs_organizer"].forEach(n => $("#form-edit")[n].addEventListener("input", editPairs));
 window.editTour = function (id) {
   const t = TOURS.find(x => x.id === id); if (!t) return; const f = $("#form-edit"); f.reset(); f.id.value = id;
   FIELDS.forEach(k => { if (f[k]) f[k].value = t[k] == null ? "" : String(t[k]); });
   $("#edit-div").innerHTML = NRC.divisionPicker("divisions", t.divisions);
+  editPairs();
   $("#dlg-edit").showModal();
 };
 async function notify(id, kind) {
@@ -133,10 +160,12 @@ async function notify(id, kind) {
 }
 $("#form-edit").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const row = {};
-  FIELDS.forEach(k => { if (!f[k]) return; let v = f[k].value.trim(); if (v === "") { row[k] = null; return; } if (["supervisor_needed", "flights_covered", "airport_transfers_covered"].includes(k)) v = v === "true"; else if (["pairs_needed", "pairs_organizer", "games_expected", "hotel_nights_covered"].includes(k)) v = parseInt(v, 10); else if (k === "food_stipend_per_day") v = parseFloat(v); else if (["nearest_airport_iata", "venue_state"].includes(k)) v = v.toUpperCase(); row[k] = v; });
+  FIELDS.forEach(k => { if (!f[k]) return; let v = f[k].value.trim(); if (v === "") { row[k] = null; return; } if (["supervisor_needed", "flights_covered", "airport_transfers_covered"].includes(k)) v = v === "true"; else if (["pairs_total", "pairs_organizer", "games_expected", "hotel_nights_covered"].includes(k)) v = parseInt(v, 10); else if (k === "food_stipend_per_day") v = parseFloat(v); else if (["nearest_airport_iata", "venue_state"].includes(k)) v = v.toUpperCase(); row[k] = v; });
   row.divisions = NRC.divisionsFrom(f, "divisions");
+  if (!row.pairs_total || row.pairs_total < 1) { NRC.notice($("#msg"), "Enter the total number of referee pairs the tournament requires.", "error"); return; }
   if (!row.pairs_organizer) { row.pairs_organizer = 0; row.organizer_pairs_note = null; }
-  else if (!row.organizer_pairs_note) { NRC.notice($("#msg"), "Give the country or federation of the pairs you bring. Only pairs based outside the United States can be brought by the organizer.", "error"); return; }
+  else if (row.pairs_organizer > row.pairs_total) { NRC.notice($("#msg"), `The pairs you source outside USATH (${row.pairs_organizer}) exceed the total pairs required (${row.pairs_total}).`, "error"); return; }
+  else if (!row.organizer_pairs_note) { NRC.notice($("#msg"), "Give the country or federation of the pairs you source outside USATH, for example Canada or Europe.", "error"); return; }
   const { error } = await NRC.sb.from("tournaments").update(row).eq("id", f.id.value);
   if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); $("#dlg-edit").close(); return; }
   $("#dlg-edit").close();
@@ -175,7 +204,35 @@ $("#form-report").addEventListener("submit", async (e) => {
   for (const inp of NRC.$$("#report-officials input[data-asg]")) { if (inp.value !== "") await NRC.sb.from("assignments").update({ games_officiated: parseInt(inp.value, 10) }).eq("id", inp.dataset.asg); }
   $("#dlg-report").close(); NRC.notice($("#msg"), "Report sent. Thank you.", "ok"); load();
 });
-window.duplicateTour = (id) => { const t = TOURS.find(x => x.id === id); if (!t) return; const copy = {}; ["name", "sanction", "region", "pairs_needed", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport", "meals_provided", "earliest_return_last_day", "supervisor_needed", "supervisor_notes", "travel_managed_by", "organizer_name", "organizer_email", "organizer_phone", "budget_owner", "notes"].forEach(k => { if (t[k] != null) copy[k] = t[k]; }); try { sessionStorage.setItem("nrc_prefill_request", JSON.stringify(copy)); } catch (e) { } location.href = "request-referees.html?prefill=1"; };
+window.duplicateTour = (id) => { const t = TOURS.find(x => x.id === id); if (!t) return; const copy = {}; ["name", "sanction", "region", "pairs_total", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport", "meals_provided", "earliest_return_last_day", "supervisor_needed", "supervisor_notes", "travel_managed_by", "organizer_name", "organizer_email", "organizer_phone", "budget_owner", "notes"].forEach(k => { if (t[k] != null) copy[k] = t[k]; }); try { sessionStorage.setItem("nrc_prefill_request", JSON.stringify(copy)); } catch (e) { } location.href = "request-referees.html?prefill=1"; };
+// Pairs from outside USATH are the organizer's: named here or by the NRC, within the number declared in the request
+let GUESTS = [], guestTour = null, guestPair = [];
+const keyOf = gid => { const g = GUESTS.find(x => x.id === gid); return g ? g.pair_key || g.id : gid; };
+const pairKeys = tid => [...new Set(DES.filter(x => x.tournament_id === tid && x.is_guest).map(x => keyOf(x.guest_official_id)))];
+window.openGuestPair = (tid, key) => {
+  const t = TOURS.find(x => x.id === tid); if (!t) return; guestTour = t;
+  guestPair = key ? GUESTS.filter(g => (g.pair_key || g.id) === key).sort((a, b) => a.created_at.localeCompare(b.created_at)) : [];
+  const f = $("#form-guest"); f.reset();
+  ["a", "b"].forEach((x, i) => { const g = guestPair[i]; if (!g) return; f[x + "_first"].value = g.first_name; f[x + "_last"].value = g.last_name; f[x + "_email"].value = g.email || ""; f[x + "_phone"].value = g.phone || ""; f[x + "_city"].value = g.home_city || ""; f[x + "_iata"].value = g.home_airport_iata || ""; });
+  f.federation.value = guestPair[0] ? guestPair[0].federation : (t.organizer_pairs_note || "");
+  f.payment_notes.value = guestPair[0] ? guestPair[0].payment_notes || "" : ""; f.notes.value = guestPair[0] ? guestPair[0].notes || "" : "";
+  $("#guest-title").textContent = (key ? "Edit your pair, " : "Your pair from outside USATH, ") + t.name;
+  $("#dlg-guest").showModal();
+};
+$("#form-guest").addEventListener("submit", async (e) => {
+  e.preventDefault(); const f = e.target, btn = f.querySelector("button[type=submit]"); btn.disabled = true;
+  const person = (x, i) => ({ id: guestPair[i] ? guestPair[i].id : null, first_name: f[x + "_first"].value, last_name: f[x + "_last"].value, email: f[x + "_email"].value, phone: f[x + "_phone"].value, home_city: f[x + "_city"].value, home_airport_iata: f[x + "_iata"].value });
+  const { error } = await NRC.sb.rpc("save_guest_pair", { p_tournament: guestTour.id, p_people: [person("a", 0), person("b", 1)], p_federation: f.federation.value, p_payment_notes: f.payment_notes.value || null, p_notes: f.notes.value || null, p_pair_key: guestPair[0] ? guestPair[0].pair_key : null });
+  btn.disabled = false;
+  if (error) { alert(error.message); return; }
+  $("#dlg-guest").close(); NRC.notice($("#msg"), "Pair saved. The NRC sees it on the event.", "ok"); load();
+});
+window.removeGuestPair = async (tid, key) => {
+  if (!confirm("Remove this pair from the event? Their bookings and expenses on this event are deleted with it.")) return;
+  const { error } = await NRC.sb.rpc("remove_guest_pair", { p_tournament: tid, p_pair_key: key });
+  if (error) { alert(error.message); return; }
+  NRC.notice($("#msg"), "Pair removed.", "ok"); load();
+};
 document.addEventListener("DOMContentLoaded", load);
 </script>
 </body>
