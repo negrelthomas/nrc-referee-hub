@@ -115,11 +115,12 @@ export default async (req) => {
   (pairs || []).forEach(p => { if (ids.has(p.referee_a)) ids.add(p.referee_b); if (ids.has(p.referee_b)) ids.add(p.referee_a); });
   const [{ data: blocks }, { data: weekends }, { data: pairRefs }, { data: overrides }] = await Promise.all([
     admin.from("availability_blocks").select("referee_id,start_date,end_date").in("referee_id", [...ids]).lte("start_date", t.end_date).gte("end_date", t.start_date),
-    admin.from("weekend_availability").select("referee_id,weekend,status").in("referee_id", [...ids]).in("weekend", wk),
+    admin.from("weekend_availability").select("referee_id,weekend,status,tournament_id,note").in("referee_id", [...ids]).in("weekend", wk),
     admin.from("referees").select("id,first_name,last_name").in("id", [...ids]),
     admin.from("availability_overrides").select("referee_id,status").eq("tournament_id", t.id).neq("status", "reverted")]);
   const availOf = id => { if ((overrides || []).some(o => o.referee_id === id)) return { ok: true, word: "available (NRC override)" }; const b = (blocks || []).find(x => x.referee_id === id); if (b) return { ok: false, word: `blocked dates from ${fmtDate(b.start_date)} to ${fmtDate(b.end_date)} on the hub` };
-    const w = (weekends || []).filter(x => x.referee_id === id); if (!w.length) return { ok: false, word: "not declared on the hub" };
+    const w = (weekends || []).filter(x => x.referee_id === id).map(x => x.status === "assigned" ? { ...x, status: x.tournament_id === t.id ? "available" : "booked" } : x); if (!w.length) return { ok: false, word: "not declared on the hub" };
+    const bk = w.find(x => x.status === "booked"); if (bk) return { ok: false, word: (bk.note || "designated for another event").replace(/^Designated for /, "booked: designated for ") };
     if (w.some(x => x.status === "unavailable")) return { ok: false, word: "marked unavailable on the hub" };
     if (w.every(x => x.status === "available")) return { ok: true, word: "available" }; return { ok: false, word: "marked tentative on the hub" }; };
   const pairPartner = id => { const p = (pairs || []).find(p => p.referee_a === id || p.referee_b === id); if (!p) return null; const pid = p.referee_a === id ? p.referee_b : p.referee_a; return (pairRefs || []).find(x => x.id === pid) || null; };
@@ -136,7 +137,9 @@ export default async (req) => {
       const others = designated.filter(d => d.id !== ref.id).map(d => esc(d.first_name + " " + d.last_name)).join(", ");
       subject = `Designated: ${t.name}, ${fmtDate(t.start_date)}`;
       const recorded = /^Recorded by /.test(r.response_note || "") ? `<p>You accepted this assignment outside the hub (${esc(String(r.response_note).replace(/^Recorded by [^:]*:\s*/, ""))}). The NRC has recorded it so the hub shows you as designated. If this is not right, reply to this email.</p>` : "";
-      html = `<p>Hi ${esc(ref.first_name)},</p><p>The NRC has designated you as a referee for <strong>${esc(t.name)}</strong>.</p>${recorded}
+      const withdraw = `${base}/respond.html?token=${r.token}&answer=withdraw`;
+      const bookedP = `<p>The weekend${t.start_date === t.end_date ? "" : "s"} of the event ${t.start_date === t.end_date ? "is" : "are"} now marked as booked on your hub calendar. If you cannot officiate, decline now so the NRC can find a replacement: <a href="${withdraw}">I cannot officiate at this event</a>. Without an answer, the designation stands.</p>`;
+      html = `<p>Hi ${esc(ref.first_name)},</p><p>The NRC has designated you as a referee for <strong>${esc(t.name)}</strong>.</p>${recorded}${bookedP}
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br>
         <strong>Where:</strong> ${esc(where)}<br>
         ${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + " over the event<br>" : ""}

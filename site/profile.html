@@ -406,10 +406,10 @@ async function loadWeekends(readOnly) {
     if (mine) {
       b.className = "available"; b.title = "You are designated for " + mine.tournaments.name;
       b.querySelector(".wk-st").textContent = "assigned";
-      b.onclick = () => alert(`You are designated for ${mine.tournaments.name} on this weekend. If you can no longer officiate, write to the NRC at referee@handballusa.org.`);
+      b.onclick = () => alert(`You are designated for ${mine.tournaments.name} on this weekend. It is booked on your calendar. If you can no longer officiate, use the link in your designation email or write to the NRC at referee@handballusa.org.`);
       host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7); continue;
     }
-    b.onclick = async () => { const next = { "": "available", available: "tentative", tentative: "unavailable", unavailable: "available" }[st]; const { error } = await NRC.sb.from("weekend_availability").upsert({ referee_id: ref.id, weekend: key, status: next, updated_at: new Date().toISOString() }, { onConflict: "referee_id,weekend" }); if (error) NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); else loadWeekends(); };
+    b.onclick = async () => { const next = { "": "available", available: "tentative", tentative: "unavailable", unavailable: "available", assigned: "available" }[st]; const { error } = await NRC.sb.from("weekend_availability").upsert({ referee_id: ref.id, weekend: key, status: next, updated_at: new Date().toISOString() }, { onConflict: "referee_id,weekend" }); if (error) NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); else loadWeekends(); };
     host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7);
   }
 }

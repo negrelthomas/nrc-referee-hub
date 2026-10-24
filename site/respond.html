@@ -41,12 +41,13 @@ async function send(note) {
   if (d.already) { $("#title").textContent = "Already " + d.status; $("#text").textContent = `${t.name}: this invitation is ${d.status}. Contact the NRC if something changed.`; return; }
   if (d.status === "accepted") { $("#title").textContent = "Thank you" + (d.name ? ", " + d.name : ""); $("#text").innerHTML = `You accepted <strong>${NRC.esc(t.name)}</strong>, ${NRC.esc(when)}. The NRC then designates the team and tells you by email; nothing to book until then.`; }
   else if (d.status === "tentative") { $("#title").textContent = "Marked as tentative"; $("#text").innerHTML = `<strong>${NRC.esc(t.name)}</strong>, ${NRC.esc(when)}: the NRC sees you as a possible and cannot designate you yet. Sign in to your <a href="profile.html">referee home</a> to accept or decline when you know.`; }
+  else if (d.status === "withdrawn") { $("#title").textContent = "Designation declined"; $("#text").innerHTML = `You are off the team for <strong>${NRC.esc(t.name)}</strong> and your weekend is free again on your calendar. The NRC has been told and will find a replacement. If you booked anything for this event, tell the NRC at referee@handballusa.org.`; }
   else { $("#title").textContent = "Answer recorded"; $("#text").innerHTML = `You declined <strong>${NRC.esc(t.name)}</strong>. Thank you for answering quickly; it helps the NRC staff the event.`; }
 }
 document.addEventListener("DOMContentLoaded", () => {
   if (!token || !answer) { $("#title").textContent = "Missing link details"; $("#text").textContent = "Open the link from the invitation email."; return; }
-  $("#title").textContent = answer === "accept" ? "Accept this invitation" : answer === "tentative" ? "Mark as tentative" : "Decline this invitation";
-  $("#text").textContent = "Add a note if useful, then send.";
+  $("#title").textContent = answer === "accept" ? "Accept this invitation" : answer === "tentative" ? "Mark as tentative" : answer === "withdraw" ? "Decline this designation" : "Decline this invitation";
+  $("#text").textContent = answer === "withdraw" ? "You will be taken off the team and the NRC told at once. Say why if useful, then send." : "Add a note if useful, then send.";
   $("#note-wrap").classList.remove("hidden");
   $("#btn-send").onclick = () => { $("#btn-send").disabled = true; send($("#note").value.trim()); };
 });
