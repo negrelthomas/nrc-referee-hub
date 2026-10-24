@@ -749,6 +749,7 @@
     $("#dlg-guest").showModal();
   };
   NRC.nationPicker($("#form-guest").federation);
+  NRC.dialogCloses(document.getElementById("dlg-ref"));
   $("#form-guest").reuse.addEventListener("change", e => fillGuestForm(e.target.value || null));
   $("#form-guest").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target, k = f.reuse.value || guestEdit || null, P = k ? pairOf(k) : [];

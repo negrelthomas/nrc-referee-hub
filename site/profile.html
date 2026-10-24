@@ -225,7 +225,7 @@ function startPreview(r) {
   document.body.classList.add("preview");
   $("#main").insertAdjacentHTML("afterbegin", `<div class="notice" style="margin:14px 0 0;background:var(--amber-tint);color:var(--amber);border-color:transparent"><strong>Admin preview, read only.</strong> This is ${NRC.esc(r.first_name + " " + r.last_name)}'s ${r.federation ? "page" : "referee home"} as they see it. Buttons are inactive. <a href="admin/index.html${r.federation ? "" : "#referee/" + r.id}">Back to ${r.federation ? "the admin console" : "the record"}</a></div>`);
   // nothing in the preview writes: every button except tabs, details and dialog close is inert, every form submit is stopped
-  document.addEventListener("click", (e) => { const b = e.target.closest("button, .btn, [onclick]"); if (!b || b.closest(".tabs") || b.closest("#site-nav") || (b.tagName === "A" && b.getAttribute("href") && !b.getAttribute("href").startsWith("#") && !b.getAttribute("onclick"))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
+  document.addEventListener("click", (e) => { const b = e.target.closest("button, .btn, [onclick]"); if (!b || b.closest(".tabs") || b.closest("#site-nav") || b.closest(".info-btn") || b.closest(".dlg-x") || b.closest("#dlg-phys-std") || b.closest(".cp-done") || (b.tagName === "A" && b.getAttribute("href") && !b.getAttribute("href").startsWith("#") && !b.getAttribute("onclick"))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
   document.addEventListener("submit", (e) => { e.preventDefault(); e.stopImmediatePropagation(); }, true);
 }
 const $ = NRC.$;
@@ -629,7 +629,7 @@ $("#tour-next").onclick = async () => {
 };
 $("#tour-prev").onclick = () => tourShow(Math.max(1, tourStep - 1));
 $("#tour-skip").onclick = tourFinish;
-document.addEventListener("DOMContentLoaded", load);
+document.addEventListener("DOMContentLoaded", () => { load().finally(() => NRC.dialogCloses()); NRC.dialogCloses(); });
 </script>
 </body>
 </html>

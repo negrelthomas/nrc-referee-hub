@@ -42,6 +42,7 @@
       </form></div></dialog>`);
     NRC.nationPicker($("#form-gprofile").federation);
     $("#form-gprofile").addEventListener("submit", saveProfile);
+    NRC.dialogCloses();
     $("#gp-later").onclick = async () => { $("#dlg-gprofile").close(); if (!G.onboarded_at && !PREVIEW) { await NRC.sb.rpc("save_my_guest_profile", { p: { ...profilePayload(G), onboarded: true } }); G.onboarded_at = new Date().toISOString(); } };
   }
 

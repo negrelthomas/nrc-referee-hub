@@ -828,3 +828,13 @@ details.dups li{padding:8px 0;border-top:1px solid var(--line)}
 .info-btn:hover,.info-btn:focus{background:var(--navy-2);color:#fff}
 .phys-std td,.phys-std th{white-space:nowrap}
 @media (max-width:600px){.cp-item{flex-wrap:wrap}.cp-item .btn{margin-left:32px}}
+/* Guest event card: long emails and venues wrap instead of widening the page on phones */
+.g-event .grid > div{min-width:0}
+.g-event dd{overflow-wrap:anywhere;min-width:0}
+.g-event summary{list-style:none;cursor:pointer}
+.g-event summary::-webkit-details-marker{display:none}
+
+/* Dialog close buttons: red X at the top right, kept in view while the dialog scrolls */
+dialog .dlg-x{position:sticky;top:8px;float:right;margin:8px 8px -44px 0;z-index:6;width:36px;height:36px;border-radius:50%;border:0;background:var(--red);color:#fff;font-size:22px;line-height:1;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -4px rgba(200,16,46,.6)}
+dialog .dlg-x:hover,dialog .dlg-x:focus{background:var(--red-dark)}
+dialog .dlg-x + .body > h3:first-child,dialog .dlg-x + .body h3:first-of-type{padding-right:40px}

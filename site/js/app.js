@@ -152,6 +152,20 @@
     input.value = proto.get.call(input);
     const f = input.form; if (f) f.addEventListener("reset", () => other.classList.add("hidden"));
   };
+  // Dialog close: a red close button at the top (stays visible while the dialog scrolls) and the bottom
+  // Cancel, Close or Later button in red. The top button does what the bottom one does (e.g. Later records the
+  // first sign in prompt as seen), or simply closes the dialog when there is none.
+  NRC.CANCEL_RE = /^(cancel|close|later|skip for now)$/i;
+  NRC.dialogCloses = function (root) {
+    (root && root.tagName === "DIALOG" ? [root] : NRC.$$("dialog", root)).forEach(d => {
+      const cancel = [...d.querySelectorAll("button")].find(b => NRC.CANCEL_RE.test(b.textContent.trim()) && !b.classList.contains("dlg-x"));
+      if (cancel) { cancel.classList.remove("ghost", "secondary"); cancel.classList.add("red"); }
+      if (d.querySelector(":scope > .dlg-x")) return;
+      const x = document.createElement("button"); x.type = "button"; x.className = "dlg-x"; x.setAttribute("aria-label", "Close"); x.title = "Close"; x.innerHTML = "&times;";
+      x.onclick = () => { const c = [...d.querySelectorAll("button")].find(b => NRC.CANCEL_RE.test(b.textContent.trim()) && !b.classList.contains("dlg-x") && !b.classList.contains("hidden") && b.offsetParent !== null); if (c) c.click(); if (d.open) d.close(); };
+      d.prepend(x);
+    });
+  };
   NRC.GUEST_LEVEL = { regional: "Regional or club", national: "National", continental: "Continental (EHF, PATHF, other)", ihf: "IHF international" };
   NRC.guestQuizLevel = (l) => ({ regional: "level_2", national: "level_3", continental: "nachc", ihf: "ihf" }[l] || "level_3");
   NRC.notice = (el, msg, kind) => { if (!el) return; el.className = "notice " + (kind || ""); el.innerHTML = msg; el.classList.remove("hidden"); };
@@ -179,6 +193,8 @@
       const a = NRC.$("#nav-login");
       if (!a) return;
       if (u) {
+        // referees from outside USATH: their events and training only
+        if (u.role === "guest") NRC.$$("#menu > a:not(#nav-login)").forEach(x => { if (!/training\.html$/.test(x.getAttribute("href"))) x.remove(); });
         a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : u.role === "evaluator" ? "My evaluations" : u.role === "guest" ? "My events" : "My home"; a.href = NRC.homeFor(u);
         if (u.role === "referee" || u.role === "admin") a.insertAdjacentHTML("beforebegin", `<a href="directory.html" class="${active === "directory.html" ? "active" : ""}">Directory</a>`);
         a.insertAdjacentHTML("afterend", `<a href="#" class="nav-out" onclick="NRC.signOut();return false">Sign out</a>`);

@@ -39,8 +39,16 @@
 document.addEventListener("DOMContentLoaded", async () => {
   const next = new URLSearchParams(location.search).get("next");
   const u = await NRC.currentUser();
+  const pre = new URLSearchParams(location.search).get("email");
+  // a link sent to another address (e.g. a guest referee link opened where an admin is signed in): say so, do not redirect
+  if (u && pre && pre.toLowerCase() !== String(u.email).toLowerCase()) {
+    NRC.notice(NRC.$("#msg"), `You are signed in as <strong>${NRC.esc(u.email)}</strong>. This link is for <strong>${NRC.esc(pre)}</strong>.<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" type="button" id="switch-acc">Sign out and continue as ${NRC.esc(pre)}</button><a class="btn sm ghost" href="${NRC.homeFor(u)}">Stay as ${NRC.esc(u.email)}</a></div>`, "error");
+    document.getElementById("login-form").classList.add("hidden");
+    document.getElementById("switch-acc").onclick = async () => { await NRC.sb.auth.signOut(); location.reload(); };
+    return;
+  }
   if (u) { location.href = next || NRC.homeFor(u); return; }
-  const pre = new URLSearchParams(location.search).get("email"); if (pre) document.getElementById("login-form").email.value = pre;
+  if (pre) document.getElementById("login-form").email.value = pre;
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = NRC.$("#msg");
