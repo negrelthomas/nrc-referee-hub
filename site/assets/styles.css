@@ -722,3 +722,12 @@ body.admin-phone .nrc-toast{left:12px;right:12px;max-width:none}
 .calc-pairs strong{font-family:"Barlow Condensed",sans-serif;font-size:22px;color:#04234F}
 .calc-pairs.bad{background:#FBE9EC;color:#8A0B20}
 .calc-pairs.bad strong{color:#C8102E}
+
+/* Action colours: navy sends, green designates or approves, red removes, outlined navy informs */
+.btn.pos{background:#1F7A45;color:#fff;border:0}.btn.pos:hover{background:#17532D}
+.btn.pos-line{background:#fff;color:#17532D;border:2px solid #1F7A45;padding:4px 10px}.btn.pos-line:hover{background:#EEF8F1}
+.btn.neg{background:#fff;color:var(--red);border:1px solid var(--red)}.btn.neg:hover{background:#FDF0F2;border-color:var(--red-dark);color:var(--red-dark)}
+.btn.pos.busy::after{color:#fff}.btn.pos-line.busy::after,.btn.neg.busy::after{color:var(--navy)}
+/* Hover bubble on buttons with data-tip (placed by admin.js so it is never clipped by a table or a dialog) */
+.btn-tip{position:fixed;z-index:1000;max-width:300px;padding:9px 11px;border-radius:8px;background:#04234F;color:#fff;font-size:13px;font-weight:400;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;opacity:0;transition:opacity .12s}
+.btn-tip.on{opacity:1}

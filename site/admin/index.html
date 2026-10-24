@@ -437,12 +437,12 @@
     <div id="inv-summary" class="chips"></div>
     <div class="table-wrap"><table id="inv"><thead><tr><th></th><th>Referee</th><th>Status</th><th>Sent</th><th>Answer</th><th>Note</th></tr></thead><tbody></tbody></table></div>
     <div class="toolbar" style="margin-top:10px">
-      <button class="btn sm navy" type="button" onclick="sendSelected('invite')">Send invitations</button>
-      <button class="btn sm ghost" type="button" onclick="sendSelected('reminder')">Send reminder</button>
-      <button class="btn sm secondary" type="button" onclick="sendSelected('confirm')">Designate accepted</button>
-      <button class="btn sm ghost" type="button" onclick="openDesignateOutside()" title="The referee said yes by phone, email or in person but has not answered on the hub">Designate, accepted outside the hub</button>
-      <button class="btn sm ghost" type="button" onclick="removeSelected()">Remove draft</button>
-      <button class="btn sm ghost" type="button" id="btn-organizer" onclick="notifyOrganizer()" style="margin-left:auto">Notify organizer</button>
+      <button class="btn sm navy" type="button" onclick="sendSelected('invite')" data-tip="Emails the ticked referees the invitation with Accept, Tentative and Decline links. Their status moves from Draft to Invited, no answer.">Send invitations</button>
+      <button class="btn sm ghost" type="button" onclick="sendSelected('reminder')" data-tip="Emails the ticked referees who have not answered a reminder with the same links.">Send reminder</button>
+      <button class="btn sm pos" type="button" onclick="sendSelected('confirm')" data-tip="Designates the ticked referees who accepted. Checks the count against the pairs the NRC staffs and keeps pairs together, then emails each one the full brief.">Designate accepted</button>
+      <button class="btn sm pos-line" type="button" onclick="openDesignateOutside()" data-tip="For a referee who said yes by phone, WhatsApp, email or in person but has not answered on the hub. You note how and when; the designation email carries that note.">Designate, accepted outside the hub</button>
+      <button class="btn sm neg" type="button" onclick="removeSelected()" data-tip="Deletes the ticked draft invitations. Nothing is sent; invitations already sent are not affected.">Remove draft</button>
+      <button class="btn sm secondary" type="button" id="btn-organizer" onclick="notifyOrganizer()" style="margin-left:auto" data-tip="Emails the organizer the list of designated officials and the link to their tournament page.">Notify organizer</button>
     </div>
     <p class="small muted">Invite emails the referee with accept, tentative and decline links and a prompt to sign in; the proposal also shows on their referee home. Three steps: the NRC invites referees who are available, the referee accepts, the NRC designates. Designate accepted checks the count against the pairs requested and keeps established pairs together, then emails each designated referee the full brief and adds them to the team. When a referee said yes by phone, email or in person, tick them and use Designate, accepted outside the hub: you note how and when they accepted, and their designation email carries that note for the record. Notify organizer emails the organizer the designated list and their private tournament page. See the Guide for the full flow.</p>
   </div>
@@ -451,30 +451,30 @@
     <div class="toolbar"><input id="cand-q" placeholder="Search name, club, airport"><select id="cand-level"><option value="">All levels</option><option value="level_1">Level 1 and above</option><option value="level_2">Level 2 and above</option><option value="level_3">Level 3 and above</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-avail" checked style="width:auto"> hide unavailable</label><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-pairs" checked style="width:auto"> invite pairs together</label></div>
     <div id="cand-hidden" class="small muted" style="margin:6px 0"></div>
     <div class="table-wrap"><table id="cand"><thead><tr><th></th><th>Referee</th><th>Level</th><th>Club</th><th>Airport</th><th>Availability</th><th>Season</th><th>Pair</th></tr></thead><tbody></tbody></table></div>
-    <p style="margin-top:10px"><button class="btn sm navy" type="button" onclick="addCandidates()">Add selected as draft invitations</button> <span class="small muted">Then send them from tab 2, Answers.</span></p>
+    <p style="margin-top:10px"><button class="btn sm navy" type="button" onclick="addCandidates()" data-tip="Adds the ticked referees to tab 2, Answers, as drafts. Nothing is sent until you press Send invitations there.">Add selected as draft invitations</button> <span class="small muted">Then send them from tab 2, Answers.</span></p>
   </div>
 
   <div id="ttab-designated" class="hidden">
     <div id="des-summary" class="chips"></div>
     <div class="table-wrap"><table id="des"><thead><tr><th>Official</th><th>Role</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
-    <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="sendBriefs()">Send brief to all designated</button> <span class="small muted">Role specific confirmation (referee, supervisor, observer) with the full event details and the travel arrangement.</span></p>
+    <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="sendBriefs()" data-tip="Emails every designated official the brief for their role, with the event details and the travel arrangement.">Send brief to all designated</button> <span class="small muted">Role specific confirmation (referee, supervisor, observer) with the full event details and the travel arrangement.</span></p>
     <div class="row" style="margin-top:10px;grid-template-columns:1fr auto auto;align-items:end;gap:8px">
       <div><label>Add an official directly (supervisor, observer, replacement)</label><select id="des-ref"></select></div>
       <div><label>Role</label><select id="des-role"><option value="referee">Referee</option><option value="delegate">Supervisor</option><option value="observer">Observer</option></select></div>
-      <div><button class="btn sm secondary" type="button" onclick="addDesignated()">Add</button></div>
+      <div><button class="btn sm pos" type="button" onclick="addDesignated()" data-tip="Designates the chosen official directly in the role selected, without an invitation. No email is sent; use Send brief to tell them.">Add</button></div>
     </div>
     <p class="small muted">Removing a designated referee reopens their invitation as declined so you can pick a replacement from Find referees. Travel: the NRC books only when the organizer chose "NRC books"; otherwise record what the organizer or the referee booked so the referee sees everything in one place.</p>
     <h4 style="margin:18px 0 6px">Organizer pairs from outside USATH</h4>
     <div id="guest-summary" class="chips"></div>
     <div class="table-wrap"><table id="guests"><thead><tr><th>Guest</th><th>Federation</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
-    <p style="margin-top:8px"><button class="btn sm secondary" type="button" id="btn-guest-add" onclick="openGuestPair()">Name an organizer pair</button></p>
+    <p style="margin-top:8px"><button class="btn sm pos" type="button" id="btn-guest-add" onclick="openGuestPair()" data-tip="Records a pair from outside USATH that the organizer brings, up to the number set in Event details, Pairs sourced outside USATH.">Name an organizer pair</button></p>
     <ul class="small muted" style="padding-left:18px"><li>A pair from outside USATH is always the organizer's pair; USATH designates USATH pairs only. The NRC or the organizer records it, up to the number the organizer declared</li><li>To add one more, raise "Pairs sourced outside USATH" in the event details first: the pairs USATH staffs go down by one, and the change is logged and notified</li><li>No hub account, no invitation, no evaluation. Shown to the organizer with the team; included in the brief and update emails when an email is given</li><li>Bookings and expenses are recorded here and reimbursed from the Expenses tab</li></ul>
   </div>
   <div id="ttab-money" class="hidden">
     <div id="money-summary" class="chips"></div>
     <h4 style="margin:12px 0 6px">Reimbursement by official</h4>
     <div class="table-wrap"><table id="payees"><thead><tr><th>Official</th><th title="Booked travel the official paid">Paid by them</th><th title="Booked travel paid by the official with no claim yet">Not claimed</th><th>To review</th><th>Approved, to pay</th><th>Reimbursed</th><th>How to pay</th></tr></thead><tbody></tbody></table></div>
-    <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="openClaim()">Add expense</button> <button class="btn sm ghost" type="button" onclick="exportPayees()">Export CSV</button> <span class="small muted">Add expense records a claim for an official without a hub account (guests) or on a referee's behalf.</span></p>
+    <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="openClaim()" data-tip="Records an expense claim for a guest without a hub account, or on a referee's behalf.">Add expense</button> <button class="btn sm ghost" type="button" onclick="exportPayees()" data-tip="Downloads the reimbursement table as a CSV file for finance.">Export CSV</button> <span class="small muted">Add expense records a claim for an official without a hub account (guests) or on a referee's behalf.</span></p>
     <h4 style="margin:16px 0 6px">Claims</h4>
     <div class="table-wrap"><table id="claims"><thead><tr><th>Official</th><th>Type</th><th>Description</th><th>Amount</th><th>Receipt</th><th>Status</th><th>Reimbursed by</th><th>Note</th><th></th></tr></thead><tbody></tbody></table></div>
     <p class="small muted">Approve or reject each claim; mark it reimbursed when the money has gone out. What the organizer reimburses to the NRC: bookings paid by the NRC plus approved claims set to "NRC" reimbursement. The organizer sees the totals on their page.</p>
