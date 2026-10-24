@@ -24,7 +24,17 @@
       <a class="btn lg" href="login.html">Referees: sign in</a>
       <a class="btn lg yellow" href="request-referees.html">Organizers: request referees</a>
     </div>
-    <p class="sub" style="margin-top:18px;font-size:16px">Not a referee yet? <a href="become-a-referee.html" style="color:#fff;text-decoration:underline">See what Level 1 takes</a>, or <a href="try.html" style="color:#fff;text-decoration:underline">find out in ten questions whether you could be one</a>.</p>
+    <div class="recruit">
+      <div class="recruit-txt">
+        <h2>Not a referee yet?</h2>
+        <p>Every club needs a certified pair. Try ten questions to see whether refereeing suits you.</p>
+        <ul class="recruit-facts"><li>Online course, about 5 hours</li><li>30 question theory test</li><li>Half day clinic</li></ul>
+      </div>
+      <div class="recruit-cta">
+        <a class="btn lg yellow" href="try.html">Take the 10 question test</a>
+        <a class="btn lg ghost outline" href="become-a-referee.html">What Level 1 takes</a>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -36,7 +46,7 @@
     <div><div class="n" id="st-refs">&nbsp;</div><div class="l">Certified referees on the roster</div></div>
     <div><div class="n" id="st-clubs">&nbsp;</div><div class="l">Active USATH clubs</div></div>
     <div><div class="n" id="st-events">&nbsp;</div><div class="l">Tournaments on the calendar</div></div>
-    <div><div class="n" id="st-questions">545</div><div class="l">Rules questions in the training module</div></div>
+    <div><div class="n" id="st-questions">430</div><div class="l">Rules questions in the training module</div></div>
   </div>
 </section>
 
@@ -50,7 +60,7 @@
       <ul><li>One request: dates, venue, pairs needed, what you cover</li><li>The NRC invites and designates the referees</li><li>Your page shows who is designated and what is booked</li><li>Edit, cancel or duplicate the request</li><li>Report after the event</li></ul>
       <p class="cta-row"><a class="btn" href="request-referees.html">Request referees</a><a class="btn ghost" href="guide/organizers.html">How it works</a></p></div>
     <div class="icard"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 19V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 0 2 2h12"/></svg></div><h3>Training, open to everyone</h3>
-      <ul><li>545 questions from the IHF Catalogue of Rules Questions and game situations</li><li>Quiz with or without the clock, flashcards, leaderboard</li><li>Results by rule and by level</li><li>Level 1 online course for candidates</li><li>Assessment and personal program for certified referees</li></ul>
+      <ul><li>Questions from the IHF Catalogue of Rules Questions</li><li>Quiz with or without the clock, flashcards, leaderboard</li><li>Results by rule and by level</li><li>Level 1 online course for candidates</li><li>Assessment and personal program for certified referees</li></ul>
       <p class="cta-row"><a class="btn yellow" href="training.html">Open the training module</a></p></div>
   </div>
 </section>
@@ -99,6 +109,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (!NRC.sb) return;
   const [{ data }, { count }, { count: ev }] = await Promise.all([NRC.sb.from("club_coverage").select("*"), NRC.sb.from("referee_directory").select("id", { count: "exact", head: true }), NRC.sb.from("event_calendar").select("id", { count: "exact", head: true }).gte("end_date", NRC.localDate())]);
   NRC.$("#st-events").textContent = ev == null ? "" : ev;
+  NRC.sb.from("quiz_questions").select("id", { count: "exact", head: true }).eq("active", true).then(({ count: qn }) => { if (qn) NRC.$("#st-questions").textContent = qn; });
   if (!data) return;
   NRC.$("#st-refs").textContent = count == null ? "" : count;
   NRC.$("#st-clubs").textContent = data.length;

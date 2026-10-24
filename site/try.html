@@ -13,6 +13,8 @@
 .bar{height:12px;border-radius:6px;background:var(--line);position:relative;overflow:hidden;margin:10px 0 4px}
 .bar>div{height:100%;background:var(--red);border-radius:6px}
 .bar .mark{position:absolute;top:-4px;width:2px;height:20px;background:var(--navy)}
+#result.pass .score-big{color:var(--green)}
+#result.pass .bar>div{background:var(--green)}
 </style>
 </head>
 <body data-page="try.html">
@@ -24,7 +26,7 @@
   <div class="wrap">
     <p class="kicker">For everyone in the stands</p>
     <h1>Could you referee?</h1>
-    <p class="sub">Ten Level 1 questions from the official IHF rules, 20 seconds each, no second chance. Level 1 referees pass their theory test at 80%. Nothing is saved; this is between you and the whistle.</p>
+    <p class="sub">Ten Level 1 questions from the official IHF rules, 25 seconds each, no second chance. Level 1 referees pass their theory test at 80%. Nothing is saved; this is between you and the whistle.</p>
   </div>
 </section>
 
@@ -34,7 +36,7 @@
     <h3>How it works</h3>
     <ul class="plain">
       <li>10 multiple choice questions, one correct answer each</li>
-      <li>20 seconds per question, the clock does not wait for you</li>
+      <li>25 seconds per question, the clock does not wait for you</li>
       <li>Your score against the Level 1 bar at the end, with the answers you missed</li>
     </ul>
     <p style="margin-top:14px" class="cta-row"><button class="btn lg" id="btn-start">Start the 10 questions</button></p>
@@ -55,7 +57,7 @@
     <div class="small muted">The line is the Level 1 theory bar, 80%.</div>
     <h3 style="margin-top:16px" id="r-title"></h3>
     <p id="r-text"></p>
-    <p class="cta-row" style="margin-top:14px"><a class="btn" href="become-a-referee.html">What Level 1 takes</a><a class="btn secondary" href="training.html">Train on the full question bank</a><button class="btn ghost" id="btn-again">Again, ten new ones</button></p>
+    <p class="cta-row" style="margin-top:14px"><a class="btn red" id="r-contact" href="become-a-referee.html#contact">Ask the NRC to contact me</a><a class="btn secondary" href="become-a-referee.html">What Level 1 takes</a><a class="btn ghost" href="training.html">Train on the full question bank</a><button class="btn ghost" id="btn-again">Again, ten new ones</button></p>
     <div id="r-missed" style="margin-top:18px"></div>
   </div>
 </section>
@@ -69,7 +71,7 @@
 <script>
 (function () {
   const $ = NRC.$;
-  const SECS = 20, N = 10;
+  const SECS = 25, N = 10;
   let ALL = [], qs = [], i = 0, correct = 0, missed = [], timerId = null;
   const VERDICT = [
     [10, "Suspiciously good", "Ten out of ten. Either you have refereed before or you read the rulebook for fun. The NRC would like a word."],
@@ -105,6 +107,8 @@
   function finish() {
     $("#quiz").classList.add("hidden"); $("#result").classList.remove("hidden");
     $("#r-score").textContent = correct; $("#r-bar").style.width = (correct * 10) + "%";
+    $("#result").classList.toggle("pass", correct >= 8);
+    $("#r-contact").href = "become-a-referee.html?score=" + correct + "#contact";
     const v = VERDICT.find(x => correct >= x[0]);
     $("#r-title").textContent = v[1]; $("#r-text").textContent = v[2];
     $("#r-missed").innerHTML = missed.length ? "<h3>What you missed</h3>" + missed.map(m => `<div class="notice error" style="margin-bottom:8px"><strong>${NRC.esc(m.q.q)}</strong><br>${m.idx === -1 ? "<em>Time ran out.</em> " : ""}${NRC.explain(m.q, true)}</div>`).join("") : "";

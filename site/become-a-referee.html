@@ -118,6 +118,12 @@
   if (NRC.sb) { const { data } = await NRC.sb.from("clubs").select("id,name,state").eq("active", true).order("name"); list = data || []; }
   sel.innerHTML = '<option value="">Choose your club</option>' + list.map(c => `<option value="${c.id}" data-name="${NRC.esc(c.name)}">${NRC.esc(c.name)}${c.state ? " (" + NRC.esc(c.state) + ")" : ""}</option>`).join("") + '<option value="other">Other, not listed</option>';
 })();
+// Arriving from the ten question test: open the form and note the score for the NRC
+if (location.hash === "#contact") {
+  const sc = new URLSearchParams(location.search).get("score");
+  if (/^\d{1,2}$/.test(sc || "")) document.querySelector('#contact-form [name="message"]').value = "I scored " + sc + "/10 on the ten question test.";
+  document.getElementById("dlg-contact").showModal();
+}
 document.getElementById("contact-form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target, msg = document.getElementById("contact-msg");

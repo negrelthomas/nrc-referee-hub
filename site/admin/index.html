@@ -110,14 +110,22 @@
       <!-- Staffing cards -->
       <!-- Tournaments -->
       <div id="pane-tournaments" class="hidden">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Tournaments</h1><button class="btn sm" onclick="openNewTour()">Add tournament</button></div>
-        <p class="muted small">Organizer requests arrive here from the public form. Add the others yourself (nationals, international, club events). Click a tournament to staff it, log its games and enter evaluations. This feeds every referee's history, profile card and ranking.</p>
-        <div class="small muted" id="staff-settings-line" style="margin-bottom:10px"></div>
+        <div class="page-head"><div><h1>Tournaments</h1><p class="lede">Requests, staffing, games and evaluations for every event. Click a row to open it.</p></div><button class="btn sm" onclick="openNewTour()">Add tournament</button></div>
+        <div class="rules-line" id="staff-settings-line"></div>
         <div id="staff-dups"></div>
-
-        <div class="legend small"><span class="pill s-usath">USATH</span><span class="pill s-club">Club</span><span class="pill s-intl">International</span><span class="pill amber">Tentative dates</span> <span class="muted">calendar only: on the calendar, not staffed by the NRC</span></div>
         <div class="card" id="reports-card" style="margin:10px 0"><h3 style="margin-top:0">Games reported by referees <span class="pill amber hidden" id="reports-count"></span></h3><div class="table-wrap"><table id="reports"><thead><tr><th>Referee</th><th>Event</th><th>Games</th><th>Role</th><th>Partner</th><th>Reported</th><th></th></tr></thead><tbody></tbody></table></div><p class="small muted" style="margin-top:6px">Confirm records the referee in the event's Officiated tab with these games. Not confirmed sends the report back with your note.</p></div>
-        <div class="filterbar" id="tour-filter"><button type="button" class="chip on" data-f="upcoming">All upcoming</button><button type="button" class="chip" data-f="norequest">No request yet</button><button type="button" class="chip" data-f="none">Request in, nobody designated</button><button type="button" class="chip" data-f="partial">Partially staffed</button><button type="button" class="chip" data-f="full">Fully staffed</button><button type="button" class="chip" data-f="calendar">Calendar only</button><button type="button" class="chip" data-f="todo">Past, games or evaluations to enter</button><button type="button" class="chip" data-f="past">Past</button><button type="button" class="chip" data-f="all">All</button><input id="tour-q" placeholder="Search name, city, club" style="max-width:240px;margin-left:auto"></div>
+        <div id="tour-filter">
+          <div class="kpis">
+            <button type="button" class="kpi k-navy on" data-f="upcoming" title="Every event still to come"><span class="n">0</span><span class="l">Upcoming</span></button>
+            <button type="button" class="kpi k-red" data-f="none" title="Organizer request received, no referee designated yet"><span class="n">0</span><span class="l">Nobody designated</span></button>
+            <button type="button" class="kpi k-amber" data-f="partial" title="Some referees designated, more needed"><span class="n">0</span><span class="l">Partially staffed</span></button>
+            <button type="button" class="kpi k-green" data-f="full" title="All pairs the NRC staffs are designated"><span class="n">0</span><span class="l">Fully staffed</span></button>
+            <button type="button" class="kpi k-blue" data-f="norequest" title="Placed on the calendar by the NRC; the organizer has not sent a request yet"><span class="n">0</span><span class="l">No request yet</span></button>
+            <button type="button" class="kpi k-grey" data-f="calendar" title="On the calendar, not staffed by the NRC"><span class="n">0</span><span class="l">Calendar only</span></button>
+            <button type="button" class="kpi k-amber" data-f="todo" title="Past events with games or evaluations still to enter"><span class="n">0</span><span class="l">Games or evaluations to enter</span></button>
+          </div>
+          <div class="filterbar"><button type="button" class="chip" data-f="past">Past</button><button type="button" class="chip" data-f="all">All</button><input id="tour-q" placeholder="Search name, city, club" style="max-width:240px;margin-left:auto"></div>
+        </div>
         <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Type</th><th>Dates</th><th>Where</th><th title="Tentative contact for events the NRC placed on the calendar; Reach out invites them to place their request">Organizer</th><th title="Referees designated against referees the NRC staffs; staff by date and invitations for upcoming events">Staffing</th><th title="Games logged one by one, against games expected">Games</th><th title="Referee evaluations entered">Evaluations</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       </div>
 

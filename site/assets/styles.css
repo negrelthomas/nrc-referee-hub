@@ -731,3 +731,79 @@ body.admin-phone .nrc-toast{left:12px;right:12px;max-width:none}
 /* Hover bubble on buttons with data-tip (placed by admin.js so it is never clipped by a table or a dialog) */
 .btn-tip{position:fixed;z-index:1000;max-width:300px;padding:9px 11px;border-radius:8px;background:#04234F;color:#fff;font-size:13px;font-weight:400;line-height:1.4;box-shadow:0 6px 18px rgba(0,0,0,.18);pointer-events:none;opacity:0;transition:opacity .12s}
 .btn-tip.on{opacity:1}
+
+/* ==========================================================================
+   Admin colour pass (Oct 2026): navy table headers, accented headings and
+   cards, colour coded status tiles. Brand colours only: navy, red, yellow,
+   plus green and amber for status.
+   ========================================================================== */
+#panes h1::after{content:"";display:block;width:64px;height:5px;margin-top:8px;background:linear-gradient(90deg,var(--red) 0 62%,var(--yellow) 62% 100%);transform:skewX(-24deg);transform-origin:left}
+#panes h2{color:var(--navy)}
+#panes h2::before{content:"";display:inline-block;width:10px;height:18px;margin-right:10px;background:var(--red);transform:skewX(-20deg);vertical-align:-1px}
+.admin-layout .card{border-top:3px solid var(--navy)}
+.admin-layout .card h3{color:var(--navy)}
+.admin-layout .table-wrap thead th{background:var(--navy);color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;box-shadow:inset 0 -3px 0 var(--red)}
+.admin-layout .table-wrap thead th[title]{cursor:help}
+.admin-layout tbody tr:nth-child(even) td{background:#F8FAFD}
+.admin-layout tbody tr:hover td{background:#EAF0F9}
+.admin-layout .stat{border-left:5px solid var(--navy)}
+.admin-layout .stat.bad{border-left-color:var(--red)}
+.admin-layout .stat.good{border-left-color:var(--green)}
+.chip:hover{border-color:var(--navy-2)}
+
+/* Page header: title, one line of context, main action on the right */
+.page-head{display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;margin-bottom:10px}
+.page-head h1{margin:0}
+.page-head .lede{margin:10px 0 0;color:var(--muted);font-size:14px}
+
+/* Staffing rules as compact tags */
+.rules-line{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:13px;margin:0 0 12px}
+.rules-line .rule{background:#E8EDF5;color:var(--navy);font-weight:600;padding:3px 10px;border-radius:12px;cursor:help}
+.rules-line a{font-weight:600;margin-left:4px}
+
+/* Duplicate requests: one line, open to see the pairs */
+details.dups{background:#fff;border:1px solid var(--line);border-left:5px solid var(--red);border-radius:10px;padding:10px 14px;margin:0 0 14px}
+details.dups summary{cursor:pointer;font-weight:600;font-size:14px;list-style:none;display:flex;align-items:center;gap:8px}
+details.dups summary::-webkit-details-marker{display:none}
+details.dups summary::after{content:"Show";margin-left:auto;font-size:13px;color:var(--navy-2)}
+details.dups[open] summary::after{content:"Hide"}
+details.dups ul{margin:10px 0 2px;padding:0;list-style:none;font-size:14px}
+details.dups li{padding:8px 0;border-top:1px solid var(--line)}
+
+/* Status tiles that double as filters */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:8px;margin:0 0 10px}
+.kpi{--k:var(--navy);--kt:#E8EDF5;display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;background:#fff;border:1px solid var(--line);border-top:4px solid var(--k);border-radius:10px;padding:10px 12px;cursor:pointer;font:inherit;color:var(--ink);transition:background-color .15s,box-shadow .15s}
+.kpi .n{font-family:var(--display);font-size:32px;font-weight:700;line-height:1;color:var(--k)}
+.kpi .l{font-size:13px;font-weight:600;line-height:1.25;color:var(--ink)}
+.kpi:hover{background:var(--kt)}
+.kpi.on{background:var(--kt);box-shadow:inset 0 0 0 2px var(--k)}
+.kpi.zero .n{color:#B3BECC}
+.kpi.k-red{--k:var(--red);--kt:var(--red-tint)}
+.kpi.k-amber{--k:#C98A00;--kt:var(--amber-tint)}
+.kpi.k-green{--k:var(--green);--kt:var(--green-tint)}
+.kpi.k-blue{--k:var(--glow);--kt:#E6EEFA}
+.kpi.k-grey{--k:#7A8A9C;--kt:#EEF1F5}
+#tour-filter .filterbar{margin-bottom:10px}
+
+/* Tournament rows carry their type as a coloured edge */
+#tour tbody tr td:first-child{box-shadow:inset 4px 0 0 var(--tc,transparent)}
+#tour tbody tr.t-usath{--tc:var(--navy)}
+#tour tbody tr.t-club{--tc:#2E8B6E}
+#tour tbody tr.t-intl{--tc:#6B46C1}
+@media (max-width:600px){.kpis{grid-template-columns:repeat(2,1fr)}.kpi .n{font-size:26px}}
+
+/* Home hero: recruiting panel for people who are not referees yet */
+.recruit{position:relative;overflow:hidden;margin-top:26px;display:flex;gap:18px 28px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  padding:20px 24px 20px 30px;border-radius:12px;background:linear-gradient(112deg,rgba(255,255,255,.12),rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.22);backdrop-filter:blur(4px)}
+.recruit::before{content:"";position:absolute;left:-6px;top:0;bottom:0;width:14px;background:var(--yellow);transform:skewX(-12deg)}
+.recruit h2{color:#fff;font-size:30px;margin:0 0 4px}
+.recruit p{margin:0 0 10px;color:rgba(255,255,255,.9)}
+.recruit-txt{flex:1 1 340px;min-width:0}
+.recruit-facts{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:6px}
+.recruit-facts li{font-size:13px;font-weight:600;color:var(--yellow);border:1px solid rgba(232,235,47,.45);border-radius:14px;padding:3px 10px}
+.recruit-cta{display:flex;flex-direction:column;gap:8px;flex:0 1 280px}
+.recruit-cta .btn{width:100%;margin:0}
+.recruit .btn.outline{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.75);box-shadow:none}
+.recruit .btn.outline:hover{background:rgba(255,255,255,.12)}
+@media (max-width:600px){.recruit{padding:18px 16px 18px 24px}.recruit-cta{flex:1 1 100%}.recruit h2{font-size:26px}}
+@media (max-width:600px){.recruit::before{left:0;right:0;top:0;bottom:auto;width:auto;height:6px;transform:none}.recruit{padding-left:16px}}
