@@ -66,6 +66,16 @@
     const { data: logins } = await sb().rpc("admin_referee_logins");
     const LG = {}; (logins || []).forEach(x => LG[x.referee_id] = x);
     refs.forEach(r => { const x = LG[r.id]; r._lastLogin = x ? x.last_sign_in_at : null; r._firstLogin = x ? x.first_sign_in_at : null; });
+    // latest theory per referee: in person exam (referee_tests) or online assessment, whichever is newer
+    const [{ data: thx }, { data: asx }] = await Promise.all([
+      sb().from("referee_tests").select("referee_id,tested_on,test_name,result,passed").eq("kind", "theory").not("referee_id", "is", null).order("tested_on", { ascending: false }),
+      sb().from("assessments").select("user_id,created_at,kind,pct,correct,total,passed").order("created_at", { ascending: false })]);
+    refs.forEach(r => {
+      const ex = (thx || []).find(t => t.referee_id === r.id), on = r.user_id ? (asx || []).find(a => a.user_id === r.user_id) : null;
+      r._theory = on && (!ex || on.created_at.slice(0, 10) >= ex.tested_on)
+        ? { date: on.created_at.slice(0, 10), what: on.kind === "retest" ? "Online re-test" : "Online assessment", result: on.pct + "% (" + on.correct + "/" + on.total + ")", passed: on.passed }
+        : ex ? { date: ex.tested_on, what: ex.test_name, result: ex.result || "", passed: ex.passed } : null;
+    });
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
     fillSelects(); renderDashboard(); loadRankings(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); renderPlan(); loadTasks(); loadImportLog();
     const [h, arg] = (location.hash || "").slice(1).split("/"); if (h === "club" && arg) renderClubPage(arg);
@@ -135,7 +145,7 @@
     const club = id => (clubs.find(c => c.id === id) || {}).name || "";
     const list = shownRefs();
     $("#refs tbody").innerHTML = list
-      .map(r => `<tr class="clickable" onclick="openRef('${r.id}')"><td onclick="event.stopPropagation()"><input type="checkbox" style="width:auto" ${refSel.has(r.id) ? "checked" : ""} onchange="toggleRefSel('${r.id}',this.checked)"></td><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt=""></td><td><strong>${NRC.esc(r.last_name + ", " + r.first_name)}</strong>${r.active ? "" : ' <span class="pill">inactive</span>'}<br><span class="small muted">${NRC.esc(r.email)}</span></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}${r.level1_theory_passed_on ? ' <span class="pill green">theory passed ' + NRC.fmtDate(r.level1_theory_passed_on) + "</span>" : ""}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.departure_airport_iata ? " / " + NRC.esc(r.departure_airport_iata) : ""}</td><td>${r._games}</td><td>${r._lastEval ? NRC.fmtDate(r._lastEval) : '<span class="muted">none</span>'}</td><td class="small" title="${NRC.esc(fmtTs(r._lastLogin))}">${r._lastLogin ? ago(r._lastLogin) : r.user_id ? '<span class="muted">unknown</span>' : '<span class="pill amber">never</span>'}</td><td class="small" title="${NRC.esc(fmtTs(r.updated_at))}">${r.updated_by_label ? ago(r.updated_at) + "<br><span class=\"muted\">" + NRC.esc(r.updated_by_label) + "</span>" : '<span class="muted">' + ago(r.updated_at) + "</span>"}</td><td><button class="btn sm ghost" onclick="event.stopPropagation();openRef('${r.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="12">No referee matches.</td></tr>';
+      .map(r => `<tr class="clickable" onclick="openRef('${r.id}')"><td onclick="event.stopPropagation()"><input type="checkbox" style="width:auto" ${refSel.has(r.id) ? "checked" : ""} onchange="toggleRefSel('${r.id}',this.checked)"></td><td><img class="avatar" src="${r.photo_url ? NRC.esc(r.photo_url) : "assets/avatar.svg"}" alt=""></td><td><strong>${NRC.esc(r.last_name + ", " + r.first_name)}</strong>${r.active ? "" : ' <span class="pill">inactive</span>'}<br><span class="small muted">${NRC.esc(r.email)}</span></td><td>${NRC.levelPill(r.cert_level, r.level_confirmed)}${r.level1_theory_passed_on ? ' <span class="pill green">theory passed ' + NRC.fmtDate(r.level1_theory_passed_on) + "</span>" : ""}</td><td>${NRC.esc(club(r.club_id))}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}</td><td>${NRC.esc(r.home_airport_iata || "")}${r.departure_airport_iata ? " / " + NRC.esc(r.departure_airport_iata) : ""}</td><td>${r._games}</td><td>${r._lastEval ? NRC.fmtDate(r._lastEval) : '<span class="muted">none</span>'}</td><td class="small">${r._theory ? `<strong>${NRC.esc(r._theory.result || r._theory.what)}</strong>${r._theory.passed === true ? ' <span class="pill green">passed</span>' : r._theory.passed === false ? ' <span class="pill red">not passed</span>' : ""}<br><span class="muted">${NRC.esc(r._theory.what)}, ${NRC.fmtDate(r._theory.date)}</span>` : r.cert_level !== "candidate" && r._lastLogin ? '<span class="pill amber">not taken</span>' : '<span class="muted">none</span>'}</td><td><button class="btn sm ghost" onclick="event.stopPropagation();openRef('${r.id}')">Open</button></td></tr>`).join("") || '<tr><td colspan="11">No referee matches.</td></tr>';
     $("#ref-all").checked = list.length > 0 && list.every(r => refSel.has(r.id));
     const b = $("#btn-ref-email"); b.disabled = !refSel.size; b.textContent = refSel.size ? `Email selected (${refSel.size})` : "Email selected";
   }
@@ -216,7 +226,7 @@
       const { data: chg } = await sb().from("referee_changes").select("*").eq("referee_id", currentRef.id).order("changed_at", { ascending: false }).limit(50);
       ex.innerHTML = recordHtml(currentRef, chg || []) + `<h3 style="margin-top:16px">Latest evaluations</h3>` + NRC.latestEvalsHtml(L)
         + `<h3 style="margin-top:16px">Tournaments and games</h3>` + NRC.historyHtml(hist, glog || []) + '<div class="small muted">Click a tournament for its games. Add or correct from Tournaments, Officiated tab.</div>'
-        + `<h3 style="margin-top:16px">Physical tests and theory exams</h3>` + ((tests || []).map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${t.result ? " " + NRC.esc(t.result) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.evaluator_name ? ", " + NRC.esc(t.evaluator_name) : ""} <a href="#" onclick="delTest('${t.id}');return false" class="muted">remove</a></div>`).join("") || '<div class="small muted">None recorded.</div>')
+        + `<h3 style="margin-top:16px">Physical tests and theory exams</h3>` + ((tests || []).map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${NRC.physResult(t) ? ": " + NRC.esc(NRC.physResult(t)) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.evaluator_name ? ", " + NRC.esc(t.evaluator_name) : ""} <a href="#" onclick="delTest('${t.id}');return false" class="muted">remove</a></div>`).join("") || '<div class="small muted">None recorded.</div>')
         + `<h3 style="margin-top:16px">Training</h3><div class="small">${training}</div>`
         + `<h3 style="margin-top:16px">Certification history</h3>` + ((certs || []).map(c => `<div class="small">${NRC.fmtDate(c.obtained_on)}: ${NRC.levelLabel(c.level)}${c.certified_by ? ", by " + NRC.esc(c.certified_by) : ""}${c.event ? ", " + NRC.esc(c.event) : ""}</div>`).join("") || '<div class="small muted">No history. Saving a level change adds a row.</div>')
         + `<h3 style="margin-top:16px">Evaluations</h3>` + ((ev || []).map(e => { const o = NRC.evalOverall(e), tn = (tournaments.find(t => t.id === e.tournament_id) || {}).name; return `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><a href="#" onclick="editRefEval('${e.id}');return false"><strong>${NRC.fmtDate(e.evaluated_on)}</strong></a>${tn ? ", " + NRC.esc(tn) : ""}${e.game_id ? " (game)" : ""}, ${NRC.esc(NRC.EVAL_SOURCE[e.source] || "")}: ${NRC.esc(e.evaluator_name)} ${o != null ? NRC.scoreHtml(o) : ""}${e.shared_with_referee ? ' <span class="pill green">shared</span>' : ' <span class="pill">NRC only</span>'}${e.points_to_improve ? "<br>Improve: " + NRC.esc(e.points_to_improve) : ""}</div>`; }).join("") || '<div class="small muted">None yet.</div>');
@@ -256,17 +266,37 @@
   });
 
   // physical test or in person theory exam
-  window.openTest = function (kind) {
+  let testGuest = null; // a referee from outside USATH, when the test is recorded from the event's guest list
+  window.openTest = function (kind, guestId) {
     const f = $("#form-test"); f.reset(); f.kind.value = kind; f.tested_on.value = today();
-    $("#dlg-test-title").textContent = (kind === "physical" ? "Physical test" : "Theory exam") + ", " + currentRef.first_name + " " + currentRef.last_name;
+    const g = guestId ? (desRows.find(a => a.guest_official_id === guestId) || {}).guest_officials : null;
+    testGuest = g || null;
+    const phys = kind === "physical";
+    NRC.$$("#form-test .t-phys").forEach(x => x.classList.toggle("hidden", !phys)); NRC.$$("#form-test .t-theory").forEach(x => x.classList.toggle("hidden", phys));
+    ["std_band", "beep_level", "beep_shuttle", "beep_loops"].forEach(k => f[k].required = phys); f.test_name.required = !phys;
+    $("#beep-outcome").textContent = "Calculated from the standard";
+    $("#dlg-test-title").textContent = (kind === "physical" ? "Physical test" : "Theory exam") + ", " + (g ? g.first_name + " " + g.last_name : currentRef.first_name + " " + currentRef.last_name);
     $("#dlg-test").showModal();
   };
+  // beep test: loops from level and shuttle (20 m shuttle run, shuttles per level 1 to 21), outcome against the standard
+  const BEEP_SHUTTLES = [7, 8, 8, 9, 9, 10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16];
+  const beepPreview = () => {
+    const f = $("#form-test"), l = parseInt(f.beep_level.value, 10), sh = parseInt(f.beep_shuttle.value, 10);
+    if (l >= 1 && sh >= 0 && document.activeElement !== f.beep_loops) f.beep_loops.value = BEEP_SHUTTLES.slice(0, l - 1).reduce((a, b) => a + b, 0) + sh;
+    const req = NRC.BEEP_REQUIRED[f.std_band.value];
+    $("#beep-outcome").innerHTML = req && l >= 1 && sh >= 0 ? ((l > req[0] || (l === req[0] && sh >= req[1])) ? '<span class="pill green">passed</span>' : '<span class="pill red">not passed</span>') + ` <span class="muted">level ${l}.${sh} against ${req[0]}${req[1] ? "." + req[1] : ""}</span>` : "Calculated from the standard";
+  };
+  ["std_band", "beep_level", "beep_shuttle"].forEach(k => $("#form-test")[k].addEventListener("input", beepPreview));
   $("#form-test").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target;
-    const row = { referee_id: currentRef.id, kind: f.kind.value, tested_on: f.tested_on.value, test_name: f.test_name.value.trim(), result: f.result.value.trim() || null, passed: f.passed.value === "" ? null : f.passed.value === "true", evaluator_name: f.evaluator_name.value.trim() || null, notes: f.notes.value.trim() || null, shared_with_referee: f.shared_with_referee.checked, entered_by: user.id };
+    const phys = f.kind.value === "physical";
+    const row = { referee_id: testGuest ? null : currentRef.id, guest_official_id: testGuest ? testGuest.id : null, kind: f.kind.value, tested_on: f.tested_on.value,
+      // physical: three scores and the standard; name, result and pass are set by the database from them
+      test_name: phys ? "Shuttle Run Test (beep test)" : f.test_name.value.trim(), result: phys ? null : f.result.value.trim() || null, passed: phys ? null : f.passed.value === "" ? null : f.passed.value === "true",
+      std_band: phys ? f.std_band.value : null, beep_level: phys ? parseInt(f.beep_level.value, 10) : null, beep_shuttle: phys ? parseInt(f.beep_shuttle.value, 10) : null, beep_loops: phys ? parseInt(f.beep_loops.value, 10) : null, evaluator_name: f.evaluator_name.value.trim() || null, notes: f.notes.value.trim() || null, shared_with_referee: f.shared_with_referee.checked, entered_by: user.id };
     const { error } = await sb().from("referee_tests").insert(row);
     if (error) { alert("Save failed: " + error.message); return; }
-    $("#dlg-test").close(); openRef(currentRef.id);
+    $("#dlg-test").close(); if (testGuest) { toast("Test recorded for " + testGuest.first_name + " " + testGuest.last_name + ".", "ok"); testGuest = null; } else openRef(currentRef.id);
   });
   window.delTest = async function (id) { if (!confirm("Remove this test record?")) return; await sb().from("referee_tests").delete().eq("id", id); openRef(currentRef.id); };
 
@@ -670,7 +700,8 @@
     $("#guest-summary").innerHTML = `<span class="chip ${declared && keys.length >= declared ? "on" : ""}">${keys.length}/${declared} organizer pair${declared === 1 ? "" : "s"} named${currentTour.organizer_pairs_note ? " (" + NRC.esc(currentTour.organizer_pairs_note) + ")" : ""}</span>`;
     $("#btn-guest-add").disabled = keys.length >= declared;
     $("#guests tbody").innerHTML = guests.map(a => { const g = a.guest_officials, k = g.pair_key || a.guest_official_id;
-      return `<tr><td><strong>${NRC.esc(asgName(a))}</strong> <span class="pill">pair ${keys.indexOf(k) + 1}</span><br><span class="small muted">${NRC.esc(g.email || "no email")}${g.phone ? ", " + NRC.esc(g.phone) : ""}</span></td><td class="small">${NRC.esc(g.federation)}</td><td class="small">${NRC.esc(g.home_city || "")}${g.home_airport_iata ? " (" + NRC.esc(g.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td style="white-space:nowrap"><button class="btn sm ghost" type="button" onclick="openGuestPair('${k}')" data-tip="Edits the names, contact details and federation of this pair.">Edit</button> <button class="btn sm neg" type="button" onclick="removeDesignated('${a.id}')" data-tip="Removes both referees of this organizer pair from the event, with their bookings and expense claims on it.">Remove pair</button></td></tr>`; }).join("") || `<tr><td colspan="5" class="muted">${currentTour.pairs_organizer ? "No organizer pair named yet." : "The organizer declared no pair from outside USATH."}</td></tr>`;
+      return `<tr><td><strong>${NRC.esc(asgName(a))}</strong> <span class="pill">pair ${keys.indexOf(k) + 1}</span> ${guestAccount(g)} <span class="pill ${guestDone(g) === 100 ? "green" : "amber"}" title="Profile completed by the referee or the NRC: photo, phone, home, airport, level, reimbursement">profile ${guestDone(g)}%</span><br><span class="small muted">${NRC.esc(g.email || "no email")}${g.phone ? ", " + NRC.esc(g.phone) : ""}</span>
+        <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${g.email && !g.user_id ? `<button class="btn sm secondary" type="button" onclick="sendGuestLinks(['${g.id}'])" data-tip="Emails this referee a sign in link to their page on the hub: the event, the team, travel, expenses and optional training.">${g.invited_at ? "Resend sign in link" : "Send sign in link"}</button>` : ""}<a class="btn sm ghost" href="../profile.html?guest=${g.id}" target="_blank" rel="noopener" data-tip="Opens this referee's page as they see it, read only.">View as the referee</a><button class="btn sm ghost" type="button" onclick="openTest('physical','${g.id}')" data-tip="Records a physical test this referee took, if they chose to. Optional for referees from outside USATH.">Record physical test</button></div></td><td class="small">${NRC.esc(g.federation)}</td><td class="small">${NRC.esc(g.home_city || "")}${g.home_airport_iata ? " (" + NRC.esc(g.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td style="white-space:nowrap"><button class="btn sm ghost" type="button" onclick="openGuestPair('${k}')" data-tip="Edits the names, contact details and federation of this pair.">Edit</button> <button class="btn sm neg" type="button" onclick="removeDesignated('${a.id}')" data-tip="Removes both referees of this organizer pair from the event, with their bookings and expense claims on it.">Remove pair</button></td></tr>`; }).join("") || `<tr><td colspan="5" class="muted">${currentTour.pairs_organizer ? "No organizer pair named yet." : "The organizer declared no pair from outside USATH."}</td></tr>`;
     $("#des-ref").innerHTML = refs.filter(r => r.active && !desRows.find(d => d.referee_id === r.id)).map(r => `<option value="${r.id}">${NRC.esc(r.last_name + ", " + r.first_name)} (${NRC.levelLabel(r.cert_level).replace(" (National)", "")})</option>`).join("");
     renderSnap();
   }
@@ -681,7 +712,21 @@
   // ---------- organizer pairs from outside USATH (guests) ----------
   // Rule: always the organizer's pairs; the NRC or the organizer names them, within pairs_organizer. Enforced in save_guest_pair.
   let guestPool = [], guestEdit = null;
-  const guestFields = (f, x, g) => { f[x + "_first"].value = g ? g.first_name : ""; f[x + "_last"].value = g ? g.last_name : ""; f[x + "_email"].value = g ? g.email || "" : ""; f[x + "_phone"].value = g ? g.phone || "" : ""; f[x + "_city"].value = g ? g.home_city || "" : ""; f[x + "_iata"].value = g ? g.home_airport_iata || "" : ""; };
+  const guestFields = (f, x, g) => { f[x + "_first"].value = g ? g.first_name : ""; f[x + "_last"].value = g ? g.last_name : ""; f[x + "_email"].value = g ? g.email || "" : ""; f[x + "_phone"].value = g ? g.phone || "" : ""; f[x + "_city"].value = g ? g.home_city || "" : ""; f[x + "_iata"].value = g ? g.home_airport_iata || "" : ""; f[x + "_level"].value = g ? g.federation_level || "" : "";
+    // the sign in email belongs to the referee once they have an account
+    f[x + "_email"].readOnly = !!(g && g.user_id); f[x + "_email"].title = g && g.user_id ? "This referee signs in with this address; only they can change it, from their page." : ""; };
+  // how complete a guest profile is (same items the guest sees on their page)
+  const guestDone = g => { const k = [!!g.photo_url, !!g.phone, !!g.home_city, !!g.home_airport_iata, !!g.federation_level, !!g.payment_notes]; return Math.round(k.filter(Boolean).length / k.length * 100); };
+  const guestAccount = g => g.user_id ? `<span class="pill green" title="Has signed in to the hub">account</span>` : g.invited_at ? `<span class="pill amber" title="Sign in link sent ${NRC.esc(NRC.fmtDate(g.invited_at.slice(0, 10)))}, not used yet">link sent</span>` : g.email ? `<span class="pill" title="No sign in link sent yet">no account</span>` : `<span class="pill red" title="Add an email to give this referee access to the hub">no email</span>`;
+  window.sendGuestLinks = async function (ids, quiet) {
+    const { data: s0 } = await sb().auth.getSession();
+    const res = await fetch("/api/guest-invite", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + (s0.session ? s0.session.access_token : "") }, body: JSON.stringify({ guest_ids: ids, tournament_id: currentTour.id }) });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) { toast("Sign in links not sent: " + (d.error || res.status), "error", 8000); return; }
+    const sent = (d.results || []).filter(r => r.sent), skipped = (d.results || []).filter(r => !r.sent);
+    if (!quiet || sent.length || skipped.some(r => r.error !== "already has an account")) toast((sent.length ? sent.length + " sign in link(s) sent. " : "") + skipped.map(r => r.name + ": " + r.error).join("; "), sent.length ? "ok" : "error", 8000);
+    renderDesignated();
+  };
   const pairOf = k => guestPool.filter(g => (g.pair_key || g.id) === k).sort((x, y) => x.created_at.localeCompare(y.created_at));
   function fillGuestForm(k) {
     const f = $("#form-guest"), P = k ? pairOf(k) : [];
@@ -703,16 +748,23 @@
     $("#dlg-guest h3").textContent = pairKey ? "Edit organizer pair" : "Organizer pair from outside USATH";
     $("#dlg-guest").showModal();
   };
+  NRC.nationPicker($("#form-guest").federation);
   $("#form-guest").reuse.addEventListener("change", e => fillGuestForm(e.target.value || null));
   $("#form-guest").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target, k = f.reuse.value || guestEdit || null, P = k ? pairOf(k) : [];
-    const person = (x, old) => ({ id: old ? old.id : null, first_name: f[x + "_first"].value, last_name: f[x + "_last"].value, email: f[x + "_email"].value, phone: f[x + "_phone"].value, home_city: f[x + "_city"].value, home_airport_iata: f[x + "_iata"].value });
+    const person = (x, old) => ({ id: old ? old.id : null, first_name: f[x + "_first"].value, last_name: f[x + "_last"].value, email: f[x + "_email"].value, phone: f[x + "_phone"].value, home_city: f[x + "_city"].value, home_airport_iata: f[x + "_iata"].value, federation_level: f[x + "_level"].value });
     const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
     try {
       const { error } = await sb().rpc("save_guest_pair", { p_tournament: currentTour.id, p_people: [person("a", P[0]), person("b", P[1])], p_federation: f.federation.value, p_payment_notes: f.payment_notes.value || null, p_notes: f.notes.value || null, p_pair_key: k && P[0] && P[0].pair_key ? P[0].pair_key : null });
       if (error) { alert(error.message); return; }
       toast(guestEdit ? "Pair details saved." : "Organizer pair named.", "ok");
       $("#dlg-guest").close(); renderDesignated(); renderTourAsg(); renderMoney();
+      if (f.send_link.checked) {
+        const { data: G2 } = await sb().from("assignments").select("guest_official_id, guest_officials(id,email,user_id,first_name,last_name)").eq("tournament_id", currentTour.id).not("guest_official_id", "is", null);
+        const names = [f.a_last.value, f.b_last.value].map(x => x.trim().toLowerCase());
+        const ids = (G2 || []).map(r => r.guest_officials).filter(g => g && g.email && !g.user_id && names.includes(String(g.last_name).toLowerCase())).map(g => g.id);
+        if (ids.length) await sendGuestLinks(ids, true);
+      }
     } finally { btn.disabled = false; }
   });
   window.addDesignated = async function () {

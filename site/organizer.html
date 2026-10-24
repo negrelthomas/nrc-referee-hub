@@ -40,7 +40,7 @@
 <dialog id="dlg-guest" style="max-width:720px"><div class="body">
   <h3 style="margin-top:0" id="guest-title">Your pair from outside USATH</h3>
   <form id="form-guest">
-    <label>Federation or country</label><input name="federation" required placeholder="Canada (CHF)">
+    <label>Nation</label><input name="federation" required>
     <div class="row"><div><label>First referee, first name</label><input name="a_first" required></div><div><label>Last name</label><input name="a_last" required></div></div>
     <div class="row"><div><label>Email</label><input name="a_email" type="email"></div><div><label>Phone</label><input name="a_phone"></div></div>
     <div class="row"><div><label>Home city</label><input name="a_city"></div><div><label>Home airport (IATA)</label><input name="a_iata" maxlength="3" style="text-transform:uppercase"></div></div>
@@ -50,6 +50,7 @@
     <label>How they are reimbursed (method and payee)</label><input name="payment_notes" placeholder="Paid by the club on arrival, or transfer to each referee">
     <p class="small muted" style="margin:4px 0 0">No bank or card numbers here.</p>
     <label>Notes</label><textarea name="notes"></textarea>
+    <label class="check" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-weight:500"><input type="checkbox" name="send_link" style="width:auto;margin-top:3px" checked><span>Email each referee a sign in link to their page on the hub: the event, the team, travel and expenses. Optional training is open to them there.</span></label>
     <p style="margin-top:14px"><button class="btn" type="submit">Save</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-guest').close()">Cancel</button></p>
   </form>
 </div></dialog>
@@ -209,6 +210,7 @@ window.duplicateTour = (id) => { const t = TOURS.find(x => x.id === id); if (!t)
 let GUESTS = [], guestTour = null, guestPair = [];
 const keyOf = gid => { const g = GUESTS.find(x => x.id === gid); return g ? g.pair_key || g.id : gid; };
 const pairKeys = tid => [...new Set(DES.filter(x => x.tournament_id === tid && x.is_guest).map(x => keyOf(x.guest_official_id)))];
+NRC.nationPicker(document.querySelector("#form-guest [name=federation]"));
 window.openGuestPair = (tid, key) => {
   const t = TOURS.find(x => x.id === tid); if (!t) return; guestTour = t;
   guestPair = key ? GUESTS.filter(g => (g.pair_key || g.id) === key).sort((a, b) => a.created_at.localeCompare(b.created_at)) : [];
@@ -225,7 +227,20 @@ $("#form-guest").addEventListener("submit", async (e) => {
   const { error } = await NRC.sb.rpc("save_guest_pair", { p_tournament: guestTour.id, p_people: [person("a", 0), person("b", 1)], p_federation: f.federation.value, p_payment_notes: f.payment_notes.value || null, p_notes: f.notes.value || null, p_pair_key: guestPair[0] ? guestPair[0].pair_key : null });
   btn.disabled = false;
   if (error) { alert(error.message); return; }
-  $("#dlg-guest").close(); NRC.notice($("#msg"), "Pair saved. The NRC sees it on the event.", "ok"); load();
+  $("#dlg-guest").close();
+  let linkMsg = "";
+  if (f.send_link.checked) {
+    const { data: rows } = await NRC.sb.from("assignments").select("guest_officials(id,email,user_id,last_name)").eq("tournament_id", guestTour.id).not("guest_official_id", "is", null);
+    const names = [f.a_last.value, f.b_last.value].map(x => x.trim().toLowerCase());
+    const ids = (rows || []).map(r => r.guest_officials).filter(g => g && g.email && !g.user_id && names.includes(String(g.last_name).toLowerCase())).map(g => g.id);
+    if (ids.length) {
+      const { data: s0 } = await NRC.sb.auth.getSession();
+      const res = await fetch("/api/guest-invite", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + (s0.session ? s0.session.access_token : "") }, body: JSON.stringify({ guest_ids: ids, tournament_id: guestTour.id }) });
+      const d = await res.json().catch(() => ({}));
+      linkMsg = res.ok ? " " + (d.results || []).filter(r => r.sent).length + " sign in link(s) sent." : " Sign in links not sent: " + NRC.esc(d.error || String(res.status)) + ".";
+    }
+  }
+  NRC.notice($("#msg"), "Pair saved. The NRC sees it on the event." + linkMsg, "ok"); load();
 });
 window.removeGuestPair = async (tid, key) => {
   if (!confirm("Remove this pair from the event? Their bookings and expenses on this event are deleted with it.")) return;

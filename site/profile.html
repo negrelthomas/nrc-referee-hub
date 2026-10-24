@@ -39,6 +39,7 @@
 
   <div id="tab-home">
     <div id="home-next"></div>
+    <div id="home-complete" style="margin-top:14px"></div>
     <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
     <div class="grid c2" style="margin-top:14px">
       <div class="card"><h3>Weekends I can referee</h3><ul class="small muted" style="padding-left:18px;margin:6px 0 10px"><li>Tap a weekend to cycle: available, tentative, unavailable</li><li>Mark unavailable only the weekends you cannot referee at all</li><li>Weekends of tournaments you are designated for show as <strong>Assigned</strong>: leave them, the NRC already counts on you</li></ul>
@@ -217,11 +218,12 @@
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script src="js/report.js"></script>
+<script src="js/guest-home.js"></script>
 <script>
 let user, ref, PREVIEW = false;
 function startPreview(r) {
   document.body.classList.add("preview");
-  $("#main").insertAdjacentHTML("afterbegin", `<div class="notice" style="margin:14px 0 0;background:var(--amber-tint);color:var(--amber);border-color:transparent"><strong>Admin preview, read only.</strong> This is ${NRC.esc(r.first_name + " " + r.last_name)}'s referee home as they see it. Buttons are inactive. <a href="admin/index.html#referee/${r.id}">Back to the record</a></div>`);
+  $("#main").insertAdjacentHTML("afterbegin", `<div class="notice" style="margin:14px 0 0;background:var(--amber-tint);color:var(--amber);border-color:transparent"><strong>Admin preview, read only.</strong> This is ${NRC.esc(r.first_name + " " + r.last_name)}'s ${r.federation ? "page" : "referee home"} as they see it. Buttons are inactive. <a href="admin/index.html${r.federation ? "" : "#referee/" + r.id}">Back to ${r.federation ? "the admin console" : "the record"}</a></div>`);
   // nothing in the preview writes: every button except tabs, details and dialog close is inert, every form submit is stopped
   document.addEventListener("click", (e) => { const b = e.target.closest("button, .btn, [onclick]"); if (!b || b.closest(".tabs") || b.closest("#site-nav") || (b.tagName === "A" && b.getAttribute("href") && !b.getAttribute("href").startsWith("#") && !b.getAttribute("onclick"))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
   document.addEventListener("submit", (e) => { e.preventDefault(); e.stopImmediatePropagation(); }, true);
@@ -239,6 +241,16 @@ async function load() {
   if (asId && user.role === "admin") {
     const { data: r } = await NRC.sb.from("referees").select("*").eq("id", asId).maybeSingle();
     if (r) { PREVIEW = true; user = { id: r.user_id || "00000000-0000-0000-0000-000000000000", email: r.email, role: "referee" }; startPreview(r); }
+  }
+  // referees from outside USATH (guest pairs named on an event): their own home. Admin preview: profile.html?guest=<guest id>
+  const asGuest = new URLSearchParams(location.search).get("guest");
+  if (asGuest && user.role === "admin") {
+    const { data: g } = await NRC.sb.from("guest_officials").select("*").eq("id", asGuest);
+    if (g && g[0]) { startPreview(g[0]); return NRC.Guest.start({ id: g[0].user_id || "00000000-0000-0000-0000-000000000000", email: g[0].email, role: "guest" }, g, true); }
+  }
+  if (user.role === "guest" && !PREVIEW) {
+    const { data: g } = await NRC.sb.from("guest_officials").select("*").eq("user_id", user.id).order("created_at", { ascending: false });
+    if (g && g.length) return NRC.Guest.start(user, g, false);
   }
   const { data } = PREVIEW ? { data: await NRC.sb.from("referees").select("*").eq("id", asId).maybeSingle().then(x => x.data) } : await NRC.sb.from("referees").select("*").eq("user_id", user.id).maybeSingle();
   ref = data;
@@ -334,7 +346,7 @@ async function loadHome() {
     : `<div class="alert"><div><div class="t">You answered tentative</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}. Accept or decline when you know; the NRC cannot designate you until then.</div></div><span><button class="btn sm" onclick="respond('${p.id}','accepted')">Accept now</button> <button class="btn sm ghost" onclick="respond('${p.id}','declined')">Decline</button></span></div>`));
   const soon = d => d && new Date(d) - Date.now() < 60 * 864e5;
   [["USATH membership", ref.usath_membership_valid_until], ["SafeSport certificate", ref.safesport_valid_until], ["Background check", ref.background_check_valid_until]].forEach(([l, d]) => {
-    if (!d) alerts.push(`<div class="alert warn"><div><div class="t">${l} not on file</div><div class="small">Ask the NRC to record it, or it will block assignments.</div></div></div>`);
+    if (!d) { /* shown on the completion card */ }
     else if (d < today) alerts.push(`<div class="alert"><div><div class="t">${l} expired on ${NRC.fmtDate(d)}</div><div class="small">Renew it before accepting an assignment.</div></div></div>`);
     else if (soon(d)) alerts.push(`<div class="alert warn"><div><div class="t">${l} expires ${NRC.fmtDate(d)}</div><div class="small">Renew it in the next few weeks.</div></div></div>`);
   });
@@ -363,14 +375,40 @@ async function loadHome() {
   else if (!certified && ref.level1_theory_passed_on) alerts.unshift(`<div class="alert ok"><div><div class="t">Level 1 theory passed on ${NRC.fmtDate(ref.level1_theory_passed_on)}</div><div class="small">Next step: the practical part (signals, whistle, physical test) at a clinic. The NRC contacts you and awards Level 1 after it. Keep practising on the Training page meanwhile.</div></div><a class="btn sm secondary" href="training.html">Training</a></div>`);
   else if (!certified) alerts.unshift(`<div class="alert info"><div><div class="t">Level 1 online course</div><div class="small">Six modules, then the final test. Pass it and "theory passed" is recorded here; the NRC awards Level 1 after the practical part.</div></div><a class="btn sm" href="training.html#program">Open</a></div>`);
   if (!certified) { const w = document.querySelector("#weekends").closest(".card"); if (w) w.innerHTML = `<h3>Availability</h3><p class="small muted">Weekend availability and blocked dates open once you are certified; the NRC staffs tournaments with certified referees only.</p>`; }
-  if (!ref.home_airport_iata || !ref.photo_url) alerts.push(`<div class="alert info"><div><div class="t">Complete your profile</div><div class="small">${!ref.photo_url ? "Add a photo. " : ""}${!ref.home_airport_iata ? "Add your home airport so travel can be planned." : ""}</div></div><a class="btn sm secondary" href="#" onclick="document.querySelector('[data-tab=profile]').click();return false">Edit</a></div>`);
-  $("#home-alerts").innerHTML = alerts.join("") || `<div class="alert ok"><div><div class="t">Everything is in order</div><div class="small">Membership, SafeSport and background check are current.</div></div></div>`;
+  $("#home-alerts").innerHTML = alerts.join("");
+  renderCompletion(certified, asmt && asmt[0]);
   loadAvail();
   // training nudge
   const { data: ans } = await NRC.sb.from("quiz_answers").select("correct,quiz_questions(rule_number),quiz_attempts!inner(user_id,created_at)").eq("quiz_attempts.user_id", user.id);
   const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; });
   const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n)[0];
   $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way and counts on the <a href=\"training.html#board\">leaderboard</a>.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
+}
+// profile completion: what the referee fills in, what the NRC records, tests to take
+async function renderCompletion(certified, asmt) {
+  const today = NRC.localDate();
+  const [{ count: wk }, { data: phys }] = await Promise.all([
+    NRC.sb.from("weekend_availability").select("weekend", { count: "exact", head: true }).eq("referee_id", ref.id).gte("weekend", today),
+    NRC.sb.from("referee_tests").select("test_name,result,passed,tested_on,std_band,beep_level,beep_shuttle,beep_loops").eq("referee_id", ref.id).eq("kind", "physical").order("tested_on", { ascending: false }).limit(1)]);
+  const p = phys && phys[0];
+  const edit = { label: "Add", onclick: "document.querySelector('[data-tab=profile]').click()" };
+  const valid = (d) => !!d && d >= today;
+  const doc = (label, d) => ({ label, done: valid(d), kind: "nrc", detail: d ? (valid(d) ? "Valid to " + NRC.fmtDate(d) : "Expired " + NRC.fmtDate(d) + ". Renew it and send the proof to the NRC") : "Not on file. Send the proof to the NRC" });
+  const items = [
+    { label: "Photo", done: !!ref.photo_url, kind: "you", action: edit },
+    { label: "Phone", done: !!ref.phone, kind: "you", action: edit },
+    { label: "Home city and state", done: !!(ref.home_city && ref.home_state), kind: "you", action: edit },
+    { label: "Closest airport", done: !!ref.home_airport_iata, kind: "you", detail: "Needed to plan your travel", action: edit },
+    { label: "USATH member ID", done: !!ref.usath_member_id, kind: "you", action: edit }];
+  if (certified) {
+    items.push({ label: "Weekends you can referee", done: wk > 0, kind: "you", detail: wk ? wk + " weekend" + (wk > 1 ? "s" : "") + " declared" : "Tap your weekends on the grid below", action: { label: "Declare", onclick: "document.getElementById('weekends').scrollIntoView({behavior:'smooth',block:'center'})" } });
+    items.push({ label: "Initial rules assessment", done: !!asmt, kind: "you", detail: asmt ? asmt.pct + "% on " + NRC.fmtDate(asmt.created_at.slice(0, 10)) : "50 questions, 60 minutes", action: { label: "Take it", href: "training.html#program" } });
+  } else {
+    items.push({ label: "Level 1 online course", done: !!ref.level1_theory_passed_on, kind: "you", detail: ref.level1_theory_passed_on ? "Theory passed on " + NRC.fmtDate(ref.level1_theory_passed_on) : "Six modules and a final test", action: { label: "Open", href: "training.html#program" } });
+  }
+  items.push({ label: "Physical test passed", done: !!(p && p.passed), kind: "nrc", info: NRC.physicalInfo(), detail: p ? NRC.esc(NRC.physResult(p)) + ", " + NRC.fmtDate(p.tested_on) + (p.passed === false ? ", not passed" : "") : "Taken in person at a clinic" });
+  items.push(doc("USATH membership", ref.usath_membership_valid_until), doc("SafeSport certificate", ref.safesport_valid_until), doc("Background check", ref.background_check_valid_until));
+  $("#home-complete").innerHTML = NRC.completionHtml("Your profile", items);
 }
 let WA = {}, MYA = [];
 async function loadMyAssignments() {
@@ -514,7 +552,7 @@ async function loadEvals() {
   $("#st-evals").textContent = (data || []).length;
   const crit = [["score_rules_application","Rules application"],["score_game_management","Game management"],["score_progressive_punishment","Progressive punishment"],["score_positioning","Positioning"],["score_pair_cooperation","Pair cooperation"],["score_communication","Communication"]];
   const [L, tests] = await Promise.all([NRC.latestEvals(ref.id, ref.user_id), NRC.sb.from("referee_tests").select("*").eq("referee_id", ref.id).order("tested_on", { ascending: false }).then(r => r.data || []).catch(() => [])]);
-  const testsHtml = tests.length ? `<div class="card"><h3>Physical tests and theory exams</h3>${tests.map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${t.result ? " " + NRC.esc(t.result) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.notes ? '<div class="muted">' + NRC.esc(t.notes) + "</div>" : ""}</div>`).join("")}</div>` : "";
+  const testsHtml = tests.length ? `<div class="card"><h3>Physical tests and theory exams</h3>${tests.map(t => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)"><strong>${NRC.fmtDate(t.tested_on)}</strong>, ${t.kind === "physical" ? "Physical" : "Theory"}: ${NRC.esc(t.test_name)}${NRC.physResult(t) ? ": " + NRC.esc(NRC.physResult(t)) : ""}${t.passed === true ? ' <span class="pill green">passed</span>' : t.passed === false ? ' <span class="pill red">not passed</span>' : ""}${t.notes ? '<div class="muted">' + NRC.esc(t.notes) + "</div>" : ""}</div>`).join("")}</div>` : "";
   const scoreTags = (e) => { const sc = e.scores && Object.keys(e.scores).length ? e.scores : null; if (sc && CR.length) return CR.filter(c => sc[c.code] != null).map(c => `<span class="tag">${NRC.esc(c.label)}: <strong>${c.scale === "ihf6" ? NRC.Report.sym(sc[c.code]) : sc[c.code] + "/" + c.scale_max}</strong></span>`).join(" "); return crit.map(([k, l]) => e[k] ? `<span class="tag">${l}: <strong>${e[k]}/5</strong></span>` : "").join(" "); };
   $("#tab-evals").innerHTML = `<div class="card"><h3>Latest evaluations</h3>${NRC.latestEvalsHtml(L)}</div>` + testsHtml + (data || []).map(e => { const o = NRC.evalOverall(e); return `<div class="card"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div class="small muted">${NRC.fmtDate(e.evaluated_on)} &middot; ${NRC.esc(e.tournaments ? e.tournaments.name : "")}${e.games ? " &middot; " + NRC.esc([e.games.home_team, e.games.away_team].filter(Boolean).join(" v ") || "game") + (e.games.division ? " (" + NRC.esc(NRC.divisionLabel(e.games.division)) + ")" : "") : ""} &middot; ${NRC.esc(NRC.EVAL_SOURCE[e.source] || "Observer")}: ${NRC.esc(e.evaluator_name)}</div>${o != null ? "<div>Overall " + NRC.scoreHtml(o) + "</div>" : ""}</div>
     <div class="hist-years">${scoreTags(e)}</div>
@@ -527,7 +565,7 @@ $("#form-claim").addEventListener("submit", async (e) => {
   if (file) { const ext = (file.name.split(".").pop() || "jpg").toLowerCase(); const path = `${user.id}/${Date.now()}.${ext}`; const up = await NRC.sb.storage.from("receipts").upload(path, file, { contentType: file.type }); if (up.error) { alert("Receipt upload failed: " + up.error.message); return; } receipt_url = path; }
   const { error } = await NRC.sb.from("expense_claims").insert({ assignment_id: f.assignment_id.value, kind: f.kind.value, amount: parseFloat(f.amount.value), description: f.description.value.trim() || null, receipt_url, submitted_by: user.id });
   if (error) { alert("Could not submit: " + error.message); return; }
-  $("#dlg-claim").close(); loadHome();
+  $("#dlg-claim").close(); (window.reloadTrip || loadHome)();
 });
 window.openMyBooking = (aid) => { const f = $("#form-mybooking"); f.reset(); f.assignment_id.value = aid; $("#dlg-mybooking").showModal(); };
 $("#form-mybooking").addEventListener("submit", async (e) => {
@@ -535,7 +573,7 @@ $("#form-mybooking").addEventListener("submit", async (e) => {
   const row = { assignment_id: f.assignment_id.value, kind: f.kind.value, status: "booked", provider: f.provider.value.trim() || null, reference: f.reference.value.trim() || null, cost: f.cost.value === "" ? null : parseFloat(f.cost.value), start_at: f.start_at.value ? new Date(f.start_at.value).toISOString() : null, end_at: f.end_at.value ? new Date(f.end_at.value).toISOString() : null, from_place: f.from_place.value.trim() || null, to_place: f.to_place.value.trim() || null, paid_by: "referee", entered_by: "referee" };
   const { error } = await NRC.sb.from("travel_bookings").insert(row);
   if (error) { alert("Could not save: " + error.message); return; }
-  $("#dlg-mybooking").close(); loadHome();
+  $("#dlg-mybooking").close(); (window.reloadTrip || loadHome)();
 });
 
 // ---------- welcome tour: five screens at the first sign in, replayable from the header ----------

@@ -83,12 +83,77 @@
     if (online && (!exam || online.created_at.slice(0, 10) >= exam.tested_on)) theory = { date: online.created_at.slice(0, 10), what: online.kind === "retest" ? "Online re-test" : "Online assessment", result: online.pct + "% (" + online.correct + "/" + online.total + ")", passed: online.passed };
     const e = ev[0] || null; let game = null;
     if (e) { const o = NRC.evalOverall(e); game = { date: e.evaluated_on, what: e.tournaments ? e.tournaments.name : "In game evaluation", result: o != null ? o.toFixed(1) + " / 5" + (e.source ? ", " + (NRC.EVAL_SOURCE[e.source] || e.source).toLowerCase() : "") : "", by: e.evaluator_name }; }
-    return { physical: physical && { date: physical.tested_on, what: physical.test_name, result: physical.result, passed: physical.passed, by: physical.evaluator_name }, theory, game };
+    return { physical: physical && { date: physical.tested_on, what: physical.test_name, result: NRC.physResult(physical), passed: physical.passed, by: physical.evaluator_name }, theory, game };
   };
   NRC.latestEvalsHtml = (L) => {
     const tile = (title, x) => `<div class="stat" style="text-align:left"><div class="l" style="margin:0 0 4px">${title}</div>` + (x ? `<div><strong>${NRC.esc(x.what || "")}</strong></div><div class="small">${NRC.esc(x.result || "")}${x.passed === true ? ' <span class="pill green">passed</span>' : x.passed === false ? ' <span class="pill red">not passed</span>' : ""}</div><div class="small muted">${NRC.fmtDate(x.date)}${x.by ? ", " + NRC.esc(x.by) : ""}</div>` : '<div class="small muted">None on file</div>') + "</div>";
-    return `<div class="grid c3">${tile("Physical", L.physical)}${tile("Theory", L.theory)}${tile("In game", L.game)}</div>`;
+    return `<div class="grid c3">${tile("Physical" + NRC.physicalInfo(), L.physical)}${tile("Theory", L.theory)}${tile("In game", L.game)}</div>`;
   };
+  // ---------- physical test standard (USATH, Shuttle Run Test also called the beep test) ----------
+  // Source: usateamhandball.org, Refereeing, General certification. The women's second band is published as "30 - 99",
+  // read here as 30 to 39 since the 40 to 49 and over 50 bands follow.
+  NRC.PHYSICAL_STD = {
+    source: "https://www.usateamhandball.org/refereeing/refereeing-general-certification",
+    rows: [["18 to 29", "9.5", 77, "7", 52], ["30 to 39", "8", 62, "6", 42], ["40 to 49", "7", 52, "5", 33], ["50 and over", "6", 42, "4", 24]]
+  };
+  NRC.BEEP_REQUIRED = { M18: [9, 5], M30: [8, 0], M40: [7, 0], M50: [6, 0], W18: [7, 0], W30: [6, 0], W40: [5, 0], W50: [4, 0] };
+  NRC.BEEP_BAND = { M18: "Men 18 to 29", M30: "Men 30 to 39", M40: "Men 40 to 49", M50: "Men 50 and over", W18: "Women 18 to 29", W30: "Women 30 to 39", W40: "Women 40 to 49", W50: "Women 50 and over" };
+  // one fixed display for a physical test: "Level 9.5, 77 loops (standard Men 18 to 29: 9.5)"
+  NRC.physResult = (t) => t && t.beep_level != null ? `Level ${t.beep_level}.${t.beep_shuttle || 0}, ${t.beep_loops} loops` + (t.std_band ? ` (standard ${NRC.BEEP_BAND[t.std_band]}: ${NRC.BEEP_REQUIRED[t.std_band].join(".").replace(/\.0$/, "")})` : "") : (t && t.result) || "";
+  NRC.PHYSICAL_TIP = "Shuttle run (beep test). Pass = reach the level for your age and gender, e.g. men 18 to 29: level 9.5, women 18 to 29: level 7. Click for the full table.";
+  NRC.physicalHelp = function () {
+    let d = document.getElementById("dlg-phys-std");
+    if (!d) {
+      d = document.createElement("dialog"); d.id = "dlg-phys-std";
+      const S = NRC.PHYSICAL_STD;
+      d.innerHTML = `<div class="body"><h3 style="margin-top:0">Physical test: what pass means</h3>
+        <ul class="small" style="padding-left:18px;margin:0 0 12px"><li>Test: Shuttle Run Test, also called the beep test</li><li>Pass: reach the level for your age group and gender in the table. Level 9.5 means level 9, shuttle 5</li><li>Recorded as three scores: level, shuttle within the level, total loops</li><li>Level 1: physical requirements completed at a clinic. Level 2 and up: the standard for your age, taken again</li><li>Referees from outside USATH: optional</li></ul>
+        <div class="table-wrap"><table class="phys-std"><thead><tr><th>Age</th><th>Men</th><th>Women</th></tr></thead><tbody>${S.rows.map(r => `<tr><td>${r[0]}</td><td><strong>Level ${r[1]}</strong> <span class="muted">about ${r[2]} loops</span></td><td><strong>Level ${r[3]}</strong> <span class="muted">about ${r[4]} loops</span></td></tr>`).join("")}</tbody></table></div>
+        <p class="small muted" style="margin:10px 0 0">Source: <a href="${S.source}" target="_blank" rel="noopener">USA Team Handball, referee general certification</a>. Questions: ${NRC.esc(C.CONTACT_EMAIL || "")}</p>
+        <p style="margin:14px 0 0"><button class="btn sm" type="button" onclick="this.closest('dialog').close()">Close</button></p></div>`;
+      document.body.appendChild(d);
+    }
+    d.showModal();
+  };
+  NRC.physicalInfo = () => `<button type="button" class="info-btn" title="${NRC.esc(NRC.PHYSICAL_TIP)}" aria-label="What pass means on the physical test" onclick="NRC.physicalHelp()">?</button>`;
+
+  // ---------- profile completion dashboard ----------
+  // items: [{ label, done, kind: "you" (counts, the person does it) | "nrc" (counts, recorded by the NRC) | "optional" (never counts),
+  //           detail, action: { label, href | onclick }, info: html }]
+  NRC.completionHtml = function (title, items) {
+    const counted = items.filter(i => i.kind !== "optional"), done = counted.filter(i => i.done).length;
+    const pct = counted.length ? Math.round(done / counted.length * 100) : 100;
+    const row = (i) => `<li class="cp-item ${i.done ? "done" : ""} ${i.kind === "optional" ? "opt" : ""}"><span class="cp-mark" aria-hidden="true">${i.done ? "&#10003;" : ""}</span>
+      <div class="cp-text"><div class="cp-label">${NRC.esc(i.label)}${i.info || ""}${i.kind === "nrc" && !i.done ? ' <span class="pill">recorded by the NRC</span>' : i.kind === "optional" ? ' <span class="pill">optional</span>' : ""}</div>${i.detail ? `<div class="small muted">${i.detail}</div>` : ""}</div>
+      ${!i.done && i.action ? (i.action.href ? `<a class="btn sm secondary" href="${i.action.href}">${NRC.esc(i.action.label)}</a>` : `<button class="btn sm secondary" type="button" onclick="${i.action.onclick}">${NRC.esc(i.action.label)}</button>`) : ""}</li>`;
+    const todo = items.filter(i => !i.done), ok = items.filter(i => i.done);
+    return `<div class="card cp"><div class="cp-head"><div><h3 style="margin:0">${NRC.esc(title)}</h3><div class="small muted">${done} of ${counted.length} done${items.some(i => i.kind === "optional") ? ", optional items not counted" : ""}</div></div><div class="cp-pct ${pct === 100 ? "full" : ""}">${pct}%</div></div>
+      <div class="cp-bar"><span style="width:${pct}%"></span></div>
+      <ul class="cp-list">${todo.map(row).join("")}</ul>${ok.length ? `<details class="cp-done"><summary class="small">${ok.length} done</summary><ul class="cp-list">${ok.map(row).join("")}</ul></details>` : ""}</div>`;
+  };
+  // Nations for referees from outside USATH: the top 20 of the 2025 IHF Men's World Championship plus Canada, Mexico and Serbia.
+  // Alphabetical, "Other" lets the user type any other nation. Stored as the nation name in guest_officials.federation.
+  NRC.NATIONS = ["Argentina", "Austria", "Brazil", "Canada", "Croatia", "Czech Republic", "Denmark", "Egypt", "France", "Germany", "Hungary", "Iceland", "Italy", "Mexico", "Netherlands", "North Macedonia", "Norway", "Portugal", "Serbia", "Slovenia", "Spain", "Sweden", "Switzerland"];
+  // Turns <input name="federation"> into a nation list with an "Other" field. The input stays the form value, hidden,
+  // so code that reads or sets input.value keeps working; setting it updates the list.
+  NRC.nationPicker = function (input) {
+    if (!input || input.dataset.nation) return;
+    input.dataset.nation = "1"; input.type = "hidden"; input.removeAttribute("placeholder");
+    const sel = document.createElement("select"); sel.required = input.required; input.required = false;
+    sel.innerHTML = '<option value="">Choose the nation</option>' + NRC.NATIONS.map(n => `<option>${n}</option>`).join("") + '<option value="__other">Other nation</option>';
+    const other = document.createElement("input"); other.placeholder = "Nation"; other.className = "hidden"; other.style.marginTop = "6px";
+    input.after(sel, other);
+    const proto = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+    const sync = () => { const v = sel.value === "__other" ? other.value.trim() : sel.value; proto.set.call(input, v); other.classList.toggle("hidden", sel.value !== "__other"); other.required = sel.value === "__other" && sel.required; };
+    Object.defineProperty(input, "value", { configurable: true, get() { return proto.get.call(input); }, set(v) {
+      v = String(v || "").trim(); const hit = NRC.NATIONS.find(n => n.toLowerCase() === v.toLowerCase() || v.toLowerCase().startsWith(n.toLowerCase() + " "));
+      sel.value = !v ? "" : hit ? hit : "__other"; other.value = hit || !v ? "" : v; sync(); } });
+    sel.addEventListener("change", sync); other.addEventListener("input", sync);
+    input.value = proto.get.call(input);
+    const f = input.form; if (f) f.addEventListener("reset", () => other.classList.add("hidden"));
+  };
+  NRC.GUEST_LEVEL = { regional: "Regional or club", national: "National", continental: "Continental (EHF, PATHF, other)", ihf: "IHF international" };
+  NRC.guestQuizLevel = (l) => ({ regional: "level_2", national: "level_3", continental: "nachc", ihf: "ihf" }[l] || "level_3");
   NRC.notice = (el, msg, kind) => { if (!el) return; el.className = "notice " + (kind || ""); el.innerHTML = msg; el.classList.remove("hidden"); };
   NRC.shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
@@ -114,7 +179,7 @@
       const a = NRC.$("#nav-login");
       if (!a) return;
       if (u) {
-        a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : u.role === "evaluator" ? "My evaluations" : "My home"; a.href = NRC.homeFor(u);
+        a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : u.role === "evaluator" ? "My evaluations" : u.role === "guest" ? "My events" : "My home"; a.href = NRC.homeFor(u);
         if (u.role === "referee" || u.role === "admin") a.insertAdjacentHTML("beforebegin", `<a href="directory.html" class="${active === "directory.html" ? "active" : ""}">Directory</a>`);
         a.insertAdjacentHTML("afterend", `<a href="#" class="nav-out" onclick="NRC.signOut();return false">Sign out</a>`);
         NRC.renderFeedback();

@@ -40,6 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const next = new URLSearchParams(location.search).get("next");
   const u = await NRC.currentUser();
   if (u) { location.href = next || NRC.homeFor(u); return; }
+  const pre = new URLSearchParams(location.search).get("email"); if (pre) document.getElementById("login-form").email.value = pre;
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const msg = NRC.$("#msg");

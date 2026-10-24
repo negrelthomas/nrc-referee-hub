@@ -64,8 +64,8 @@ export default async () => {
   // 4. programs overdue
   const { data: overdue } = await admin.from("programs").select("id,user_id,due_on,status").in("status", ["active", "ready_for_retest"]).lt("due_on", inDays(0));
   for (const p of overdue || []) {
-    const { data: prof } = await admin.from("profiles").select("email,full_name").eq("id", p.user_id).maybeSingle();
-    if (!prof) continue;
+    const { data: prof } = await admin.from("profiles").select("email,full_name,role").eq("id", p.user_id).maybeSingle();
+    if (!prof || prof.role === "guest") continue; // referees from outside USATH: programs are optional, no reminder
     digest.push(`Program overdue: ${prof.full_name || prof.email} (due ${fmtDate(p.due_on)})`);
     if (await already("program", p.id)) continue;
     const html = `<p>Hi ${esc((prof.full_name || "").split(" ")[0] || "")},</p><p>Your training program on the hub was due on ${fmtDate(p.due_on)}. Finish the remaining modules and take the re-test when ready: <a href="${base}/training.html#program">${base}/training.html#program</a>. Questions: ${contact}.</p><p>National Referee Committee</p>`;

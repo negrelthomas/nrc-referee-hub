@@ -236,6 +236,7 @@
     if (!NRC.sb) { host.innerHTML = notice("error", "The program needs the database connection."); return; }
     if (!user) { host.innerHTML = `<div class="card"><h3 style="margin-top:0">My program</h3><p>Candidates follow the Level 1 online course here and take the final test; certified referees take a ${settings.assessment_questions} question assessment at first sign in and get a tailored program on their weakest rules. Progress is saved on your profile.</p><p><a class="btn" href="login.html?next=training.html%23program">Sign in</a> &nbsp; <a class="btn ghost" href="become-a-referee.html">Not on the roster yet?</a></p></div>`; return; }
     if (ref && RANK[ref.cert_level] >= 1) await renderProgram(); else await renderLevel1();
+    if (ref && ref.guest) host.insertAdjacentHTML("afterbegin", notice("", "<strong>Optional for you.</strong> As a referee from outside USATH you may take the assessment and follow the program like any USATH referee. Nothing here is required, there is no deadline and no reminder. Your results are visible to you and the NRC only."));
   }
 
   document.addEventListener("DOMContentLoaded", async () => {
@@ -246,6 +247,8 @@
       certTest = t.data || { question_count: 30, pass_pct: 80, time_limit_minutes: 30, max_difficulty: "level_1", module_pass_pct: 70, module_question_count: 10 };
       settings = s.data || { assessment_questions: 50, assessment_pass_pct: 80, weak_rule_pct: 80, program_weeks: 12, sessions_per_week: 2, module_question_count: 10, module_pass_pct: 80, time_limit_minutes: 60 };
       if (user) { const { data } = await NRC.sb.from("referees").select("id,cert_level,first_name").eq("user_id", user.id).maybeSingle(); ref = data; }
+      // referees from outside USATH: same assessment and program, at the level of their own federation, nothing mandatory
+      if (user && !ref) { const { data: g } = await NRC.sb.from("guest_officials").select("first_name,federation_level").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1); if (g && g[0]) ref = { id: null, guest: true, first_name: g[0].first_name, cert_level: NRC.guestQuizLevel(g[0].federation_level) }; }
     }
     ALL = await NRC.loadQuestions();
     NRC.renderProgram = render;

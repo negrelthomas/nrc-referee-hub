@@ -67,7 +67,7 @@
       <div id="pane-referees" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Referee roster</h1><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="btn-ref-email" onclick="openRefComposer()" disabled>Email selected</button><button class="btn sm ghost" onclick="openRef(null)">Add referee</button></div></div>
         <div class="toolbar" style="margin-top:12px"><input id="r-q" placeholder="Search"><select id="r-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select><select id="r-login"><option value="">Any sign in status</option><option value="never">Never signed in</option><option value="30">Not signed in for 30 days</option><option value="yes">Signed in</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="r-inactive" style="width:auto"> show inactive</label><button class="btn ghost sm" onclick="exportCsv()">Export CSV</button></div>
-        <div class="table-wrap"><table id="refs"><thead><tr><th><input type="checkbox" id="ref-all" style="width:auto" title="Select all shown"></th><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airport</th><th>Games</th><th>Last eval</th><th>Last sign in</th><th>Last update</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="refs"><thead><tr><th><input type="checkbox" id="ref-all" style="width:auto" title="Select all shown"></th><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airport</th><th>Games</th><th>Last eval</th><th title="Latest in person theory exam or online assessment, whichever is newer">Last theory</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Clubs -->
@@ -331,9 +331,15 @@
   <h3 id="dlg-test-title" style="margin-top:0">Physical test</h3>
   <form id="form-test">
     <input type="hidden" name="kind">
-    <div class="row"><div><label>Date</label><input name="tested_on" type="date" required></div><div><label>Test</label><input name="test_name" list="test-names" required></div></div>
-    <datalist id="test-names"><option>Yo-Yo intermittent recovery level 1</option><option>40 m sprint</option><option>Shuttle run (beep test)</option><option>Change of direction agility</option><option>Written rules exam</option><option>Video clips exam</option></datalist>
-    <div class="row"><div><label>Result</label><input name="result" placeholder="level 16.2, 5.9 s, 42/50"></div><div><label>Outcome</label><select name="passed"><option value="">Not graded</option><option value="true">Passed</option><option value="false">Not passed</option></select></div></div>
+    <div class="row"><div><label>Date</label><input name="tested_on" type="date" required></div><div class="t-theory"><label>Exam</label><input name="test_name" list="test-names"></div><div class="t-phys"><label>Test</label><input value="Shuttle Run Test (beep test)" readonly style="background:#F0F3F8"></div></div>
+    <datalist id="test-names"><option>Written rules exam</option><option>Video clips exam</option></datalist>
+    <div class="t-phys">
+      <label>Standard applied <button type="button" class="info-btn" onclick="NRC.physicalHelp()" title="USATH pass levels by gender and age">?</button></label>
+      <select name="std_band"><option value="">Gender and age on the test day</option><optgroup label="Men"><option value="M18">Men 18 to 29: level 9.5</option><option value="M30">Men 30 to 39: level 8</option><option value="M40">Men 40 to 49: level 7</option><option value="M50">Men 50 and over: level 6</option></optgroup><optgroup label="Women"><option value="W18">Women 18 to 29: level 7</option><option value="W30">Women 30 to 39: level 6</option><option value="W40">Women 40 to 49: level 5</option><option value="W50">Women 50 and over: level 4</option></optgroup></select>
+      <div class="row"><div><label>Level reached</label><input name="beep_level" type="number" min="1" max="21" step="1" inputmode="numeric"></div><div><label>Shuttle within the level</label><input name="beep_shuttle" type="number" min="0" max="16" step="1" inputmode="numeric"></div></div>
+      <div class="row"><div><label>Total loops</label><input name="beep_loops" type="number" min="0" max="300" step="1" inputmode="numeric"><div class="help">Filled from level and shuttle; correct it if the test app counted differently.</div></div><div><label>Outcome</label><div id="beep-outcome" class="small" style="padding-top:10px">Calculated from the standard</div></div></div>
+    </div>
+    <div class="row t-theory"><div><label>Result</label><input name="result" placeholder="42/50"></div><div><label>Outcome</label><select name="passed"><option value="">Not graded</option><option value="true">Passed</option><option value="false">Not passed</option></select></div></div>
     <label>Evaluator</label><input name="evaluator_name">
     <label>Notes</label><textarea name="notes"></textarea>
     <label><input type="checkbox" name="shared_with_referee" style="width:auto" checked> Visible to the referee on their profile</label>
@@ -474,9 +480,9 @@
     <p class="small muted">Removing a designated referee reopens their invitation as declined so you can pick a replacement from Find referees. Travel: the NRC books only when the organizer chose "NRC books"; otherwise record what the organizer or the referee booked so the referee sees everything in one place.</p>
     <h4 style="margin:18px 0 6px">Organizer pairs from outside USATH</h4>
     <div id="guest-summary" class="chips"></div>
-    <div class="table-wrap"><table id="guests"><thead><tr><th>Guest</th><th>Federation</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div class="table-wrap"><table id="guests"><thead><tr><th>Guest</th><th>Nation</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
     <p style="margin-top:8px"><button class="btn sm pos" type="button" id="btn-guest-add" onclick="openGuestPair()" data-tip="Records a pair from outside USATH that the organizer brings, up to the number set in Event details, Pairs sourced outside USATH.">Name an organizer pair</button></p>
-    <ul class="small muted" style="padding-left:18px"><li>A pair from outside USATH is always the organizer's pair; USATH designates USATH pairs only. The NRC or the organizer records it, up to the number the organizer declared</li><li>To add one more, raise "Pairs sourced outside USATH" in the event details first: the pairs USATH staffs go down by one, and the change is logged and notified</li><li>No hub account, no invitation, no evaluation. Shown to the organizer with the team; included in the brief and update emails when an email is given</li><li>Bookings and expenses are recorded here and reimbursed from the Expenses tab</li></ul>
+    <ul class="small muted" style="padding-left:18px"><li>A pair from outside USATH is always the organizer's pair; USATH designates USATH pairs only. The NRC or the organizer records it, up to the number the organizer declared</li><li>To add one more, raise "Pairs sourced outside USATH" in the event details first: the pairs USATH staffs go down by one, and the change is logged and notified</li><li>Each referee with an email gets a sign in link to their own page: the events they are named for with every detail, travel and expenses. Training and the online tests are open to them, all optional. No invitation, no evaluation, no ranking</li><li>Their profile shows how complete it is; they complete it at first sign in, or you do here with Edit</li><li>Bookings and expenses are recorded here and reimbursed from the Expenses tab</li></ul>
   </div>
   <div id="ttab-money" class="hidden">
     <div id="money-summary" class="chips"></div>
@@ -610,20 +616,23 @@
   <h3 style="margin-top:0">Organizer pair from outside USATH</h3>
   <form id="form-guest">
     <label>Pair invited before</label><select name="reuse"><option value="">New pair</option></select>
-    <label>Federation or country</label><input name="federation" required placeholder="Canada (CHF)">
+    <label>Nation</label><input name="federation" required>
     <fieldset style="border:0;padding:0;margin:10px 0 0"><legend class="small"><strong>First referee</strong></legend>
       <div class="row"><div><label>First name</label><input name="a_first" required></div><div><label>Last name</label><input name="a_last" required></div></div>
       <div class="row"><div><label>Email</label><input name="a_email" type="email"></div><div><label>Phone</label><input name="a_phone"></div></div>
       <div class="row"><div><label>Home city</label><input name="a_city"></div><div><label>Home airport (IATA)</label><input name="a_iata" maxlength="3" style="text-transform:uppercase"></div></div>
+      <label>Refereeing level in their federation</label><select name="a_level"><option value="">Not known</option><option value="regional">Regional or club</option><option value="national">National</option><option value="continental">Continental (EHF, PATHF, other)</option><option value="ihf">IHF international</option></select>
     </fieldset>
     <fieldset id="guest-b" style="border:0;padding:0;margin:10px 0 0"><legend class="small"><strong>Second referee</strong></legend>
       <div class="row"><div><label>First name</label><input name="b_first" required></div><div><label>Last name</label><input name="b_last" required></div></div>
       <div class="row"><div><label>Email</label><input name="b_email" type="email"></div><div><label>Phone</label><input name="b_phone"></div></div>
       <div class="row"><div><label>Home city</label><input name="b_city"></div><div><label>Home airport (IATA)</label><input name="b_iata" maxlength="3" style="text-transform:uppercase"></div></div>
+      <label>Refereeing level in their federation</label><select name="b_level"><option value="">Not known</option><option value="regional">Regional or club</option><option value="national">National</option><option value="continental">Continental (EHF, PATHF, other)</option><option value="ihf">IHF international</option></select>
     </fieldset>
     <label>How to reimburse (method and payee)</label><input name="payment_notes" placeholder="Wise transfer to each official, or paid to the federation">
     <p class="small muted" style="margin:4px 0 0">No bank or card numbers here: collect them outside the hub.</p>
     <label>Notes</label><textarea name="notes"></textarea>
+    <label class="check" style="display:flex;gap:8px;align-items:flex-start;margin-top:12px;font-weight:500"><input type="checkbox" name="send_link" style="width:auto;margin-top:3px" checked><span>Email each referee with an email address a sign in link to their page on the hub: the event, the team, travel and expenses, and training if they want it. Referees who already have an account are not emailed again.</span></label>
     <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Save</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-guest').close()">Cancel</button></p>
   </form>
 </div></dialog>
