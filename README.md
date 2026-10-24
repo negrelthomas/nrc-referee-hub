@@ -93,7 +93,7 @@ Admin > Tournament requests > Open. Three tabs: Find referees (level filter, loc
 
 Email needs these environment variables on Netlify (Site configuration > Environment variables): `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY` (Supabase > Project settings > API keys, service role, server only), `GMAIL_USER` and `GMAIL_APP_PASSWORD` (the same Gmail account and app password used for the Supabase auth SMTP), `MAIL_FROM` (e.g. `NRC Referee Hub <negrel.thomas@gmail.com>`), `SITE_URL` (the Netlify URL). `RESEND_API_KEY` works as an alternative transport. Without a transport the admin can still track invitations; the send buttons record the attempt as not sent. Every email is logged in `email_log`. `FEEDBACK_EMAIL` (optional) receives the notes from the Give feedback button on every page; without it they go to `CONTACT_EMAIL`. Notes are also stored in `site_feedback`.
 
-Staffing flow: organizer request (with supervisor need) > Find referees (declared weekend availability first, local flag, pairs) > invitations with accept, tentative, decline and a sign in prompt > confirm (count and pair checks, full brief emailed, assignment created) > Notify organizer (designated list and private page `tournament.html?token=`). Referees declare weekend availability on their home page.
+Staffing flow: organizer request (with supervisor need) > Find referees (declared weekend availability first, local flag, pairs) > invitations with accept, tentative, decline and a sign in prompt > designate (button Designate accepted; database status stays confirmed) (count and pair checks, full brief emailed, assignment created) > Notify organizer (designated list and private page `tournament.html?token=`). Referees declare weekend availability on their home page.
 
 ## Roadmap
 

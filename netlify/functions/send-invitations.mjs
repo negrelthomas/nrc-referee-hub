@@ -71,8 +71,8 @@ export default async (req) => {
       const roleWord = a.role === "referee" ? "referee" : a.role === "delegate" ? "supervisor" : a.role;
       const others = designated.filter(d => d.id !== a.id).map(d => esc(d.first_name + " " + d.last_name) + (d.role && d.role !== "referee" ? " (" + (d.role === "delegate" ? "supervisor" : d.role) + ")" : "")).join(", ");
       const duties = a.role === "referee" ? "" : `<p><strong>Your role:</strong> you oversee the referee pairs, handle protests with the organizer, and record an evaluation for each pair on the hub after the event.${t.supervisor_notes ? " Organizer notes: " + esc(t.supervisor_notes) : ""}</p>`;
-      const subject = `Confirmed as ${roleWord}: ${t.name}, ${fmtDate(t.start_date)}`;
-      const html = `<p>Hi ${esc(a.first_name)},</p><p>You are confirmed as <strong>${roleWord}</strong> for <strong>${esc(t.name)}</strong>.</p>
+      const subject = `Designated as ${roleWord}: ${t.name}, ${fmtDate(t.start_date)}`;
+      const html = `<p>Hi ${esc(a.first_name)},</p><p>The NRC has designated you as <strong>${roleWord}</strong> for <strong>${esc(t.name)}</strong>.</p>
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br><strong>Where:</strong> ${esc(where)}<br>${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + "<br>" : ""}${others ? "<strong>Officials:</strong> " + others + "<br>" : ""}<strong>Organizer:</strong> ${esc(t.organizer_name)}, ${esc(t.organizer_email)}${t.organizer_phone ? ", " + esc(t.organizer_phone) : ""}</p>${duties}
         <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? (a.guest ? "you (keep your receipts)" : "you (keep your receipts and record your bookings on the hub)") : "the organizer"}.</p>
         ${a.guest ? `<p>You are invited by the organizer, ${esc(t.organizer_name || "")} (${esc(t.organizer_email || "")}), who arranges your travel and reimbursement. Keep your receipts and send them to the organizer after the event.</p>` : `<p>Your trip and bookings are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p>`}<p>National Referee Committee</p>`;
@@ -134,9 +134,9 @@ export default async (req) => {
     if (kind === "confirm") {
       const partner = partnerOf(ref.id);
       const others = designated.filter(d => d.id !== ref.id).map(d => esc(d.first_name + " " + d.last_name)).join(", ");
-      subject = `Confirmed: ${t.name}, ${fmtDate(t.start_date)}`;
-      const recorded = /^Recorded by /.test(r.response_note || "") ? `<p>You accepted this assignment outside the hub (${esc(String(r.response_note).replace(/^Recorded by [^:]*:\s*/, ""))}). The NRC has recorded it so the hub shows you as confirmed. If this is not right, reply to this email.</p>` : "";
-      html = `<p>Hi ${esc(ref.first_name)},</p><p>You are confirmed as a referee for <strong>${esc(t.name)}</strong>.</p>${recorded}
+      subject = `Designated: ${t.name}, ${fmtDate(t.start_date)}`;
+      const recorded = /^Recorded by /.test(r.response_note || "") ? `<p>You accepted this assignment outside the hub (${esc(String(r.response_note).replace(/^Recorded by [^:]*:\s*/, ""))}). The NRC has recorded it so the hub shows you as designated. If this is not right, reply to this email.</p>` : "";
+      html = `<p>Hi ${esc(ref.first_name)},</p><p>The NRC has designated you as a referee for <strong>${esc(t.name)}</strong>.</p>${recorded}
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br>
         <strong>Where:</strong> ${esc(where)}<br>
         ${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + " over the event<br>" : ""}
@@ -153,15 +153,15 @@ export default async (req) => {
     } else {
       const again = kind === "reminder" ? "<p>This is a reminder; the NRC has not received your answer yet.</p>" : "";
       const mine = availOf(ref.id), mate = pairPartner(ref.id), mateAv = mate ? availOf(mate.id) : null;
-      const pairP = mate ? `<p>You are invited as a pair with <strong>${esc(mate.first_name + " " + mate.last_name)}</strong>, who receives the same invitation. The pair is confirmed only once both of you accept.${mateAv && !mateAv.ok ? " " + esc(mate.first_name) + "'s availability for these dates is " + mateAv.word + "; please check with them." : ""}</p>` : "";
-      const checkP = !mine.ok ? `<p><strong>Please confirm your availability.</strong> Your availability for ${when} is ${mine.word}. If you can officiate on these dates, press Accept; if you are not sure yet, press Tentative and let us know when you will know; if you cannot, press Decline.</p>` : "";
+      const pairP = mate ? `<p>You are invited as a pair with <strong>${esc(mate.first_name + " " + mate.last_name)}</strong>, who receives the same invitation. The NRC designates the pair once both of you have accepted.${mateAv && !mateAv.ok ? " " + esc(mate.first_name) + "'s availability for these dates is " + mateAv.word + "; please check with them." : ""}</p>` : "";
+      const checkP = !mine.ok ? `<p><strong>Please check your availability.</strong> Your availability for ${when} is ${mine.word}. If you can officiate on these dates, press Accept; if you are not sure yet, press Tentative and let us know when you will know; if you cannot, press Decline.</p>` : "";
       subject = `${kind === "reminder" ? "Reminder: " : ""}Referee invitation, ${t.name}, ${fmtDate(t.start_date)}`;
       html = `<p>Hi ${esc(ref.first_name)},</p>${again}<p>The NRC proposes you as a referee for <strong>${esc(t.name)}</strong>, ${when}, at ${esc(where)}. ${t.games_expected ? "About " + t.games_expected + " games over the event." : ""}</p>
         ${pairP}${checkP}
         <p>What the organizer covers:<br>${covers.map(esc).join("<br>")}</p>
         <p><a href="${accept}" style="background:#C8102E;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none;font-weight:bold">Accept</a>&nbsp;&nbsp;<a href="${tentative}" style="background:#04234F;color:#fff;padding:12px 18px;border-radius:8px;text-decoration:none">Tentative</a>&nbsp;&nbsp;<a href="${decline}" style="color:#04234F;padding:12px 18px;text-decoration:underline">Decline</a></p>
         <p>The proposal is also on your referee home, where you can review the details and answer: <a href="${base}/login.html?next=profile.html">sign in</a>.</p>
-        <p>Please answer within 7 days. Nothing to book until the NRC confirms the final selection. Questions: ${contact}.</p><p>National Referee Committee</p>`;
+        <p>Please answer within 7 days. Accepting is not yet a designation: nothing to book until the NRC designates the team. Questions: ${contact}.</p><p>National Referee Committee</p>`;
     }
     const r2 = await sendMail({ to: ref.email, subject, html });
     const patch = kind === "confirm" ? { status: "confirmed" } : kind === "release" ? { status: "cancelled" } : kind === "reminder" ? { reminder_count: (r.reminder_count || 0) + 1 } : { status: "sent", sent_at: new Date().toISOString() };

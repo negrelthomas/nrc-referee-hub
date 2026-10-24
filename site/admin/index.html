@@ -225,8 +225,8 @@
           <ol class="steps small">
             <li><strong>Review.</strong> Open the request, set the sanction and region, set status to reviewing. Note the supervisor need in the header.</li>
             <li><strong>Find referees.</strong> The Find referees tab lists certified referees, best first: those who declared themselves available for the tournament weekends, then tentative, then not declared; unavailable ones are hidden by default. Local referees (same airport as the venue) are flagged, as are established pairs and season load. Tick the referees to propose and add them as draft invitations. Propose both members of a pair when you want the pair.</li>
-            <li><strong>Send invitations.</strong> Select the drafts and send. Each referee gets an email with the event, what is covered, and three answers: accept, tentative, decline, plus a prompt to sign in. The same proposal appears on their referee home. Answers show on the Invitations tab as they come in; send a reminder after a few days to those still waiting.</li>
-            <li><strong>Confirm.</strong> Select the accepted referees and confirm. The hub checks that the confirmed count matches the pairs requested and that established pairs stay together, and warns if not. Confirming emails each referee the full brief (dates, venue, airport, earliest departure, partner, the rest of the team, organizer contact, coverage) and records the assignment; the tournament moves to staffed.</li>
+            <li><strong>Send invitations.</strong> Select the drafts and send. Each referee gets an email with the event, what is covered, and three answers: accept, tentative, decline, plus a prompt to sign in. The same proposal appears on their referee home. Answers show on the Answers tab as they come in; send a reminder after a few days to those still waiting.</li>
+            <li><strong>Designate.</strong> Select the accepted referees and press Designate accepted. The hub checks that the designated count matches the pairs requested and that established pairs stay together, and warns if not. Designating emails each referee the full brief (dates, venue, airport, earliest departure, partner, the rest of the team, organizer contact, coverage) and records the assignment; the tournament moves to staffed.</li>
             <li><strong>Notify organizer.</strong> Sends the organizer the designated list and the link to their private tournament page, where they see names, levels, clubs, contact details and travel notes, and the coverage they committed to. Send it again after any change.</li>
             <li><strong>Designated and travel.</strong> This tab lists who is designated with their contact and home airport, shows who else is open to officiate (accepted or tentative but not designated), lets you add a supervisor or observer directly, and remove a designated referee (their invitation is marked declined; pick a replacement from Find referees). When the NRC books travel, record each flight, hotel, car or train with provider, reference, times, cost and who pays; the referee sees every booking on their home with a calendar file, and the organizer sees them on their page. When the organizer books, record what they tell you so the referee still has one place to look.</li>
             <li><strong>Changes and cancellations.</strong> Organizers can edit their request (dates, venue, pairs, coverage, who books travel) or cancel it from their page; every change is logged and emailed to the NRC and to the designated officials. The NRC edits the main fields in the tournament header and uses Notify changes to send the same email; a cancelled event sends a cancellation notice. Send brief sends each designated official a role specific confirmation (referee, supervisor, observer) with the full details.</li>
@@ -414,9 +414,9 @@
   </details>
 
   <div class="tabs" style="margin-top:14px">
-    <button data-ttab="invites" class="active">Invitations</button>
-    <button data-ttab="candidates">Find referees</button>
-    <button data-ttab="designated">Designated and travel</button>
+    <button data-ttab="candidates">1. Find and invite</button>
+    <button data-ttab="invites" class="active">2. Answers</button>
+    <button data-ttab="designated">3. Designated and travel</button>
     <button data-ttab="money">Expenses</button>
     <button data-ttab="officiated">Games and evaluations</button>
     <button data-ttab="log">Change log</button>
@@ -428,18 +428,19 @@
     <div class="toolbar" style="margin-top:10px">
       <button class="btn sm navy" type="button" onclick="sendSelected('invite')">Send invitations</button>
       <button class="btn sm ghost" type="button" onclick="sendSelected('reminder')">Send reminder</button>
-      <button class="btn sm secondary" type="button" onclick="sendSelected('confirm')">Confirm accepted</button>
+      <button class="btn sm secondary" type="button" onclick="sendSelected('confirm')">Designate accepted</button>
+      <button class="btn sm ghost" type="button" onclick="openDesignateOutside()" title="The referee said yes by phone, email or in person but has not answered on the hub">Designate, accepted outside the hub</button>
       <button class="btn sm ghost" type="button" onclick="removeSelected()">Remove draft</button>
       <button class="btn sm ghost" type="button" id="btn-organizer" onclick="notifyOrganizer()" style="margin-left:auto">Notify organizer</button>
     </div>
-    <p class="small muted">Invite emails the referee with accept, tentative and decline links and a prompt to sign in; the proposal also shows on their referee home. Confirm checks the count against the pairs requested and keeps established pairs together, then emails each confirmed referee the full brief and creates the assignment. Notify organizer emails the organizer the designated list and their private tournament page. See the Guide for the full flow.</p>
+    <p class="small muted">Invite emails the referee with accept, tentative and decline links and a prompt to sign in; the proposal also shows on their referee home. Three steps: the NRC invites referees who are available, the referee accepts, the NRC designates. Designate accepted checks the count against the pairs requested and keeps established pairs together, then emails each designated referee the full brief and adds them to the team. When a referee said yes by phone, email or in person, tick them and use Designate, accepted outside the hub: you note how and when they accepted, and their designation email carries that note for the record. Notify organizer emails the organizer the designated list and their private tournament page. See the Guide for the full flow.</p>
   </div>
 
   <div id="ttab-candidates" class="hidden">
     <div class="toolbar"><input id="cand-q" placeholder="Search name, club, airport"><select id="cand-level"><option value="">All levels</option><option value="level_1">Level 1 and above</option><option value="level_2">Level 2 and above</option><option value="level_3">Level 3 and above</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-avail" checked style="width:auto"> hide unavailable</label><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-pairs" checked style="width:auto"> invite pairs together</label></div>
     <div id="cand-hidden" class="small muted" style="margin:6px 0"></div>
     <div class="table-wrap"><table id="cand"><thead><tr><th></th><th>Referee</th><th>Level</th><th>Club</th><th>Airport</th><th>Availability</th><th>Season</th><th>Pair</th></tr></thead><tbody></tbody></table></div>
-    <p style="margin-top:10px"><button class="btn sm navy" type="button" onclick="addCandidates()">Add selected as draft invitations</button> <span class="small muted">Then send from the Invitations tab.</span></p>
+    <p style="margin-top:10px"><button class="btn sm navy" type="button" onclick="addCandidates()">Add selected as draft invitations</button> <span class="small muted">Then send them from tab 2, Answers.</span></p>
   </div>
 
   <div id="ttab-designated" class="hidden">
@@ -512,14 +513,14 @@
 
 <!-- Message to clubs -->
 <dialog id="dlg-accept" style="max-width:600px"><div class="body">
-  <h3 style="margin-top:0">Record acceptance given outside the hub</h3>
+  <h3 style="margin-top:0" id="acc-title">Record acceptance given outside the hub</h3>
   <p class="small" id="acc-who"></p>
   <form id="form-accept">
-    <input type="hidden" name="ids">
+    <input type="hidden" name="ids"><input type="hidden" name="reqs"><input type="hidden" name="mode">
     <label>How and when they accepted (shown in the email and kept on the invitation)</label><textarea name="reason" required minlength="15"></textarea>
-    <label style="font-weight:400"><input type="checkbox" name="send" checked style="width:auto"> Send each referee the confirmation email (dates, team, what the organizer covers, travel), with a note that the NRC recorded their acceptance and that they should reply if it is not right</label>
-    <ul class="small muted" style="padding-left:18px"><li>Creates their invitation as confirmed, so the Invitations tab and their home show them as accepted and confirmed</li><li>Logged with your name; fictional test referees get no email</li></ul>
-    <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit">Record</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-accept').close()">Cancel</button></p>
+    <label style="font-weight:400"><input type="checkbox" name="send" checked style="width:auto"> Send each referee the designation email (dates, team, what the organizer covers, travel), with a note that the NRC recorded their acceptance and that they should reply if it is not right</label>
+    <ul class="small muted" style="padding-left:18px"><li id="acc-effect">Records their invitation as accepted and designated, on the Answers tab and on their home</li><li>Logged with your name; fictional test referees get no email</li></ul>
+    <p style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" type="submit" id="acc-submit">Record</button><button class="btn ghost" type="button" onclick="document.getElementById('dlg-accept').close()">Cancel</button></p>
   </form>
 </div></dialog>
 

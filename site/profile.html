@@ -41,9 +41,9 @@
     <div id="home-next"></div>
     <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
     <div class="grid c2" style="margin-top:14px">
-      <div class="card"><h3>Weekends I can referee</h3><ul class="small muted" style="padding-left:18px;margin:6px 0 10px"><li>Tap a weekend to cycle: available, tentative, unavailable</li><li>Mark unavailable only the weekends you cannot referee at all</li><li>Weekends of tournaments you are confirmed for show as <strong>Assigned</strong>: leave them, the NRC already counts on you</li></ul>
+      <div class="card"><h3>Weekends I can referee</h3><ul class="small muted" style="padding-left:18px;margin:6px 0 10px"><li>Tap a weekend to cycle: available, tentative, unavailable</li><li>Mark unavailable only the weekends you cannot referee at all</li><li>Weekends of tournaments you are designated for show as <strong>Assigned</strong>: leave them, the NRC already counts on you</li></ul>
         <div id="weekends" class="weekends"></div>
-        <h3 style="margin-top:16px">Blocked dates</h3><p class="small muted">Periods you cannot referee at all (travel, season with your club). Do not block the dates of a tournament you are already confirmed for.</p>
+        <h3 style="margin-top:16px">Blocked dates</h3><p class="small muted">Periods you cannot referee at all (travel, season with your club). Do not block the dates of a tournament you are already designated for.</p>
         <div class="avail-list" id="avail-list"></div>
         <form id="avail-form" class="row" style="margin-top:10px;grid-template-columns:1fr 1fr;align-items:end;gap:8px">
           <div><label>From</label><input name="start_date" type="date" required></div>
@@ -187,7 +187,7 @@
   </div>
   <div class="screen" data-s="4">
     <h3 style="margin:0 0 6px">Invitations and trips</h3>
-    <p>When the NRC proposes you for an event you get an email with the dates, what the organizer covers and three buttons: Accept, Tentative, Decline. The same buttons sit on your home. Once the NRC confirms the pairs, your trip card shows the venue, the bookings, a calendar file, and where to submit expenses.</p>
+    <p>When the NRC proposes you for an event you get an email with the dates, what the organizer covers and three buttons: Accept, Tentative, Decline. The same buttons sit on your home. Once the NRC designates the pairs, your trip card shows the venue, the bookings, a calendar file, and where to submit expenses.</p>
     <img src="guide/img/referee-respond.jpg" alt="Answering an invitation">
   </div>
   <div class="screen" data-s="5">
@@ -309,7 +309,7 @@ async function loadHome() {
     const T = tour || {};
     const venue = [T.venue_name, T.venue_address, T.venue_city, T.venue_state].filter(Boolean).join(", ");
     window.nextCalendar = () => {
-      const ev = [{ title: "Refereeing: " + T.name, start: new Date(T.start_date + "T08:00:00"), end: new Date(T.end_date + "T20:00:00"), location: venue, desc: "Confirmed by the NRC. Organizer: " + (T.organizer_name || "") + " " + (T.organizer_email || "") + ". Details on your referee home.", url: location.origin + "/profile.html" }];
+      const ev = [{ title: "Refereeing: " + T.name, start: new Date(T.start_date + "T08:00:00"), end: new Date(T.end_date + "T20:00:00"), location: venue, desc: "Designated by the NRC. Organizer: " + (T.organizer_name || "") + " " + (T.organizer_email || "") + ". Details on your referee home.", url: location.origin + "/profile.html" }];
       (bk || []).forEach(b => { if (!b.start_at) return; ev.push({ title: KIND[b.kind] + (b.provider ? ": " + b.provider : "") + (b.reference ? " (" + b.reference + ")" : ""), start: new Date(b.start_at), end: b.end_at ? new Date(b.end_at) : null, location: [b.from_place, b.to_place].filter(Boolean).join(" to "), desc: (b.notes || "") + (b.paid_by ? " Paid by " + b.paid_by + "." : ""), url: location.origin + "/profile.html" }); });
       NRC.downloadIcs((T.name || "tournament").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics", ev);
     };
@@ -321,17 +321,17 @@ async function loadHome() {
       <div class="small muted" style="margin:6px 0 8px">${NRC.esc(venue)}${T.nearest_airport_iata ? ", nearest airport " + NRC.esc(T.nearest_airport_iata) : ""}. Organizer: ${NRC.esc(T.organizer_name || "")}, ${NRC.esc(T.organizer_email || "")}${T.organizer_phone ? ", " + NRC.esc(T.organizer_phone) : ""}.${T.earliest_return_last_day ? " Do not leave before " + String(T.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}</div>
       ${rows || '<p class="small muted">' + (T.travel_managed_by === "nrc" ? "The NRC is booking your travel; flights, hotel and car appear here with their references." : T.travel_managed_by === "referee" ? "You book your own travel for this event, within what the organizer covers. Add each booking below and submit your expenses with receipts for reimbursement." : "The organizer books travel directly with you; what they confirm is recorded here by the NRC.") + "</p>"}
       ${asg && asg.travel_notes ? '<p class="small"><strong>Travel notes:</strong> ' + NRC.esc(asg.travel_notes) + "</p>" : ""}
-      ${asg ? `<div class="trip-actions"><button class="btn sm secondary" type="button" onclick="openMyBooking('${asg.id}')">Add a booking I made</button><button class="btn sm secondary" type="button" onclick="openClaim('${asg.id}')">Submit an expense</button></div>` : ""}<p class="small" style="margin:10px 0 0"><a class="muted" href="mailto:referee@handballusa.org?subject=${encodeURIComponent("Cannot officiate: " + (T.name || ""))}&body=${encodeURIComponent("Hi,\n\nI am confirmed for " + (T.name || "") + " (" + T.start_date + ") and I have to withdraw because:\n\n")}">I can no longer officiate at this event</a></p>
+      ${asg ? `<div class="trip-actions"><button class="btn sm secondary" type="button" onclick="openMyBooking('${asg.id}')">Add a booking I made</button><button class="btn sm secondary" type="button" onclick="openClaim('${asg.id}')">Submit an expense</button></div>` : ""}<p class="small" style="margin:10px 0 0"><a class="muted" href="mailto:referee@handballusa.org?subject=${encodeURIComponent("Cannot officiate: " + (T.name || ""))}&body=${encodeURIComponent("Hi,\n\nI am designated for " + (T.name || "") + " (" + T.start_date + ") and I have to withdraw because:\n\n")}">I can no longer officiate at this event</a></p>
       ${claimsHtml}</div>`;
   }
   $("#home-next").innerHTML = (n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Details</a></div>`
-    : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC confirms you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`) + travelHtml;
+    : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC designates you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`) + travelHtml;
   // alerts
   const alerts = [];
   const { data: pend } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,start_date)").eq("referee_id", ref.id).in("status", ["sent", "tentative"]).gte("tournaments.start_date", today);
   (pend || []).filter(p => p.tournaments).forEach(p => alerts.push(p.status === "sent"
-    ? `<div class="alert warn"><div><div class="t">Invitation waiting for your answer</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}. Accept, tentative or decline; the NRC confirms the final selection.</div></div><span><button class="btn sm" onclick="respond('${p.id}','accepted')">Accept</button> <button class="btn sm secondary" onclick="respond('${p.id}','tentative')">Tentative</button> <button class="btn sm ghost" onclick="respond('${p.id}','declined')">Decline</button></span></div>`
-    : `<div class="alert"><div><div class="t">You answered tentative</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}. Confirm or decline when you know; the NRC cannot designate you until then.</div></div><span><button class="btn sm" onclick="respond('${p.id}','accepted')">Confirm now</button> <button class="btn sm ghost" onclick="respond('${p.id}','declined')">Decline</button></span></div>`));
+    ? `<div class="alert warn"><div><div class="t">Invitation waiting for your answer</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}. Accept, tentative or decline; the NRC then designates the team.</div></div><span><button class="btn sm" onclick="respond('${p.id}','accepted')">Accept</button> <button class="btn sm secondary" onclick="respond('${p.id}','tentative')">Tentative</button> <button class="btn sm ghost" onclick="respond('${p.id}','declined')">Decline</button></span></div>`
+    : `<div class="alert"><div><div class="t">You answered tentative</div><div class="small">${NRC.esc(p.tournaments.name)}, ${NRC.fmtDate(p.tournaments.start_date)}. Accept or decline when you know; the NRC cannot designate you until then.</div></div><span><button class="btn sm" onclick="respond('${p.id}','accepted')">Accept now</button> <button class="btn sm ghost" onclick="respond('${p.id}','declined')">Decline</button></span></div>`));
   const soon = d => d && new Date(d) - Date.now() < 60 * 864e5;
   [["USATH membership", ref.usath_membership_valid_until], ["SafeSport certificate", ref.safesport_valid_until], ["Background check", ref.background_check_valid_until]].forEach(([l, d]) => {
     if (!d) alerts.push(`<div class="alert warn"><div><div class="t">${l} not on file</div><div class="small">Ask the NRC to record it, or it will block assignments.</div></div></div>`);
@@ -404,9 +404,9 @@ async function loadWeekends(readOnly) {
     if (readOnly) { b.disabled = true; host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7); continue; }
     const mine = MYA.find(a => a.tournaments.start_date <= iso(sun) && a.tournaments.end_date >= iso(fri));
     if (mine) {
-      b.className = "available"; b.title = "You are confirmed for " + mine.tournaments.name;
+      b.className = "available"; b.title = "You are designated for " + mine.tournaments.name;
       b.querySelector(".wk-st").textContent = "assigned";
-      b.onclick = () => alert(`You are confirmed for ${mine.tournaments.name} on this weekend. If you can no longer officiate, write to the NRC at referee@handballusa.org.`);
+      b.onclick = () => alert(`You are designated for ${mine.tournaments.name} on this weekend. If you can no longer officiate, write to the NRC at referee@handballusa.org.`);
       host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7); continue;
     }
     b.onclick = async () => { const next = { "": "available", available: "tentative", tentative: "unavailable", unavailable: "available" }[st]; const { error } = await NRC.sb.from("weekend_availability").upsert({ referee_id: ref.id, weekend: key, status: next, updated_at: new Date().toISOString() }, { onConflict: "referee_id,weekend" }); if (error) NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); else loadWeekends(); };
@@ -424,7 +424,7 @@ $("#avail-form").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
   if (!MYA.length) await loadMyAssignments();
   const clash = MYA.filter(a => a.tournaments.start_date <= f.end_date.value && a.tournaments.end_date >= f.start_date.value);
-  if (clash.length && !confirm(`You are confirmed for ${clash.map(a => a.tournaments.name).join(", ")} in this period. Blocking these dates tells the NRC you cannot referee at all, including that tournament.\n\nTo block only other events, choose dates that leave the tournament out. Block anyway?`)) return;
+  if (clash.length && !confirm(`You are designated for ${clash.map(a => a.tournaments.name).join(", ")} in this period. Blocking these dates tells the NRC you cannot referee at all, including that tournament.\n\nTo block only other events, choose dates that leave the tournament out. Block anyway?`)) return;
   const { error } = await NRC.sb.from("availability_blocks").insert({ referee_id: ref.id, start_date: f.start_date.value, end_date: f.end_date.value, note: $("#avail-note").value.trim() || null });
   if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); return; }
   f.reset(); $("#avail-note").value = ""; loadAvail();

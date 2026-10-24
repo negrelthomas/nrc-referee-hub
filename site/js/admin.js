@@ -580,28 +580,64 @@
   // Designated before the hub tracked invitations (acceptance given by email or in person): the admin records it
   window.openRecordAccept = function (ids) {
     ids = (ids || noInvite).filter(Boolean); if (!ids.length) return;
-    const f = $("#form-accept"); f.reset(); f.ids.value = ids.join(",");
+    const f = $("#form-accept"); f.reset(); f.ids.value = ids.join(","); f.reqs.value = ""; f.mode.value = "record";
+    $("#acc-title").textContent = "Record acceptance given outside the hub"; $("#acc-submit").textContent = "Record";
+    $("#acc-effect").textContent = "Records their invitation as accepted and designated, on the Answers tab and on their home";
+    f.reason.placeholder = "";
     f.reason.value = "You accepted by email before the NRC Referee Hub was used for this event.";
     $("#acc-who").innerHTML = `<strong>${NRC.esc(currentTour.name)}</strong>: ${ids.map(id => NRC.esc(refName(id))).join("; ")}`;
     $("#dlg-accept").showModal();
   };
+  // Overrule: designate referees who said yes by phone, email or in person but have not answered on the hub
+  window.openDesignateOutside = function () {
+    const sel = selectedInv().map(id => invites.find(i => i.id === id)).filter(i => i && i.status !== "confirmed");
+    if (!sel.length) { alert("Tick the referees who accepted by phone, email or in person (not those already designated)."); return; }
+    const refIds = sel.map(i => i.referee_id);
+    const already = invites.filter(i => i.status === "confirmed").map(i => i.referee_id);
+    const after = new Set([...already, ...refIds]); const need = currentTour.pairs_needed * 2; const issues = [];
+    if (after.size > need) issues.push(`${after.size} referees would be designated; the tournament needs ${need} (${currentTour.pairs_needed} pairs).`);
+    refIds.forEach(rid => { const p = partnerOf(rid); if (p && !after.has(p)) issues.push(`${refName(rid)} forms a pair with ${refName(p)}, who is not in the designated set.`); });
+    const declined = sel.filter(i => i.status === "declined").map(i => refName(i.referee_id));
+    if (declined.length) issues.push(`Declined on the hub: ${declined.join("; ")}. Designate only if they told you they now accept.`);
+    if (issues.length && !confirm("Check before designating:\n\n" + issues.join("\n") + "\n\nContinue?")) return;
+    const f = $("#form-accept"); f.reset(); f.mode.value = "designate"; f.ids.value = ""; f.reqs.value = sel.map(i => i.id).join(",");
+    $("#acc-title").textContent = "Designate on an acceptance given outside the hub"; $("#acc-submit").textContent = "Designate";
+    $("#acc-effect").textContent = "Marks them accepted and designated, adds them to the team and moves the event to staffed; the note is kept on their invitation";
+    f.reason.value = ""; f.reason.placeholder = "For example: You accepted by phone with Joshua Forsthoefel on October 23, 2026.";
+    $("#acc-who").innerHTML = `<strong>${NRC.esc(currentTour.name)}</strong>: ${sel.map(i => NRC.esc(refName(i.referee_id)) + ' <span class="small muted">(' + NRC.esc((STATUS_WORD[i.status] || i.status).replace("_", " ")) + ")</span>").join("; ")}`;
+    $("#dlg-accept").showModal();
+  };
+  const STATUS_WORD = { draft: "not invited yet", sent: "invited, no answer", tentative: "tentative", accepted: "accepted", declined: "declined", no_response: "no answer", cancelled: "released" };
   $("#form-accept").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const ids = f.ids.value.split(",").filter(Boolean); const reason = f.reason.value.trim();
     if (reason.length < 15) { alert("Say how and when they accepted, in a full sentence."); return; }
-    const sb_ = f.querySelector("[type=submit]"); if (sb_.disabled) return; sb_.disabled = true; sb_.classList.add("busy"); toast("Recording" + (f.send.checked ? " and sending the confirmation emails" : "") + "...");
+    const sb_ = f.querySelector("[type=submit]"); if (sb_.disabled) return; sb_.disabled = true; sb_.classList.add("busy"); toast("Recording" + (f.send.checked ? " and sending the designation emails" : "") + "...");
     try {
     const by = (user && (user.full_name || user.email)) || "NRC admin";
     const now = new Date().toISOString();
-    const { data: rows, error } = await sb().from("assignment_requests").insert(ids.map(id => ({ tournament_id: currentTour.id, referee_id: id, status: "confirmed", sent_at: now, responded_at: now, response_note: "Recorded by " + by + ": " + reason }))).select("id,referee_id");
+    const note = "Recorded by " + by + ": " + reason;
+    let rows, error;
+    if (f.mode.value === "designate") {
+      const reqIds = f.reqs.value.split(",").filter(Boolean);
+      ({ data: rows, error } = await sb().from("assignment_requests").update({ status: "confirmed", responded_at: now, response_note: note }).in("id", reqIds).select("id,referee_id,sent_at"));
+      if (!error) {
+        const unsent = rows.filter(q => !q.sent_at).map(q => q.id);
+        if (unsent.length) await sb().from("assignment_requests").update({ sent_at: now }).in("id", unsent);
+        for (const q of rows) await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: q.referee_id, role: "referee" }, { onConflict: "tournament_id,referee_id" });
+        if (currentTour.status === "submitted" || currentTour.status === "reviewing") { await sb().from("tournaments").update({ status: "staffed" }).eq("id", currentTour.id); currentTour.status = "staffed"; }
+      }
+    } else {
+      ({ data: rows, error } = await sb().from("assignment_requests").insert(ids.map(id => ({ tournament_id: currentTour.id, referee_id: id, status: "confirmed", sent_at: now, responded_at: now, response_note: note }))).select("id,referee_id"));
+    }
     if (error) { alert(error.message); return; }
-    let msg = `${rows.length} acceptance${rows.length > 1 ? "s" : ""} recorded.`;
+    let msg = f.mode.value === "designate" ? `${rows.length} referee${rows.length > 1 ? "s" : ""} designated on an acceptance given outside the hub.` : `${rows.length} acceptance${rows.length > 1 ? "s" : ""} recorded.`;
     if (f.send.checked) {
       const mail = rows.filter(q => { const r = refs.find(x => x.id === q.referee_id); return r && r.email && !/@demo\.nrc$/i.test(r.email); }).map(q => q.id);
       if (mail.length) {
         const { data: sess } = await sb().auth.getSession();
         const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, request_ids: mail, kind: "confirm" }) });
         const d = await res.json().catch(() => ({}));
-        msg += res.ok ? ` ${d.results.filter(r => r.sent).length} confirmation email(s) sent.` : " Emails not sent: " + (d.error || res.status);
+        msg += res.ok ? ` ${d.results.filter(r => r.sent).length} designation email(s) sent.` : " Emails not sent: " + (d.error || res.status);
       }
     }
     toast(msg, "ok", 8000); $("#dlg-accept").close(); renderInvites(); renderDesignated();
@@ -625,7 +661,7 @@
     if (noInvite.length) $("#des-summary").insertAdjacentHTML("beforeend", `<span class="chip" style="background:#FFF4D6">${noInvite.length} designated without an acceptance on file <button class="btn sm" type="button" style="margin-left:6px" onclick="openRecordAccept()">Record acceptance</button></span>`);
     $("#des tbody").innerHTML = usath.map(a => { const r = refs.find(x => x.id === a.referee_id) || {};
       const st = availState(a.referee_id);
-      return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong>${noInvite.includes(a.referee_id) ? ` <span class="pill amber" title="Designated without an invitation on the hub">no acceptance on file</span> <button class="btn sm ghost" type="button" onclick="openRecordAccept(['${a.referee_id}'])">Record acceptance</button>` : ""}${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared on the referee's home">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join("; "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Confirm accepted referees on the Invitations tab.</td></tr>';
+      return `<tr><td><strong>${NRC.esc(refName(a.referee_id))}</strong>${noInvite.includes(a.referee_id) ? ` <span class="pill amber" title="Designated without an invitation on the hub">no acceptance on file</span> <button class="btn sm ghost" type="button" onclick="openRecordAccept(['${a.referee_id}'])">Record acceptance</button>` : ""}${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared on the referee's home">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(a.role)}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join("; "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td><button class="btn sm ghost" type="button" onclick="removeDesignated('${a.id}')">Remove</button></td></tr>`; }).join("") || '<tr><td colspan="5">Nobody designated yet. Designate accepted referees on the Answers tab.</td></tr>';
     // guest pairs: grouped by pair, numbered in the order they were added
     const keys = [...new Set(guests.map(a => a.guest_officials.pair_key || a.guest_official_id))];
     guests.sort((x, y) => keys.indexOf(x.guest_officials.pair_key || x.guest_official_id) - keys.indexOf(y.guest_officials.pair_key || y.guest_official_id) || asgName(x).localeCompare(asgName(y)));
@@ -694,7 +730,7 @@
     }
     if (!confirm("Remove " + refName(a.referee_id) + " from this tournament? Their invitation is marked declined so you can pick a replacement.")) return;
     await sb().from("assignments").delete().eq("id", id);
-    await sb().from("assignment_requests").update({ status: "declined", response_note: "Removed by the NRC after confirmation" }).eq("tournament_id", currentTour.id).eq("referee_id", a.referee_id);
+    await sb().from("assignment_requests").update({ status: "declined", response_note: "Removed by the NRC after designation" }).eq("tournament_id", currentTour.id).eq("referee_id", a.referee_id);
     renderDesignated(); renderInvites(); renderTourAsg();
   };
   let currentTravel = null;
@@ -977,8 +1013,9 @@
     const box = (n, l, cls) => `<div class="snap-i ${cls || ""}"><div class="n">${n}</div><div class="l">${l}</div></div>`;
     const travelOwn = T.travel_managed_by === "nrc" ? "NRC" : T.travel_managed_by === "referee" ? "Referees" : "Organizer";
     $("#tour-snap").innerHTML = box(`${des}/${need}`, "referees designated" + (T.pairs_organizer ? `<br>+${T.pairs_organizer} organizer pair${T.pairs_organizer > 1 ? "s" : ""}, ${Math.ceil(gst / 2)} named` : ""), des >= need ? "good" : des ? "warn" : "bad")
-      + box(c("accepted"), "accepted, to confirm", c("accepted") ? "warn" : "")
-      + box(c("sent") + c("tentative"), "waiting or tentative")
+      + box(c("sent"), "invited, no answer")
+      + box(c("tentative"), "tentative")
+      + box(c("accepted"), "accepted, to designate", c("accepted") ? "warn" : "")
       + box(c("declined"), "declined")
       + (T.supervisor_needed ? box(sup ? "set" : "needed", "supervisor", sup ? "good" : "bad") : "")
       + box(travelOwn, "books travel");
@@ -989,23 +1026,24 @@
     const { data } = await sb().from("assignment_requests").select("*").eq("tournament_id", currentTour.id).order("created_at");
     invites = data || [];
     const c = s => invites.filter(i => i.status === s).length;
-    $("#inv-summary").innerHTML = [["draft", "Draft"], ["sent", "Waiting"], ["tentative", "Tentative"], ["accepted", "Accepted"], ["declined", "Declined"], ["confirmed", "Confirmed"]].map(([k, l]) => `<span class="chip ${c(k) ? "on" : ""}">${l}: ${c(k)}</span>`).join("") + `<span class="chip">Needed: ${currentTour.pairs_needed * 2} referees</span>`;
+    $("#inv-summary").innerHTML = [["draft", "Draft"], ["sent", "Invited, no answer"], ["tentative", "Tentative"], ["accepted", "Accepted"], ["declined", "Declined"], ["confirmed", "Designated"]].map(([k, l]) => `<span class="chip ${c(k) ? "on" : ""}">${l}: ${c(k)}</span>`).join("") + `<span class="chip">Needed: ${currentTour.pairs_needed * 2} referees</span>`;
+    const STATUS_LABEL = { sent: "invited", confirmed: "designated", no_response: "no answer" };
     const STATUS = { draft: "", sent: "amber", tentative: "amber", accepted: "green", declined: "red", confirmed: "green", no_response: "red", cancelled: "" };
-    $("#inv tbody").innerHTML = invites.map(i => `<tr><td><input type="checkbox" class="inv-sel" value="${i.id}" style="width:auto"></td><td><strong>${NRC.esc(refName(i.referee_id))}</strong> ${availPill(i.referee_id)}${partnerOf(i.referee_id) ? '<div class="small muted">pair with ' + NRC.esc(refName(partnerOf(i.referee_id))) + "</div>" : ""}</td><td><span class="pill ${STATUS[i.status] || ""}">${i.status.replace("_", " ")}</span>${i.reminder_count ? ` <span class="small muted">${i.reminder_count} reminder${i.reminder_count > 1 ? "s" : ""}</span>` : ""}</td><td class="small">${i.sent_at ? NRC.fmtDate(i.sent_at) : ""}</td><td class="small">${i.responded_at ? NRC.fmtDate(i.responded_at) : ""}</td><td class="small">${NRC.esc(i.response_note || "")}</td></tr>`).join("") || '<tr><td colspan="6">No invitations yet. Use Find referees to add candidates.</td></tr>';
+    $("#inv tbody").innerHTML = invites.map(i => `<tr><td><input type="checkbox" class="inv-sel" value="${i.id}" style="width:auto"></td><td><strong>${NRC.esc(refName(i.referee_id))}</strong> ${availPill(i.referee_id)}${partnerOf(i.referee_id) ? '<div class="small muted">pair with ' + NRC.esc(refName(partnerOf(i.referee_id))) + "</div>" : ""}</td><td><span class="pill ${STATUS[i.status] || ""}">${STATUS_LABEL[i.status] || i.status.replace("_", " ")}</span>${i.reminder_count ? ` <span class="small muted">${i.reminder_count} reminder${i.reminder_count > 1 ? "s" : ""}</span>` : ""}</td><td class="small">${i.sent_at ? NRC.fmtDate(i.sent_at) : ""}</td><td class="small">${i.responded_at ? NRC.fmtDate(i.responded_at) : ""}</td><td class="small">${NRC.esc(i.response_note || "")}</td></tr>`).join("") || '<tr><td colspan="6">No invitations yet. Use Find referees to add candidates.</td></tr>';
     renderSnap();
   }
   const selectedInv = () => NRC.$$(".inv-sel:checked").map(x => x.value);
   window.sendSelected = async function (kind) {
     let ids = selectedInv(); if (!ids.length) { alert("Select referees first."); return; }
     if (kind === "confirm") {
-      ids = ids.filter(id => invites.find(i => i.id === id && i.status === "accepted")); if (!ids.length) { alert("Only accepted invitations can be confirmed."); return; }
+      ids = ids.filter(id => invites.find(i => i.id === id && i.status === "accepted")); if (!ids.length) { alert("Only referees who accepted can be designated."); return; }
       const already = invites.filter(i => i.status === "confirmed").map(i => i.referee_id);
       const toConfirm = ids.map(id => invites.find(i => i.id === id).referee_id);
       const after = new Set([...already, ...toConfirm]);
       const need = currentTour.pairs_needed * 2; const issues = [];
-      if (after.size !== need) issues.push(`${after.size} referees would be confirmed; the tournament needs ${need} (${currentTour.pairs_needed} pairs).`);
-      toConfirm.forEach(rid => { const p = partnerOf(rid); if (p && !after.has(p)) issues.push(`${refName(rid)} forms a pair with ${refName(p)}, who is not in the confirmed set.`); });
-      if (issues.length && !confirm("Check before confirming:\n\n" + issues.join("\n") + "\n\nConfirm anyway?")) return;
+      if (after.size !== need) issues.push(`${after.size} referees would be designated; the tournament needs ${need} (${currentTour.pairs_needed} pairs).`);
+      toConfirm.forEach(rid => { const p = partnerOf(rid); if (p && !after.has(p)) issues.push(`${refName(rid)} forms a pair with ${refName(p)}, who is not in the designated set.`); });
+      if (issues.length && !confirm("Check before designating:\n\n" + issues.join("\n") + "\n\nDesignate anyway?")) return;
     }
     if (kind === "invite") {
       ids = ids.filter(id => ["draft", "sent"].includes((invites.find(i => i.id === id) || {}).status));
@@ -1035,7 +1073,7 @@
   };
   window.notifyOrganizer = async function () {
     const { data: asg } = await sb().from("assignments").select("id").eq("tournament_id", currentTour.id);
-    if (!(asg || []).length && !confirm("No official is confirmed yet. Send the organizer an update anyway?")) return;
+    if (!(asg || []).length && !confirm("No official is designated yet. Send the organizer an update anyway?")) return;
     const { data: sess } = await sb().auth.getSession();
     const res = await fetch("/api/send-invitations", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ tournament_id: currentTour.id, kind: "organizer" }) });
     const d = await res.json(); if (!res.ok) { alert("Failed: " + (d.error || res.status)); return; }
@@ -1072,7 +1110,7 @@
       if (added.length && !confirm("Partners added so each pair is invited together:\n" + added.join("\n") + "\n\nContinue?")) return;
     }
     const doubt = ids.filter(id => availState(id) !== "available");
-    if (doubt.length) alert("Availability not confirmed for: " + doubt.map(id => refName(id) + " (" + availWord(id) + ")").join("; ") + ". Their invitation email will ask them to confirm they are available before accepting.");
+    if (doubt.length) alert("Availability not declared as available for: " + doubt.map(id => refName(id) + " (" + availWord(id) + ")").join("; ") + ". Their invitation email will ask them to check they are available before accepting.");
     const rows = ids.map(id => ({ tournament_id: currentTour.id, referee_id: id, status: "draft" }));
     const { error } = await sb().from("assignment_requests").insert(rows); if (error) { alert(error.message); return; }
     await renderInvites(); renderCandidates(); NRC.$$("#dlg-tour .tabs button")[0].click();
