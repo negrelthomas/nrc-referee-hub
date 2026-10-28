@@ -807,7 +807,7 @@
   $("#btn-travel-claim").addEventListener("click", async () => {
     const b = currentTravel; if (!b) return;
     const { data: ex } = await sb().from("expense_claims").select("id,status,amount").eq("booking_id", b.id).maybeSingle();
-    if (ex) { alert(`This booking is already claimed ($${Number(ex.amount).toFixed(2)}, ${ex.status}). See the Expenses tab.`); return; }
+    if (ex) { alert(`This booking is already claimed ($${Number(ex.amount).toFixed(2)}, ${ex.status}). See the Expenses section.`); return; }
     const guestClaim = !!(desRows.find(x => x.id === b.assignment_id) || {}).guest_official_id;
     if (!confirm(`Create an approved claim of $${Number(b.cost).toFixed(2)} for this booking, reimbursed by ${guestClaim ? "the organizer (organizer pair)" : "the NRC"}? You can change who reimburses on the Expenses tab.`)) return;
     const { error } = await sb().from("expense_claims").insert({ assignment_id: b.assignment_id, booking_id: b.id, kind: CLAIM_KIND[b.kind] || "other", amount: b.cost, description: [KIND[b.kind], b.provider, b.reference].filter(Boolean).join(" "), status: "approved", reimbursed_by: guestClaim ? "organizer" : "nrc", submitted_by: user.id, reviewed_by: user.id, reviewed_at: new Date().toISOString() });
@@ -996,7 +996,7 @@
     const { data, error } = await sb().from("tournaments").insert(row).select().single();
     if (error) { alert("Save failed: " + error.message); return; }
     $("#dlg-newtour").close(); await loadAll(); openTour(data.id);
-    const b = NRC.$$("#dlg-tour .tabs button").find(x => x.dataset.ttab === "officiated"); if (b) b.click();
+    tourBlock("games", "officiated");
   });
   window.sendPending = async function (id) {
     const t = tournaments.find(x => x.id === id); if (!t || !confirm(`Email the pending changes on ${t.name} to the designated and invited referees, the organizer and the NRC?`)) return;
@@ -1016,9 +1016,18 @@
   };
   window.setTourStatus = async function (id, status) { await sb().from("tournaments").update({ status }).eq("id", id); };
   let currentTour = null, pairsCache = [], availCache = [];
-  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { NRC.$$("#dlg-tour .tabs button").forEach(x => x.classList.toggle("active", x === b)); ["invites", "candidates", "designated", "money", "officiated", "log"].forEach(t => $("#ttab-" + t).classList.toggle("hidden", t !== b.dataset.ttab));
+  const TTAB_RENDER = () => ({ invites: renderInvites, candidates: renderCandidates, designated: renderDesignated, officiated: renderTourAsg, log: renderTourLog });
+  NRC.$$("#dlg-tour .tabs button").forEach(b => b.onclick = () => { const bar = b.closest(".tabs"); NRC.$$("button", bar).forEach(x => { x.classList.toggle("active", x === b); $("#ttab-" + x.dataset.ttab).classList.toggle("hidden", x !== b); });
     // each tab reads fresh data when opened, so a confirmation on one tab shows on the next
-    ({ invites: renderInvites, candidates: renderCandidates, designated: renderDesignated, money: renderMoney, officiated: renderTourAsg, log: renderTourLog }[b.dataset.ttab] || (() => {}))(); });
+    (TTAB_RENDER()[b.dataset.ttab] || (() => {}))(); });
+  // the tournament window is five collapsible blocks; opening one refreshes what it shows
+  NRC.$$("#dlg-tour details.tblock").forEach(d => d.addEventListener("toggle", () => { if (!d.open || !currentTour || d.dataset.silent) return;
+    if (d.dataset.block === "money") renderMoney();
+    const act = d.querySelector(".tabs button.active"); if (act) (TTAB_RENDER()[act.dataset.ttab] || (() => {}))(); }));
+  window.tourBlocks = (open) => NRC.$$("#dlg-tour details.tblock").forEach(d => { d.open = open; });
+  // open only the named block (and tab), close the others
+  window.tourBlock = (name, tab) => { NRC.$$("#dlg-tour details.tblock").forEach(d => { d.dataset.silent = "1"; d.open = d.dataset.block === name; setTimeout(() => delete d.dataset.silent, 0); });
+    if (tab) { const b = NRC.$$("#dlg-tour .tabs button").find(x => x.dataset.ttab === tab); if (b) b.click(); } };
   window.openTour = async function (id) {
     currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour"); renderTourAsg.mountedFor = null;
     tourPublicChanges = 0; $("#tour-save-state").textContent = ""; NRC.$$("#form-tour .saved,#form-tour .err,#form-tour .saving").forEach(x => x.classList.remove("saved", "err", "saving"));
@@ -1038,11 +1047,10 @@
     $("#dlg-tour-sub").textContent += currentTour.supervisor_needed ? " Supervisor requested" + (currentTour.supervisor_notes ? ": " + currentTour.supervisor_notes : "") + "." : "";
     $("#btn-organizer").textContent = currentTour.organizer_notified_at ? "Notify organizer again" : "Notify organizer";
     const T = currentTour;
-    $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")} <a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. Travel booked by ${T.travel_managed_by === "nrc" ? "the NRC" : T.travel_managed_by === "referee" ? "the referees" : "the organizer"}; ${T.hotel_nights_covered || 0} hotel nights, ${T.flights_covered ? "flights" : "no flights"}, ${T.airport_transfers_covered ? "transfers" : "no transfers"}${T.food_stipend_per_day ? ", $" + T.food_stipend_per_day + " per day" : ""}.`;
+    $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")} <a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. `;
     await Promise.all([renderInvites(), renderDesignated(), renderMoney()]); renderCandidates();
     // past or calendar only events open on what is left to do: officials, games, evaluations
-    const tab = (T.start_date <= today() || T.nrc_staffs === false) ? "officiated" : "invites";
-    NRC.$$("#dlg-tour .tabs button").find(x => x.dataset.ttab === tab).click();
+    if (T.start_date <= today() || T.nrc_staffs === false) tourBlock("games", "officiated"); else tourBlock("staffing", "invites");
     $("#dlg-tour").showModal();
   };
   const refName = id => { const r = refs.find(x => x.id === id); return r ? r.last_name + ", " + r.first_name : "?"; };
@@ -1097,6 +1105,11 @@
       + (T.supervisor_needed ? box(sup ? "set" : "needed", "supervisor", sup ? "good" : "bad") : "")
       + box(travelOwn, "books travel");
     $("#tour-cover").innerHTML = coverRecap(T, des + gst + sup);
+    const pt = T.pairs_total ?? T.pairs_needed;
+    $("#tb-s-details").textContent = [`${NRC.fmtDate(T.start_date)} to ${NRC.fmtDate(T.end_date)}${T.date_status === "tentative" ? " (tentative)" : ""}`, [T.venue_name, T.venue_city].filter(Boolean).join(", "), `${pt} pair${pt === 1 ? "" : "s"}: ${T.pairs_needed} NRC${T.pairs_organizer ? ", " + T.pairs_organizer + " organizer" : ""}`, `travel booked by ${travelOwn === "NRC" ? "the NRC" : travelOwn.toLowerCase()}`].filter(Boolean).join(" | ");
+    const nights = T.hotel_nights_covered || 0, cov = [T.flights_covered ? "flights" : "", nights ? `hotel ${nights} night${nights === 1 ? "" : "s"}` : "", T.airport_transfers_covered ? "airport transfers" : "", +T.food_stipend_per_day ? `$${+T.food_stipend_per_day} per day food` : ""].filter(Boolean);
+    $("#tb-s-cover").textContent = cov.length ? cov.join(", ").replace(/^./, x => x.toUpperCase()) : "Nothing covered";
+    $("#tb-s-staffing").textContent = T.nrc_staffs === false ? "The NRC does not staff this event" : `${des}/${need} referees designated | ${c("sent")} awaiting an answer | ${c("accepted")} accepted, to designate${T.supervisor_needed ? " | supervisor " + (sup ? "set" : "needed") : ""}`;
   }
   // what the organizer agreed to cover, by category; USD only where the request gives an amount
   function coverRecap(T, officials) {
@@ -1111,7 +1124,7 @@
       ["Hotel to venue", T.hotel_to_venue_transport ? NRC.esc(T.hotel_to_venue_transport) : '<span class="muted">Not stated</span>', ""],
       ["Food stipend", stip ? `${usd(stip)} per day` : '<span class="pill">None</span>', stip ? `${usd(per)} per official (${days} day${days === 1 ? "" : "s"})${officials ? ", " + usd(per * officials) + " for " + officials + " designated" : ""}` : ""],
       ["Meals on site", T.meals_provided ? NRC.esc(T.meals_provided) : '<span class="muted">Not stated</span>', ""]];
-    return `<h4 style="margin:14px 0 6px">What the organizer covers</h4><div class="table-wrap"><table class="cover-recap"><thead><tr><th>Category</th><th>Agreed</th><th>Amount (USD)</th></tr></thead><tbody>${rows.map(r => `<tr><td><strong>${r[0]}</strong></td><td class="small">${r[1]}</td><td class="small">${r[2] || '<span class="muted">-</span>'}</td></tr>`).join("")}</tbody></table></div><p class="small muted">Edit in Event details, What the organizer covers. The request form records an amount for the food stipend only; flights, hotel and transfers are covered or not, at cost.</p>`;
+    return `<div class="table-wrap"><table class="cover-recap"><thead><tr><th>Category</th><th>Agreed</th><th>Amount (USD)</th></tr></thead><tbody>${rows.map(r => `<tr><td><strong>${r[0]}</strong></td><td class="small">${r[1]}</td><td class="small">${r[2] || '<span class="muted">-</span>'}</td></tr>`).join("")}</tbody></table></div><p class="small muted">The request records an amount for the food stipend only; flights, hotel and transfers are covered or not, at cost.</p>`;
   }
   // Invitations
   let invites = [];

@@ -398,10 +398,11 @@
     <div style="display:flex;gap:10px;align-items:center"><span class="small" id="tour-save-state" aria-live="polite"></span><button class="btn ghost sm" type="button" onclick="closeTour()">Close</button></div>
   </div>
   <div id="tour-snap" class="snap"></div>
-  <div id="tour-cover"></div>
-  <details id="tour-details" class="tour-details">
-    <summary><strong>Event details</strong> <span class="small muted">changes save as you go; officials and the organizer are told when you close this window</span></summary>
-    <form id="form-tour" class="tour-form" autocomplete="off">
+  <div class="tblock-bar"><span class="small muted">Edits save as you go; officials and the organizer are told when you close this window.</span><span><button class="btn sm ghost" type="button" onclick="tourBlocks(true)" data-tip="Opens every section of this tournament.">Open all</button> <button class="btn sm ghost" type="button" onclick="tourBlocks(false)" data-tip="Closes every section so you see the whole tournament at a glance.">Close all</button></span></div>
+  <form id="form-tour" autocomplete="off">
+  <details class="tblock" data-block="details">
+    <summary><span class="tb-t">Event details</span><span class="tb-s" id="tb-s-details"></span></summary>
+    <div class="tour-form">
       <div class="tf-group"><div class="tf-h">Dates and place</div>
         <div><label>Start</label><input name="start_date" type="date"></div>
         <div><label>End</label><input name="end_date" type="date"></div>
@@ -419,7 +420,19 @@
         <div><label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:26px"><input type="checkbox" style="width:auto" name="nrc_staffs"> The NRC staffs this event</label></div>
         <div class="tip" style="grid-column:1/-1" data-tip="Use it when you change the request after agreeing it with the organizer by phone, WhatsApp or email. It goes into the update email to the organizer and the change log."><label>How the change was agreed with the organizer (optional)</label><input name="agreed_note" placeholder="Phone call with the organizer on Oct 23: two USATH pairs and two pairs from France"></div>
       </div>
-      <div class="tf-group"><div class="tf-h">What the organizer covers</div>
+      <div class="tf-group"><div class="tf-h">Classification</div>
+        <div><label>Sanction</label><select name="sanction"><option value="club">Club</option><option value="regional">Regional</option><option value="usath">USATH</option><option value="international">International</option></select></div>
+        <div><label>Region</label><input name="region"></div>
+        <div style="grid-column:span 2"><label>Hosting club</label><select name="club_id"></select></div>
+        <div style="grid-column:span 2"><label>Source link</label><input name="source_url" type="url" placeholder="https://"></div>
+      </div>
+      <div class="tf-group"><div class="tf-h">Divisions</div><div style="grid-column:1/-1" id="tour-div"></div></div>
+    </div>
+  </details>
+  <details class="tblock" data-block="cover">
+    <summary><span class="tb-t">What the organizer covers</span><span class="tb-s" id="tb-s-cover"></span></summary>
+    <div class="tour-form"><div id="tour-cover"></div>
+      <div class="tf-group"><div class="tf-h">Edit what is covered</div>
         <div><label>Flights</label><select name="flights_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div>
         <div><label>Hotel nights per official</label><input name="hotel_nights_covered" type="number" min="0" max="30"></div>
         <div><label>Food stipend per day (USD)</label><input name="food_stipend_per_day" type="number" min="0" step="1"></div>
@@ -428,23 +441,18 @@
         <div style="grid-column:span 2"><label>Hotel to venue</label><input name="hotel_to_venue_transport" placeholder="Shuttle, rental car, walking distance..."></div>
         <div style="grid-column:1/-1"><label>Meals on site</label><input name="meals_provided" placeholder="Lunch at the venue each day..."></div>
       </div>
-      <div class="tf-group"><div class="tf-h">Classification</div>
-        <div><label>Sanction</label><select name="sanction"><option value="club">Club</option><option value="regional">Regional</option><option value="usath">USATH</option><option value="international">International</option></select></div>
-        <div><label>Region</label><input name="region"></div>
-        <div style="grid-column:span 2"><label>Hosting club</label><select name="club_id"></select></div>
-        <div style="grid-column:span 2"><label>Source link</label><input name="source_url" type="url" placeholder="https://"></div>
-      </div>
-      <div class="tf-group"><div class="tf-h">Divisions</div><div style="grid-column:1/-1" id="tour-div"></div></div>
-    </form>
+    </div>
   </details>
+  </form>
 
-  <div class="tabs" style="margin-top:14px">
+  <details class="tblock" data-block="staffing">
+    <summary><span class="tb-t">Referee staffing</span><span class="tb-s" id="tb-s-staffing"></span></summary>
+    <div class="tb-body">
+
+  <div class="tabs">
     <button data-ttab="candidates">1. Find and invite</button>
     <button data-ttab="invites" class="active">2. Answers</button>
     <button data-ttab="designated">3. Designated and travel</button>
-    <button data-ttab="money">Expenses</button>
-    <button data-ttab="officiated">Games and evaluations</button>
-    <button data-ttab="log">Change log</button>
   </div>
 
   <div id="ttab-invites">
@@ -458,7 +466,7 @@
       <button class="btn sm neg" type="button" onclick="removeSelected()" data-tip="Deletes the ticked draft invitations. Nothing is sent; invitations already sent are not affected.">Remove draft</button>
       <button class="btn sm secondary" type="button" id="btn-organizer" onclick="notifyOrganizer()" style="margin-left:auto" data-tip="Emails the organizer the list of designated officials and the link to their tournament page.">Notify organizer</button>
     </div>
-    <p class="small muted">Invite emails the referee with accept, tentative and decline links and a prompt to sign in; the proposal also shows on their referee home. Three steps: the NRC invites referees who are available, the referee accepts, the NRC designates. Designate accepted checks the count against the pairs requested and keeps established pairs together, then emails each designated referee the full brief and adds them to the team. When a referee said yes by phone, email or in person, tick them and use Designate, accepted outside the hub: you note how and when they accepted, and their designation email carries that note for the record. Notify organizer emails the organizer the designated list and their private tournament page. See the Guide for the full flow.</p>
+    <details class="howto"><summary class="small">How invitations and designation work</summary><p class="small muted">Invite emails the referee with accept, tentative and decline links and a prompt to sign in; the proposal also shows on their referee home. Three steps: the NRC invites referees who are available, the referee accepts, the NRC designates. Designate accepted checks the count against the pairs requested and keeps established pairs together, then emails each designated referee the full brief and adds them to the team. When a referee said yes by phone, email or in person, tick them and use Designate, accepted outside the hub: you note how and when they accepted, and their designation email carries that note for the record. Notify organizer emails the organizer the designated list and their private tournament page. See the Guide for the full flow.</p></details>
   </div>
 
   <div id="ttab-candidates" class="hidden">
@@ -482,9 +490,15 @@
     <div id="guest-summary" class="chips"></div>
     <div class="table-wrap"><table id="guests"><thead><tr><th>Guest</th><th>Nation</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
     <p style="margin-top:8px"><button class="btn sm pos" type="button" id="btn-guest-add" onclick="openGuestPair()" data-tip="Records a pair from outside USATH that the organizer brings, up to the number set in Event details, Pairs sourced outside USATH.">Name an organizer pair</button></p>
-    <ul class="small muted" style="padding-left:18px"><li>A pair from outside USATH is always the organizer's pair; USATH designates USATH pairs only. The NRC or the organizer records it, up to the number the organizer declared</li><li>To add one more, raise "Pairs sourced outside USATH" in the event details first: the pairs USATH staffs go down by one, and the change is logged and notified</li><li>Each referee with an email gets a sign in link to their own page: the events they are named for with every detail, travel and expenses. Training and the online tests are open to them, all optional. No invitation, no evaluation, no ranking</li><li>Their profile shows how complete it is; they complete it at first sign in, or you do here with Edit</li><li>Bookings and expenses are recorded here and reimbursed from the Expenses tab</li></ul>
+    <ul class="small muted" style="padding-left:18px"><li>A pair from outside USATH is always the organizer's pair; USATH designates USATH pairs only. The NRC or the organizer records it, up to the number the organizer declared</li><li>To add one more, raise "Pairs sourced outside USATH" in the event details first: the pairs USATH staffs go down by one, and the change is logged and notified</li><li>Each referee with an email gets a sign in link to their own page: the events they are named for with every detail, travel and expenses. Training and the online tests are open to them, all optional. No invitation, no evaluation, no ranking</li><li>Their profile shows how complete it is; they complete it at first sign in, or you do here with Edit</li><li>Bookings and expenses are recorded here and reimbursed from the Expenses section</li></ul>
   </div>
-  <div id="ttab-money" class="hidden">
+    </div>
+  </details>
+
+  <details class="tblock" data-block="money">
+    <summary><span class="tb-t">Expenses</span><span class="tb-s" id="tb-s-money">Reimbursement by official and claims</span></summary>
+    <div class="tb-body">
+  <div id="ttab-money">
     <div id="money-summary" class="chips"></div>
     <h4 style="margin:12px 0 6px">Reimbursement by official</h4>
     <div class="table-wrap"><table id="payees"><thead><tr><th>Official</th><th title="Booked travel the official paid">Paid by them</th><th title="Booked travel paid by the official with no claim yet">Not claimed</th><th>To review</th><th>Approved, to pay</th><th>Reimbursed</th><th>How to pay</th></tr></thead><tbody></tbody></table></div>
@@ -494,7 +508,17 @@
     <p class="small muted">Approve or reject each claim; mark it reimbursed when the money has gone out. What the organizer reimburses to the NRC: bookings paid by the NRC plus approved claims set to "NRC" reimbursement. The organizer sees the totals on their page.</p>
     <div id="report-view" style="margin-top:12px"></div>
   </div>
-  <div id="ttab-officiated" class="hidden">
+    </div>
+  </details>
+
+  <details class="tblock" data-block="games">
+    <summary><span class="tb-t">Games, evaluations and change log</span><span class="tb-s" id="tb-s-games">Games officiated, observation reports, every change to this event</span></summary>
+    <div class="tb-body">
+  <div class="tabs">
+    <button data-ttab="officiated" class="active">Games and evaluations</button>
+    <button data-ttab="log">Change log</button>
+  </div>
+  <div id="ttab-officiated">
     <p class="small muted" style="margin-top:0">Log every game below with its referee pair: it counts each referee's games and opens the observation reports. The team comes from Designated and travel.</p>
     <div id="tour-games"></div>
     <details style="margin-top:16px"><summary class="small"><strong>Games per official</strong> <span class="muted">(totals for past events without game by game detail)</span></summary>
@@ -506,6 +530,8 @@
     <p class="small muted">Every change to this tournament, by whom and when. Internal fields (club, sanction, region, divisions, staff by, published, NRC staffs, source link) are logged here but not sent to officials or the organizer.</p>
     <div class="table-wrap"><table id="tour-log"><thead><tr><th>When</th><th>Who</th><th>What changed</th><th>Sent to officials and organizer</th></tr></thead><tbody></tbody></table></div>
   </div>
+    </div>
+  </details>
 </div></dialog>
 
 <!-- Club editor -->
