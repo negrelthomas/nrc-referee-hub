@@ -4,6 +4,7 @@
 //   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY (server only), GMAIL_USER, GMAIL_APP_PASSWORD, MAIL_FROM, SITE_URL
 import { createClient } from "@supabase/supabase-js";
 import { sendMail, fmtDate, coverage } from "./mailer.mjs";
+import { sendChangeNotice } from "./change-notice.mjs";
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -42,27 +43,12 @@ export default async (req) => {
     : { assignment_id: a.id, role: a.role, ...a.referees });
   const LEVEL = { candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3", nachc: "NACHC", ihf: "IHF" };
 
-  const LABEL = { name: "Name", start_date: "Start date", end_date: "End date", venue_name: "Venue", venue_address: "Address", venue_city: "City", venue_state: "State", nearest_airport_iata: "Nearest airport", pairs_total: "Total pairs required", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "International pairs brought by the organizer", organizer_pairs_note: "Organizer pairs from", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights covered", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers covered", airport_transfer_how: "Airport transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure last day", travel_managed_by: "Travel booked by", notes: "Notes", status: "Status", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
   const logAndSend = async (to, subject, html, kindLabel) => { const r = await sendMail({ to, subject, html }); await admin.from("email_log").insert({ to_email: to, subject, kind: kindLabel, sent: r.sent, error: r.error }); return { email: to, sent: r.sent, error: r.error }; };
-  const recipients = () => designated.filter(d => d.email).map(d => ({ email: d.email, name: d.first_name }));
 
   if (kind === "changes" || kind === "cancel") {
-    const { data: ch } = await admin.from("tournament_changes").select("*").eq("tournament_id", tournament_id).is("notified_at", null).order("created_at");
-    const rows = (ch || []).flatMap(c => Object.entries(c.changes || {}).filter(([f]) => LABEL[f] && f !== "status").map(([f, v]) => `<li>${esc(LABEL[f] || f)}: ${esc(v.from == null ? "none" : v.from)} to ${esc(v.to == null ? "none" : v.to)}</li>`));
-    const cancelled = kind === "cancel" || t.status === "cancelled";
-    // internal fields (club, staff by, sanction...) are logged for the NRC but not sent; nothing public changed: nothing to send
-    if (!cancelled && !rows.length) {
-      if (ch && ch.length) await admin.from("tournament_changes").update({ notified_at: new Date().toISOString() }).in("id", ch.map(c => c.id));
-      return json(200, { results: [], nothing: true });
-    }
-    const subject = cancelled ? `Cancelled: ${t.name}, ${fmtDate(t.start_date)}` : `Update: ${t.name}, ${fmtDate(t.start_date)}`;
-    const body = cancelled ? `<p><strong>${esc(t.name)}</strong> (${when}, ${esc(t.venue_city)}, ${esc(t.venue_state)}) is cancelled by the organizer. Any assignment for this event is void; the NRC cancels bookings it made and will confirm by email.</p>` : `<p>The details of <strong>${esc(t.name)}</strong> (${when}, ${esc(where)}) changed:</p><ul>${rows.join("") || "<li>See the event page for the current details.</li>"}</ul><p>Your assignment stands unless the NRC tells you otherwise. Check your trip on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p>`;
-    const results = [];
-    for (const r of recipients()) results.push(await logAndSend(r.email, subject, `<p>Hi ${esc(r.name)},</p>${body}<p>National Referee Committee</p>`, kind));
-    results.push(await logAndSend(contact, `[NRC hub] ${subject}`, `<p>${isOwner ? "The organizer" : "An administrator"} ${isOwner ? esc(t.organizer_name) : ""} ${cancelled ? "cancelled" : "changed"} ${esc(t.name)}.</p>${cancelled ? "" : "<ul>" + rows.join("") + "</ul>"}${agreed ? "<p>Agreed with the organizer: " + esc(agreed) + "</p>" : ""}<p>${designated.length} designated official(s) were notified.</p>`, kind));
-    if (!isAdmin || true) results.push(await logAndSend(t.organizer_email, subject, `<p>Hi ${esc(t.organizer_name)},</p>${cancelled ? `<p>Your request for <strong>${esc(t.name)}</strong> is recorded as cancelled. The NRC confirms the cancellation of any booking it made.</p>` : `<p>This confirms the changes to <strong>${esc(t.name)}</strong>${agreed ? ", as agreed with you (" + esc(agreed) + ")" : ""}:</p><ul>${rows.join("")}</ul><p>The designated officials were told. Your page: <a href="${base}/organizer.html">${base}/organizer.html</a>.</p>`}<p>National Referee Committee</p>`, kind));
-    if (ch && ch.length) await admin.from("tournament_changes").update({ notified_at: new Date().toISOString(), ...(agreed ? { agreed_note: agreed } : {}) }).in("id", ch.map(c => c.id));
-    return json(200, { results });
+    // shared with the scheduled pending-changes job: collapsed change list, current coverage, designated and invited referees
+    const actor = isOwner && !isAdmin ? `The organizer ${t.organizer_name || ""}`.trim() : `An administrator (${prof.email})`;
+    return json(200, await sendChangeNotice(admin, t, { kind, agreed, actor }));
   }
 
   if (kind === "brief") {
