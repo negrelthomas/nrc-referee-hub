@@ -19,7 +19,7 @@
   // ---------- page shell ----------
   function shell() {
     ["#stats", ".tabs", "#tab-home", "#tab-profile", "#tab-tournaments", "#tab-games", "#tab-evals", "#assess-banner"].forEach(s => { const e = $(s); if (e) e.classList.add("hidden"); });
-    const links = $("#hello").parentElement.querySelector(".small"); if (links) links.innerHTML = '<a href="guide/guests.html">How it works</a> &middot; <a href="#" onclick="NRC.Guest.editProfile();return false">Edit my profile</a>';
+    const links = $("#hello-links"); if (links) links.innerHTML = '<a href="guide/guests.html">How it works</a> &middot; <a href="#" onclick="NRC.Guest.editProfile();return false">Edit my profile</a>';
     $("#msg").insertAdjacentHTML("afterend", `<div id="guest-root">
       <p class="muted" id="guest-sub" style="margin:6px 0 0"></p>
       <div class="gtabs tabs" style="margin-top:16px"><button data-g="events" class="active">My events</button><button data-g="profile">My profile</button><button data-g="training">Training and tests</button></div>
