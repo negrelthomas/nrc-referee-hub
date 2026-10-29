@@ -187,7 +187,7 @@
     if (!host) return;
     const links = [
       ["index.html", "Home"], ["become-a-referee.html", "Become a referee"], ["training.html", "Training"],
-      ["referees.html", "Referees"], ["request-referees.html", "Request referees for a tournament"]
+      ["referees.html", "Referees"], ["request-referees.html", "Request referees for a tournament"], ["guide/index.html", "How to"]
     ];
     host.className = "nav";
     host.innerHTML = `<div class="wrap">
@@ -195,7 +195,7 @@
         <span class="word">National Referee Committee<small>Referee Hub</small></span></a>
       <button class="burger" id="burger" aria-label="Menu">&#9776;</button>
       <nav class="menu" id="menu">
-        ${links.map(([h, t]) => `<a href="${h}" class="${active === h ? "active" : ""}">${t}</a>`).join("")}
+        ${links.map(([h, t]) => `<a href="${h}" class="${active === h || (active === "guide" && h === "guide/index.html") ? "active" : ""}">${t}</a>`).join("")}
         <a href="login.html" id="nav-login" class="cta">Sign in</a>
       </nav></div>`;
     NRC.$("#burger").onclick = () => NRC.$("#menu").classList.toggle("open");
@@ -204,7 +204,7 @@
       if (!a) return;
       if (u) {
         // referees from outside USATH: their events and training only
-        if (u.role === "guest") NRC.$$("#menu > a:not(#nav-login)").forEach(x => { if (!/training\.html$/.test(x.getAttribute("href"))) x.remove(); });
+        if (u.role === "guest") NRC.$$("#menu > a:not(#nav-login)").forEach(x => { if (!/(training|guide\/index)\.html$/.test(x.getAttribute("href"))) x.remove(); });
         a.textContent = u.role === "admin" ? "Admin" : u.role === "organizer" ? "My tournaments" : u.role === "evaluator" ? "My evaluations" : u.role === "guest" ? "My events" : "My home"; a.href = NRC.homeFor(u);
         if (u.role === "referee" || u.role === "admin") a.insertAdjacentHTML("beforebegin", `<a href="directory.html" class="${active === "directory.html" ? "active" : ""}">Directory</a>`);
         a.insertAdjacentHTML("afterend", `<a href="#" class="nav-out" onclick="NRC.signOut();return false">Sign out</a>`);
@@ -217,7 +217,7 @@
     const host = document.getElementById("site-footer");
     if (!host) return;
     host.innerHTML = `<div class="wrap">
-      <div>USA Team Handball, National Referee Committee. Questions: <a href="mailto:${NRC.esc(C.CONTACT_EMAIL)}">${NRC.esc(C.CONTACT_EMAIL)}</a> &middot; <a href="guide/index.html">How to use the hub</a></div>
+      <div>USA Team Handball, National Referee Committee. Questions: <a href="mailto:${NRC.esc(C.CONTACT_EMAIL)}">${NRC.esc(C.CONTACT_EMAIL)}</a> &middot; <a href="guide/index.html">How to</a> &middot; <a href="guide/faq.html">Common questions</a></div>
       <span class="foot-logo"><img src="assets/usath-logo.png" alt="USA Team Handball"></span></div>`;
   };
 
