@@ -42,15 +42,18 @@
     <div id="home-complete" style="margin-top:14px"></div>
     <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
     <div class="grid c2" style="margin-top:14px">
-      <div class="card"><h3>Weekends I can referee</h3><ul class="small muted" style="padding-left:18px;margin:6px 0 10px"><li>Tap a weekend to cycle: available, tentative, unavailable</li><li>Mark unavailable only the weekends you cannot referee at all</li><li>Weekends of tournaments you are designated for show as <strong>Assigned</strong>: leave them, the NRC already counts on you</li></ul>
+      <div class="card"><h3>When I can referee</h3><ul class="small muted" style="padding-left:18px;margin:6px 0 10px"><li>Tap a weekend to cycle: available, tentative, unavailable. A weekend covers Friday to Sunday</li><li>Events during the week are listed below the weekends: answer for each one, or add any dates under Other dates</li><li>Mark unavailable only the dates you cannot referee at all</li><li>Weekends of tournaments you are designated for show as <strong>Assigned</strong>: leave them, the NRC already counts on you</li></ul>
         <div id="weekends" class="weekends"></div>
-        <h3 style="margin-top:16px">Blocked dates</h3><p class="small muted">Periods you cannot referee at all (travel, season with your club). Do not block the dates of a tournament you are already designated for.</p>
+        <div id="wd-wrap" class="hidden"><h3 style="margin-top:16px">Events during the week</h3><p class="small muted">These events have game days from Monday to Thursday, which the weekend tiles do not cover. Your answer applies to all the event dates.</p>
+        <div class="avail-list" id="wd-events"></div></div>
+        <h3 style="margin-top:16px">Other dates</h3><p class="small muted">Any period, weekdays included: available or tentative for a training camp or an event not listed, unavailable for travel or your club season. Unavailable dates win over everything else. Do not mark unavailable the dates of a tournament you are already designated for.</p>
         <div class="avail-list" id="avail-list"></div>
         <form id="avail-form" class="row" style="margin-top:10px;grid-template-columns:1fr 1fr;align-items:end;gap:8px">
           <div><label>From</label><input name="start_date" type="date" required></div>
           <div><label>To</label><input name="end_date" type="date" required></div>
+          <div style="grid-column:1/-1"><label>I am</label><select name="status"><option value="available">Available</option><option value="tentative">Tentative</option><option value="unavailable">Unavailable</option></select></div>
           <div style="grid-column:1/-1"><label>Note (optional)</label><input id="avail-note" placeholder="Playing with my club, travel..."></div>
-          <div style="grid-column:1/-1"><button class="btn sm" type="submit">Block these dates</button></div>
+          <div style="grid-column:1/-1"><button class="btn sm" type="submit">Save these dates</button></div>
         </form>
       </div>
       <div class="card"><h3>Keep sharp</h3><div id="home-training"></div><p style="margin-top:12px"><a class="btn yellow sm" href="training.html">Open training</a></p></div>
@@ -125,17 +128,6 @@
 </section>
 </div>
 <footer id="site-footer"></footer>
-<dialog id="dlg-claim"><div class="body">
-  <h3 style="margin-top:0">Expense claim</h3>
-  <p class="small muted">One claim per receipt. The NRC reviews it; the organizer or the NRC reimburses according to what was agreed for the event.</p>
-  <form id="form-claim">
-    <input type="hidden" name="assignment_id">
-    <div class="row"><div><label>Type</label><select name="kind"><option value="flight">Flight</option><option value="hotel">Hotel</option><option value="car">Car rental or fuel</option><option value="mileage">Mileage</option><option value="transport">Ground transport</option><option value="per_diem">Per diem</option><option value="other">Other</option></select></div><div><label>Amount (USD)</label><input name="amount" type="number" step="0.01" min="0" required></div></div>
-    <label>Description</label><input name="description" placeholder="SFO to BOS round trip, 2 nights Hampton Inn, 120 miles...">
-    <label>Receipt (photo or PDF)</label><input type="file" name="receipt" accept="image/*,.pdf">
-    <p style="margin-top:14px"><button class="btn" type="submit">Submit claim</button> <button class="btn ghost" type="button" onclick="document.getElementById('dlg-claim').close()">Cancel</button></p>
-  </form>
-</div></dialog>
 <dialog id="dlg-mybooking"><div class="body">
   <h3 style="margin-top:0">A booking I made</h3>
   <form id="form-mybooking">
@@ -182,8 +174,8 @@
     </form>
   </div>
   <div class="screen" data-s="3">
-    <h3 style="margin:0 0 6px">Your weekends</h3>
-    <p>On your home, tap a weekend to cycle it: available, tentative, unavailable. It saves on each tap. Weekends left blank count as unknown, and the NRC considers declared weekends first. Longer periods go under Blocked dates.</p>
+    <h3 style="margin:0 0 6px">Your availability</h3>
+    <p>On your home, tap a weekend to cycle it: available, tentative, unavailable. It saves on each tap. A weekend covers Friday to Sunday. Weekends left blank count as unknown, and the NRC considers declared dates first. Events with game days during the week are listed under the grid: answer Available, Tentative or Unavailable for each. Any other period, weekdays included, goes under Other dates.</p>
     <img src="guide/img/referee-home-weekends.jpg" alt="The weekend grid on the referee home">
   </div>
   <div class="screen" data-s="4">
@@ -217,6 +209,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
+<script src="js/expenses.js"></script>
 <script src="js/report.js"></script>
 <script src="js/guest-home.js"></script>
 <script>
@@ -325,19 +318,17 @@ async function loadHome() {
       (bk || []).forEach(b => { if (!b.start_at) return; ev.push({ title: KIND[b.kind] + (b.provider ? ": " + b.provider : "") + (b.reference ? " (" + b.reference + ")" : ""), start: new Date(b.start_at), end: b.end_at ? new Date(b.end_at) : null, location: [b.from_place, b.to_place].filter(Boolean).join(" to "), desc: (b.notes || "") + (b.paid_by ? " Paid by " + b.paid_by + "." : ""), url: location.origin + "/profile.html" }); });
       NRC.downloadIcs((T.name || "tournament").replace(/[^a-z0-9]+/gi, "-").toLowerCase() + ".ics", ev);
     };
-    const { data: claims } = asg ? await NRC.sb.from("expense_claims").select("*").eq("assignment_id", asg.id).order("created_at") : { data: [] };
-    const CK = { flight: "Flight", hotel: "Hotel", car: "Car", mileage: "Mileage", transport: "Transport", per_diem: "Per diem", other: "Other" };
-    const claimsHtml = (claims || []).length ? '<h3 style="margin-top:14px">Expenses</h3>' + claims.map(c => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)">${CK[c.kind]}${c.description ? ", " + NRC.esc(c.description) : ""}: <strong>$${Number(c.amount).toFixed(2)}</strong> <span class="pill ${c.status === "reimbursed" ? "green" : c.status === "rejected" ? "red" : c.status === "approved" ? "green" : "amber"}">${c.status}</span>${c.review_note ? " <span class='muted'>" + NRC.esc(c.review_note) + "</span>" : ""}</div>`).join("") : "";
     const rows = (bk || []).map(b => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>${KIND[b.kind]}</strong>${b.provider ? ", " + NRC.esc(b.provider) : ""}${b.reference ? " <span class='pill'>" + NRC.esc(b.reference) + "</span>" : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span><div class="small">${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.from_place || b.to_place ? "<br>" + NRC.esc([b.from_place, b.to_place].filter(Boolean).join(" to ")) : ""}${b.notes ? "<br>" + NRC.esc(b.notes) : ""}</div></div>`).join("");
     travelHtml = `<div class="card" style="margin-top:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3 style="margin:0">Your trip</h3><button class="btn sm ghost" type="button" onclick="nextCalendar()">Add to my calendar</button></div>
       <div class="small muted" style="margin:6px 0 8px">${NRC.esc(venue)}${T.nearest_airport_iata ? ", nearest airport " + NRC.esc(T.nearest_airport_iata) : ""}. Organizer: ${NRC.esc(T.organizer_name || "")}, ${NRC.esc(T.organizer_email || "")}${T.organizer_phone ? ", " + NRC.esc(T.organizer_phone) : ""}.${T.earliest_return_last_day ? " Do not leave before " + String(T.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}</div>
       ${rows || '<p class="small muted">' + NRC.esc(NRC.bookingSentence(T, true) + " Bookings appear here with their references once made.") + "</p>"}
       ${asg && asg.travel_notes ? '<p class="small"><strong>Travel notes:</strong> ' + NRC.esc(asg.travel_notes) + "</p>" : ""}
-      ${asg ? `<div class="trip-actions"><button class="btn sm secondary" type="button" onclick="openMyBooking('${asg.id}')">Add a booking I made</button><button class="btn sm secondary" type="button" onclick="openClaim('${asg.id}')">Submit an expense</button></div>` : ""}<p class="small" style="margin:10px 0 0"><a class="muted" href="mailto:referee@handballusa.org?subject=${encodeURIComponent("Cannot officiate: " + (T.name || ""))}&body=${encodeURIComponent("Hi,\n\nI am designated for " + (T.name || "") + " (" + T.start_date + ") and I have to withdraw because:\n\n")}">I can no longer officiate at this event</a></p>
-      ${claimsHtml}</div>`;
+      ${asg ? `<div class="trip-actions"><button class="btn sm secondary" type="button" onclick="openMyBooking('${asg.id}')">Add a booking I made</button></div>` : ""}<p class="small" style="margin:10px 0 0"><a class="muted" href="mailto:referee@handballusa.org?subject=${encodeURIComponent("Cannot officiate: " + (T.name || ""))}&body=${encodeURIComponent("Hi,\n\nI am designated for " + (T.name || "") + " (" + T.start_date + ") and I have to withdraw because:\n\n")}">I can no longer officiate at this event</a></p></div>`;
   }
   $("#home-next").innerHTML = (n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Details</a></div>`
     : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC designates you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`) + travelHtml;
+  $("#home-next").insertAdjacentHTML("beforeend", '<div id="home-expenses"></div>');
+  NRC.Exp.mountClaimant(document.getElementById("home-expenses"), { refereeId: ref.id }).catch(() => {});
   // alerts
   const alerts = [];
   const { data: pend } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,start_date)").eq("referee_id", ref.id).in("status", ["sent", "tentative"]).gte("tournaments.start_date", today);
@@ -374,7 +365,7 @@ async function loadHome() {
   else if (certified && pr && pr.status === "ready_for_retest") alerts.unshift(`<div class="alert warn"><div><div class="t">Modules done, re-test open</div><div class="small">Clear the hurdle to close your program.</div></div><a class="btn sm" href="training.html#program">Re-test</a></div>`);
   else if (!certified && ref.level1_theory_passed_on) alerts.unshift(`<div class="alert ok"><div><div class="t">Level 1 theory passed on ${NRC.fmtDate(ref.level1_theory_passed_on)}</div><div class="small">Next step: the practical part (signals, whistle, physical test) at a clinic. The NRC contacts you and awards Level 1 after it. Keep practising on the Training page meanwhile.</div></div><a class="btn sm secondary" href="training.html">Training</a></div>`);
   else if (!certified) alerts.unshift(`<div class="alert info"><div><div class="t">Level 1 online course</div><div class="small">Six modules, then the final test. Pass it and "theory passed" is recorded here; the NRC awards Level 1 after the practical part.</div></div><a class="btn sm" href="training.html#program">Open</a></div>`);
-  if (!certified) { const w = document.querySelector("#weekends").closest(".card"); if (w) w.innerHTML = `<h3>Availability</h3><p class="small muted">Weekend availability and blocked dates open once you are certified; the NRC staffs tournaments with certified referees only.</p>`; }
+  if (!certified) { const w = document.querySelector("#weekends").closest(".card"); if (w) w.innerHTML = `<h3>Availability</h3><p class="small muted">Availability opens once you are certified; the NRC staffs tournaments with certified referees only.</p>`; }
   $("#home-alerts").innerHTML = alerts.join("");
   renderCompletion(certified, asmt && asmt[0]);
   loadAvail();
@@ -387,9 +378,11 @@ async function loadHome() {
 // profile completion: what the referee fills in, what the NRC records, tests to take
 async function renderCompletion(certified, asmt) {
   const today = NRC.localDate();
-  const [{ count: wk }, { data: phys }] = await Promise.all([
+  const [{ count: wk0 }, { count: rg }, { data: phys }] = await Promise.all([
     NRC.sb.from("weekend_availability").select("weekend", { count: "exact", head: true }).eq("referee_id", ref.id).gte("weekend", today),
+    NRC.sb.from("availability_blocks").select("id", { count: "exact", head: true }).eq("referee_id", ref.id).in("status", ["available", "tentative"]).gte("end_date", today),
     NRC.sb.from("referee_tests").select("test_name,result,passed,tested_on,std_band,beep_level,beep_shuttle,beep_loops").eq("referee_id", ref.id).eq("kind", "physical").order("tested_on", { ascending: false }).limit(1)]);
+  const wk = (wk0 || 0) + (rg || 0);
   const p = phys && phys[0];
   const edit = { label: "Add", onclick: "document.querySelector('[data-tab=profile]').click()" };
   const valid = (d) => !!d && d >= today;
@@ -401,7 +394,7 @@ async function renderCompletion(certified, asmt) {
     { label: "Closest airport", done: !!ref.home_airport_iata, kind: "you", detail: "Needed to plan your travel", action: edit },
     { label: "USATH member ID", done: !!ref.usath_member_id, kind: "you", action: edit }];
   if (certified) {
-    items.push({ label: "Weekends you can referee", done: wk > 0, kind: "you", detail: wk ? wk + " weekend" + (wk > 1 ? "s" : "") + " declared" : "Tap your weekends on the grid below", action: { label: "Declare", onclick: "document.getElementById('weekends').scrollIntoView({behavior:'smooth',block:'center'})" } });
+    items.push({ label: "Dates you can referee", done: wk > 0, kind: "you", detail: wk ? (wk0 ? wk0 + " weekend" + (wk0 > 1 ? "s" : "") : "") + (wk0 && rg ? " and " : "") + (rg ? rg + " other period" + (rg > 1 ? "s" : "") : "") + " declared" : "Tap your weekends on the grid below and answer for events during the week", action: { label: "Declare", onclick: "document.getElementById('weekends').scrollIntoView({behavior:'smooth',block:'center'})" } });
     items.push({ label: "Initial rules assessment", done: !!asmt, kind: "you", detail: asmt ? asmt.pct + "% on " + NRC.fmtDate(asmt.created_at.slice(0, 10)) : "50 questions, 60 minutes", action: { label: "Take it", href: "training.html#program" } });
   } else {
     items.push({ label: "Level 1 online course", done: !!ref.level1_theory_passed_on, kind: "you", detail: ref.level1_theory_passed_on ? "Theory passed on " + NRC.fmtDate(ref.level1_theory_passed_on) : "Six modules and a final test", action: { label: "Open", href: "training.html#program" } });
@@ -410,7 +403,7 @@ async function renderCompletion(certified, asmt) {
   items.push(doc("USATH membership", ref.usath_membership_valid_until), doc("SafeSport certificate", ref.safesport_valid_until), doc("Background check", ref.background_check_valid_until));
   $("#home-complete").innerHTML = NRC.completionHtml("Your profile", items);
 }
-let WA = {}, MYA = [];
+let WA = {}, MYA = [], EVS = [];
 async function loadMyAssignments() {
   const { data } = await NRC.sb.from("assignments").select("tournament_id,role,tournaments(name,start_date,end_date,status)").eq("referee_id", ref.id);
   MYA = (data || []).filter(a => a.tournaments && a.tournaments.status !== "cancelled" && a.tournaments.end_date >= NRC.localDate());
@@ -424,7 +417,7 @@ async function loadWeekends(readOnly) {
     NRC.sb.from("event_calendar").select("id,name,sanction,start_date,end_date,date_status,venue_city,venue_state").gte("end_date", today).order("start_date")]);
   WA = {}; (data || []).forEach(r => WA[r.weekend] = r.status);
   if (!readOnly) await loadMyAssignments();
-  const EV = ev || [];
+  const EV = ev || []; EVS = EV;
   const host = $("#weekends"); host.innerHTML = "";
   const iso = (x) => NRC.localDate(x);
   const MC = ["#1E5AB8", "#0F6E56", "#7B3FA0", "#D97A00", "#0B7A8F", "#B5179E", "#5C6B00", "#C8102E", "#3A4A5C", "#E0A100", "#04234F", "#9E0B23"];
@@ -451,19 +444,47 @@ async function loadWeekends(readOnly) {
     host.appendChild(b); d = new Date(d); d.setDate(d.getDate() + 7);
   }
 }
+const AV_PILL = { available: '<span class="pill green">available</span>', tentative: '<span class="pill amber">tentative</span>', unavailable: '<span class="pill red">unavailable</span>' };
+// an event with a game day from Monday to Thursday
+function hasWeekday(e) { for (let d = new Date(e.start_date + "T12:00:00"); d <= new Date(e.end_date + "T12:00:00"); d.setDate(d.getDate() + 1)) { const w = d.getDay(); if (w >= 1 && w <= 4) return true; } return false; }
+function rangeText(a, b) { return NRC.fmtDate(a) + (b !== a ? " to " + NRC.fmtDate(b) : ""); }
 async function loadAvail() {
   if (!$("#weekends")) return;
-  loadWeekends();
-  const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", NRC.localDate()).order("start_date");
-  $("#avail-list").innerHTML = (data || []).map(b => `<div><span>${NRC.fmtDate(b.start_date)}${b.end_date !== b.start_date ? " to " + NRC.fmtDate(b.end_date) : ""}${b.note ? ' <span class="small muted">' + NRC.esc(b.note) + "</span>" : ""}</span><button class="btn ghost sm" onclick="delAvail('${b.id}')">Remove</button></div>`).join("") || '<div class="small muted">No blocked dates. You are shown as available.</div>';
+  await loadWeekends();
+  const today = NRC.localDate();
+  const { data } = await NRC.sb.from("availability_blocks").select("*").eq("referee_id", ref.id).gte("end_date", today).order("start_date");
+  const rows = data || [];
+  const horizon = new Date(); horizon.setDate(horizon.getDate() + 26 * 7);
+  const wd = EVS.filter(e => e.end_date >= today && e.start_date <= NRC.localDate(horizon) && hasWeekday(e));
+  $("#wd-wrap").classList.toggle("hidden", !wd.length);
+  $("#wd-events").innerHTML = wd.map(e => {
+    const mine = MYA.find(a => a.tournament_id === e.id);
+    const ans = rows.find(r => r.tournament_id === e.id);
+    const btn = (st, label) => `<button class="btn sm ${ans && ans.status === st ? "" : "ghost"}" type="button" onclick="answerEvent('${e.id}','${st}')">${label}</button>`;
+    return `<div style="flex-wrap:wrap;gap:6px"><span><strong>${NRC.esc(e.name)}</strong><br><span class="small muted">${rangeText(e.start_date, e.end_date)}${e.venue_city ? ", " + NRC.esc(e.venue_city) + (e.venue_state ? " " + NRC.esc(e.venue_state) : "") : ""}${e.date_status === "tentative" ? ", dates tentative" : ""}</span></span>`
+      + (mine ? '<span class="pill green">assigned</span>' : `<span style="display:flex;gap:4px;flex-wrap:wrap">${btn("available", "Available")}${btn("tentative", "Tentative")}${btn("unavailable", "Unavailable")}</span>`) + "</div>";
+  }).join("");
+  const other = rows.filter(r => !r.tournament_id);
+  $("#avail-list").innerHTML = other.map(b => `<div><span>${AV_PILL[b.status || "unavailable"]} ${rangeText(b.start_date, b.end_date)}${b.note ? ' <span class="small muted">' + NRC.esc(b.note) + "</span>" : ""}</span><button class="btn ghost sm" onclick="delAvail('${b.id}')">Remove</button></div>`).join("") || '<div class="small muted">No other dates declared.</div>';
 }
 window.delAvail = async function (id) { await NRC.sb.from("availability_blocks").delete().eq("id", id); loadAvail(); };
+window.answerEvent = async function (tid, status) {
+  const e = EVS.find(x => x.id === tid); if (!e) return;
+  const { data: ex } = await NRC.sb.from("availability_blocks").select("id,status").eq("referee_id", ref.id).eq("tournament_id", tid);
+  let error;
+  if (ex && ex.length && ex[0].status === status) ({ error } = await NRC.sb.from("availability_blocks").delete().eq("id", ex[0].id));
+  else if (ex && ex.length) ({ error } = await NRC.sb.from("availability_blocks").update({ status, start_date: e.start_date, end_date: e.end_date, updated_at: new Date().toISOString() }).eq("id", ex[0].id));
+  else ({ error } = await NRC.sb.from("availability_blocks").insert({ referee_id: ref.id, tournament_id: tid, status, start_date: e.start_date, end_date: e.end_date, note: e.name }));
+  if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); return; }
+  loadAvail();
+};
 $("#avail-form").addEventListener("submit", async (e) => {
-  e.preventDefault(); const f = e.target;
+  e.preventDefault(); const f = e.target; const status = f.status.value;
+  if (f.end_date.value < f.start_date.value) { NRC.notice($("#msg"), "The end date is before the start date.", "error"); return; }
   if (!MYA.length) await loadMyAssignments();
-  const clash = MYA.filter(a => a.tournaments.start_date <= f.end_date.value && a.tournaments.end_date >= f.start_date.value);
-  if (clash.length && !confirm(`You are designated for ${clash.map(a => a.tournaments.name).join(", ")} in this period. Blocking these dates tells the NRC you cannot referee at all, including that tournament.\n\nTo block only other events, choose dates that leave the tournament out. Block anyway?`)) return;
-  const { error } = await NRC.sb.from("availability_blocks").insert({ referee_id: ref.id, start_date: f.start_date.value, end_date: f.end_date.value, note: $("#avail-note").value.trim() || null });
+  const clash = status === "unavailable" ? MYA.filter(a => a.tournaments.start_date <= f.end_date.value && a.tournaments.end_date >= f.start_date.value) : [];
+  if (clash.length && !confirm(`You are designated for ${clash.map(a => a.tournaments.name).join(", ")} in this period. Marking these dates unavailable tells the NRC you cannot referee at all, including that tournament.\n\nTo exclude only other events, choose dates that leave the tournament out. Save anyway?`)) return;
+  const { error } = await NRC.sb.from("availability_blocks").insert({ referee_id: ref.id, status, start_date: f.start_date.value, end_date: f.end_date.value, note: $("#avail-note").value.trim() || null });
   if (error) { NRC.notice($("#msg"), "Could not save: " + NRC.esc(error.message), "error"); return; }
   f.reset(); $("#avail-note").value = ""; loadAvail();
 });
@@ -558,15 +579,7 @@ async function loadEvals() {
     <div class="hist-years">${scoreTags(e)}</div>
     ${e.strengths ? `<p><strong>Strengths.</strong> ${NRC.esc(e.strengths)}</p>` : ""}${e.points_to_improve ? `<p><strong>Points to improve.</strong> ${NRC.esc(e.points_to_improve)}</p>` : ""}${e.notes && e.report_id ? `<p><strong>Note for you.</strong> ${NRC.esc(e.notes)}</p>` : ""}<p class="small">${e.report_id ? `<a href="#" onclick="NRC.Report.openView('${e.report_id}');return false">Full observation report</a>` : ""}${e.report_id && e.video_url ? " &middot; " : ""}${e.video_url ? `<a href="${NRC.esc(e.video_url)}" target="_blank" rel="noopener">Game video</a>` : ""}</p></div>`; }).join("") || '<div class="card">No evaluation shared with you yet.</div>';
 }
-window.openClaim = (aid) => { const f = $("#form-claim"); f.reset(); f.assignment_id.value = aid; $("#dlg-claim").showModal(); };
-$("#form-claim").addEventListener("submit", async (e) => {
-  e.preventDefault(); const f = e.target;
-  let receipt_url = null; const file = f.receipt.files[0];
-  if (file) { const ext = (file.name.split(".").pop() || "jpg").toLowerCase(); const path = `${user.id}/${Date.now()}.${ext}`; const up = await NRC.sb.storage.from("receipts").upload(path, file, { contentType: file.type }); if (up.error) { alert("Receipt upload failed: " + up.error.message); return; } receipt_url = path; }
-  const { error } = await NRC.sb.from("expense_claims").insert({ assignment_id: f.assignment_id.value, kind: f.kind.value, amount: parseFloat(f.amount.value), description: f.description.value.trim() || null, receipt_url, submitted_by: user.id });
-  if (error) { alert("Could not submit: " + error.message); return; }
-  $("#dlg-claim").close(); (window.reloadTrip || loadHome)();
-});
+window.openClaim = (aid) => NRC.Exp.openClaim(aid, { onDone: () => (window.reloadTrip || loadHome)() });
 window.openMyBooking = (aid) => { const f = $("#form-mybooking"); f.reset(); f.assignment_id.value = aid; $("#dlg-mybooking").showModal(); };
 $("#form-mybooking").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;

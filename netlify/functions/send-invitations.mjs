@@ -101,21 +101,16 @@ export default async (req) => {
     + (bk.includes("referee") ? "What you book yourself stays within what the organizer covers above and is reimbursed: record each booking on your referee home (Add a booking I made) and submit your expenses with receipts there. " : "")
     + (bk.includes("organizer") ? `For what the organizer books, send them your travel details and copy ${contact}; record what gets booked on your referee home so the NRC sees it.` : "");
 
-  // Availability for the tournament dates, per referee: blocked dates, weekend declarations (Saturday keys)
-  const sat = d => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + ((6 - x.getUTCDay() + 7) % 7)); return x.toISOString().slice(0, 10); };
-  const wk = []; for (let d = new Date(t.start_date + "T12:00:00Z"); d <= new Date(t.end_date + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() + 1)) { const k = sat(d.toISOString().slice(0, 10)); if (!wk.includes(k)) wk.push(k); }
+  // Availability for the tournament dates, per referee, from the shared function (same rules as the admin window)
   const ids = new Set(); (reqs || []).forEach(r => { if (r.referees) ids.add(r.referees.id); });
   (pairs || []).forEach(p => { if (ids.has(p.referee_a)) ids.add(p.referee_b); if (ids.has(p.referee_b)) ids.add(p.referee_a); });
-  const [{ data: blocks }, { data: weekends }, { data: pairRefs }, { data: overrides }] = await Promise.all([
-    admin.from("availability_blocks").select("referee_id,start_date,end_date").in("referee_id", [...ids]).lte("start_date", t.end_date).gte("end_date", t.start_date),
-    admin.from("weekend_availability").select("referee_id,weekend,status,tournament_id,note").in("referee_id", [...ids]).in("weekend", wk),
+  const [{ data: avail }, { data: pairRefs }, { data: overrides }] = await Promise.all([
+    admin.rpc("tournament_availability", { p_tour: t.id }),
     admin.from("referees").select("id,first_name,last_name").in("id", [...ids]),
     admin.from("availability_overrides").select("referee_id,status").eq("tournament_id", t.id).neq("status", "reverted")]);
-  const availOf = id => { if ((overrides || []).some(o => o.referee_id === id)) return { ok: true, word: "available (NRC override)" }; const b = (blocks || []).find(x => x.referee_id === id); if (b) return { ok: false, word: `blocked dates from ${fmtDate(b.start_date)} to ${fmtDate(b.end_date)} on the hub` };
-    const w = (weekends || []).filter(x => x.referee_id === id).map(x => x.status === "assigned" ? { ...x, status: x.tournament_id === t.id ? "available" : "booked" } : x); if (!w.length) return { ok: false, word: "not declared on the hub" };
-    const bk = w.find(x => x.status === "booked"); if (bk) return { ok: false, word: (bk.note || "designated for another event").replace(/^Designated for /, "booked: designated for ") };
-    if (w.some(x => x.status === "unavailable")) return { ok: false, word: "marked unavailable on the hub" };
-    if (w.every(x => x.status === "available")) return { ok: true, word: "available" }; return { ok: false, word: "marked tentative on the hub" }; };
+  const availOf = id => { if ((overrides || []).some(o => o.referee_id === id)) return { ok: true, word: "available (NRC override)" };
+    const a = (avail || []).find(x => x.referee_id === id); if (!a) return { ok: false, word: "not declared on the hub" };
+    return { ok: a.state === "available", word: a.state === "available" ? "available" : a.state === "booked" ? "booked: " + a.word : a.word + " on the hub" }; };
   const pairPartner = id => { const p = (pairs || []).find(p => p.referee_a === id || p.referee_b === id); if (!p) return null; const pid = p.referee_a === id ? p.referee_b : p.referee_a; return (pairRefs || []).find(x => x.id === pid) || null; };
 
   const results = [];

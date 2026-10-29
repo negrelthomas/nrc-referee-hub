@@ -7,6 +7,8 @@
 //  6. Initial assessment: certified referees who have signed in but not taken the baseline assessment get a reminder
 //     every 48 hours (first one the day after their first sign in), with a link straight to the test. Due 7 days after
 //     the first sign in; overdue referees are listed in the NRC digest.
+//  7. Expenses: organizers get one email a day while claims wait for their approval (weekly while approved claims are
+//     unpaid); claimants get one email a day listing claims approved, declined or paid since the last email.
 import { createClient } from "@supabase/supabase-js";
 import { sendMail, fmtDate } from "./mailer.mjs";
 
@@ -128,6 +130,39 @@ export default async () => {
         await admin.from("email_log").insert({ to_email: r.email, subject, kind: "assessment_reminder", sent: res.sent, error: res.error });
         if (res.sent) await log("assessment", r.id, r.email);
       }
+    }
+  }
+
+  // 7. Expenses. Organizers: one email a day while claims wait for their approval or payment.
+  //    Claimants: one email a day listing the claims the organizer approved, declined or paid since the last email.
+  {
+    const usd = n => "$" + Number(n || 0).toFixed(2);
+    const LBL = { flight: "Airfare", hotel: "Hotel", transport: "Rideshare and taxis", car: "Car rental and related", per_diem: "Food per diem", mileage: "Mileage", other: "Other" };
+    const { data: open } = await admin.from("expense_claims").select("id,status,amount,reimbursed_by,assignments(tournament_id,tournaments(id,name,organizer_name,organizer_email,status))").in("status", ["submitted", "approved"]).eq("reimbursed_by", "organizer");
+    const byTour = {};
+    for (const c of open || []) { const t = c.assignments?.tournaments; if (!t || t.status === "cancelled" || !t.organizer_email) continue; (byTour[t.id] = byTour[t.id] || { t, wait: 0, waitN: 0, due: 0, dueN: 0 }); if (c.status === "submitted") { byTour[t.id].wait += Number(c.amount); byTour[t.id].waitN++; } else { byTour[t.id].due += Number(c.amount); byTour[t.id].dueN++; } }
+    for (const { t, wait, waitN, due, dueN } of Object.values(byTour)) {
+      if (!waitN && !dueN) continue;
+      const { data: last } = await admin.from("reminder_log").select("created_at").eq("kind", "expenses_organizer").eq("target_id", t.id).order("created_at", { ascending: false }).limit(1);
+      if (last && last.length && Date.now() - new Date(last[0].created_at).getTime() < 20 * 3600e3) continue;
+      if (!waitN && last && last.length && Date.now() - new Date(last[0].created_at).getTime() < 6.5 * 864e5) continue;   // approved but unpaid: weekly
+      const subject = waitN ? `${t.name}: ${waitN} expense claim(s) waiting for your approval` : `${t.name}: ${usd(due)} approved and not yet paid`;
+      const html = `<p>Hi ${esc(t.organizer_name || "")},</p><p>${waitN ? `${waitN} claim(s) from your officials at <strong>${esc(t.name)}</strong>, ${usd(wait)} in total, wait for your decision. You approve or decline each one.` : ""}${dueN ? ` ${dueN} approved claim(s), ${usd(due)}, are not yet marked paid.` : ""}</p><p>Each claim shows its receipt, the amount in USD and whether it falls within what you agreed on the request: <a href="${base}/login.html?next=organizer.html">open my tournaments</a>, then Reimbursements.</p><p>National Referee Committee</p>`;
+      const res = await sendMail({ to: t.organizer_email, subject, html });
+      await admin.from("email_log").insert({ to_email: t.organizer_email, subject, kind: "expenses_organizer", sent: res.sent, error: res.error });
+      if (res.sent) await log("expenses_organizer", t.id, t.organizer_email);
+    }
+    const { data: moved } = await admin.from("expense_claims").select("id,kind,status,amount,review_note,claimant_notified_status,paid_method,assignments(tournaments(name),referees(first_name,email),guest_officials(first_name,email))").in("status", ["approved", "rejected", "reimbursed"]);
+    const toTell = (moved || []).filter(c => c.status !== c.claimant_notified_status);
+    const byPerson = {};
+    for (const c of toTell) { const p = c.assignments?.referees || c.assignments?.guest_officials; if (!p?.email || /@demo\.nrc$/i.test(p.email)) continue; (byPerson[p.email] = byPerson[p.email] || { p, rows: [] }).rows.push(c); }
+    const WORD = { approved: "approved", rejected: "declined", reimbursed: "paid" };
+    for (const { p, rows } of Object.values(byPerson)) {
+      const list = rows.map(c => `<li>${esc(c.assignments.tournaments.name)}: ${esc(LBL[c.kind] || c.kind)}, ${usd(c.amount)}, <strong>${WORD[c.status]}</strong>${c.status === "reimbursed" && c.paid_method ? " (" + esc(c.paid_method) + ")" : ""}${c.review_note ? ". Note: " + esc(c.review_note) : ""}</li>`).join("");
+      const subject = `Your expense claims: ${rows.length} update(s)`;
+      const res = await sendMail({ to: p.email, subject, html: `<p>Hi ${esc(p.first_name || "")},</p><p>The organizer has decided on the following claims:</p><ul>${list}</ul><p>Details on your page: <a href="${base}/profile.html">${base}/profile.html</a>. Questions about a decision go to the organizer.</p><p>National Referee Committee</p>` });
+      await admin.from("email_log").insert({ to_email: p.email, subject, kind: "expenses_claimant", sent: res.sent, error: res.error });
+      if (res.sent) for (const c of rows) await admin.from("expense_claims").update({ claimant_notified_status: c.status }).eq("id", c.id);
     }
   }
 

@@ -4,7 +4,6 @@
 (function () {
   const $ = NRC.$;
   const KIND = { flight: "Flight", hotel: "Hotel", car: "Car rental", train: "Train", other: "Other" };
-  const CK = { flight: "Flight", hotel: "Hotel", car: "Car", mileage: "Mileage", transport: "Transport", per_diem: "Per diem", other: "Other" };
   const fmtDT = (d) => d ? new Date(d).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : "";
   let G = null, ROWS = [], USER = null, PREVIEW = false;
 
@@ -95,7 +94,7 @@
       const who = O.length ? `<ul class="plain small" style="margin:4px 0 0">${O.map(o => `<li>${NRC.esc(o.last_name + ", " + o.first_name)}${o.is_me ? " <strong>(you)</strong>" : ""} <span class="muted">${NRC.esc(o.role === "delegate" ? "supervisor" : o.role)}${o.affiliation ? ", " + NRC.esc(o.affiliation) : ""}</span></li>`).join("")}</ul>` : '<p class="small muted">Not published yet.</p>';
       const travelBy = NRC.bookingSentence(t, true) + " Bookings appear below with their references once made.";
       const bookings = B.map(b => `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><strong>${KIND[b.kind]}</strong>${b.provider ? ", " + NRC.esc(b.provider) : ""}${b.reference ? " <span class='pill'>" + NRC.esc(b.reference) + "</span>" : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span><div class="small">${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.from_place || b.to_place ? "<br>" + NRC.esc([b.from_place, b.to_place].filter(Boolean).join(" to ")) : ""}${b.notes ? "<br>" + NRC.esc(b.notes) : ""}</div></div>`).join("");
-      const claims = C.map(c => `<div class="small" style="padding:6px 0;border-bottom:1px solid var(--line)">${CK[c.kind] || c.kind}${c.description ? ", " + NRC.esc(c.description) : ""}: <strong>$${Number(c.amount).toFixed(2)}</strong> <span class="pill ${c.status === "rejected" ? "red" : c.status === "submitted" ? "amber" : "green"}">${c.status}</span>${c.review_note ? " <span class='muted'>" + NRC.esc(c.review_note) + "</span>" : ""}</div>`).join("");
+      const claims = NRC.Exp.listHtml(C, { canDelete: true });
       const isUp = t.end_date >= today;
       return `<details class="card g-event" ${open ? "open" : ""}><summary><div class="next" style="margin:0;box-shadow:none;padding:0;background:transparent"><div class="d">${new Date(t.start_date + "T00:00:00").getDate()}<small>${new Date(t.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3 style="margin:0">${NRC.esc(t.name)}</h3><div class="m small muted">${NRC.fmtDate(t.start_date)} to ${NRC.fmtDate(t.end_date)}, ${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", "))} ${NRC.sanctionPill(t.sanction)}${isUp ? "" : ' <span class="pill">past</span>'}</div></div></div></summary>
         <div class="grid c2" style="margin-top:12px">
@@ -103,7 +102,7 @@
             <h4 style="margin:14px 0 6px">What the organizer covers</h4><ul class="plain small" style="margin:0">${coverage(t).map(x => "<li>" + NRC.esc(x) + "</li>").join("")}</ul></div>
           <div><h4 style="margin:0 0 6px">Officials on this event</h4>${who}</div></div>
         <h4 style="margin:16px 0 6px">Travel</h4><p class="small muted" style="margin:0 0 6px">${travelBy}</p>${bookings}${a.travel_notes ? '<p class="small"><strong>Travel notes:</strong> ' + NRC.esc(a.travel_notes) + "</p>" : ""}
-        ${claims ? '<h4 style="margin:14px 0 6px">Expenses</h4>' + claims : ""}
+        <h4 style="margin:14px 0 6px">Expenses</h4><p class="small muted" style="margin:0 0 4px">One claim per receipt. The organizer approves and pays. <a href="#" onclick="NRC.Exp.openPayout();return false">How I get paid</a></p>${claims}
         ${isUp && a.id ? `<div class="trip-actions" style="margin-top:12px"><button class="btn sm secondary" type="button" onclick="_gCal['${t.id}']()">Add to my calendar</button><button class="btn sm secondary" type="button" onclick="openMyBooking('${a.id}')">Add a booking I made</button><button class="btn sm secondary" type="button" onclick="openClaim('${a.id}')">Submit an expense</button></div>
         <p class="small" style="margin:10px 0 0"><a class="muted" href="mailto:${NRC.esc(t.organizer_email || "")}?cc=referee@handballusa.org&subject=${encodeURIComponent("Cannot officiate: " + t.name)}">I can no longer officiate at this event</a></p>` : a.id ? `<div class="trip-actions" style="margin-top:12px"><button class="btn sm secondary" type="button" onclick="openClaim('${a.id}')">Submit an expense</button></div>` : ""}</details>`;
     };
