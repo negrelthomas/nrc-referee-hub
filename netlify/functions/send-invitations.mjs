@@ -6,6 +6,12 @@ import { createClient } from "@supabase/supabase-js";
 import { sendMail, fmtDate, coverage } from "./mailer.mjs";
 import { sendChangeNotice } from "./change-notice.mjs";
 
+// Who books each part of the trip: flights (travel_managed_by), hotel, rental car
+const WHO = (v, you) => v === "nrc" ? "the NRC" : v === "referee" ? (you ? "you" : "each referee") : "the organizer";
+export const bookingSentence = (t, you) => [["Flights", t.travel_managed_by], ["Hotel", t.hotel_booked_by || t.travel_managed_by], ["Rental car", t.car_booked_by || t.travel_managed_by]]
+  .map(([l, v]) => v === "none" ? (l === "Hotel" ? "No hotel needed" : "No rental car needed") : `${l} booked by ${WHO(v || "organizer", you)}`).join(". ") + ".";
+
+
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -61,7 +67,7 @@ export default async (req) => {
       const subject = `Designated as ${roleWord}: ${t.name}, ${fmtDate(t.start_date)}`;
       const html = `<p>Hi ${esc(a.first_name)},</p><p>The NRC has designated you as <strong>${roleWord}</strong> for <strong>${esc(t.name)}</strong>.</p>
         <p><strong>When:</strong> ${when}${t.earliest_return_last_day ? "<br>Do not book a departure before " + String(t.earliest_return_last_day).slice(0, 5) + " on the last day." : ""}<br><strong>Where:</strong> ${esc(where)}<br>${t.games_expected ? "<strong>Games:</strong> about " + t.games_expected + "<br>" : ""}${others ? "<strong>Officials:</strong> " + others + "<br>" : ""}<strong>Organizer:</strong> ${esc(t.organizer_name)}, ${esc(t.organizer_email)}${t.organizer_phone ? ", " + esc(t.organizer_phone) : ""}</p>${duties}
-        <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>Travel booked by: ${t.travel_managed_by === "nrc" ? "the NRC" : t.travel_managed_by === "referee" ? "you (keep your receipts and record your bookings on the hub)" : "the organizer"}.</p>
+        <p><strong>What the organizer covers</strong><br>${covers.map(esc).join("<br>")}<br>${esc(bookingSentence(t, true))}${[t.travel_managed_by, t.hotel_booked_by, t.car_booked_by].includes("referee") ? " Keep your receipts and record your bookings on the hub." : ""}</p>
         ${a.guest ? `<p>You are invited by the organizer, ${esc(t.organizer_name || "")} (${esc(t.organizer_email || "")}), who arranges your travel and reimbursement. The event, the team, your bookings and your expenses are on your page on the hub: <a href="${base}/login.html?next=profile.html&email=${encodeURIComponent(a.email || "")}">open my page</a> (sign in with this email address, no password). Training and the rules assessment are open to you there, all optional.</p>` : `<p>Your trip and bookings are on your referee home: <a href="${base}/profile.html">${base}/profile.html</a>.</p>`}<p>National Referee Committee</p>`;
       results.push(await logAndSend(a.email, subject, html, "brief"));
     }
@@ -89,11 +95,11 @@ export default async (req) => {
   const { data: pairs } = await admin.from("pairs").select("*").is("valid_until", null);
   if (kind === "confirm") (reqs || []).forEach(r => { if (r.referees && !designated.find(d => d.id === r.referees.id)) designated.push({ role: "referee", ...r.referees }); });
   const partnerOf = id => { const p = (pairs || []).find(p => p.referee_a === id || p.referee_b === id); if (!p) return null; const pid = p.referee_a === id ? p.referee_b : p.referee_a; return designated.find(d => d.id === pid) || null; };
-  const travelLine = t.travel_managed_by === "nrc"
-    ? `The NRC books your flights and hotel and you see each booking on your referee home as it is made; do not book anything yourself unless the NRC asks you to.`
-    : t.travel_managed_by === "referee"
-    ? `You book your own travel within what the organizer covers above, and the organizer reimburses it. Record each booking on your referee home (Add a booking I made) and submit your expenses with receipts there, so the NRC and the organizer see them.`
-    : `The organizer books travel directly with you within what they cover above; send them your travel details and copy ${contact}. Record what gets booked on your referee home so the NRC sees it.`;
+  const bk = [t.travel_managed_by, t.hotel_booked_by || t.travel_managed_by, t.car_booked_by || t.travel_managed_by];
+  const travelLine = bookingSentence(t, true) + " "
+    + (bk.includes("nrc") ? "What the NRC books appears on your referee home as it is made; do not book those yourself. " : "")
+    + (bk.includes("referee") ? "What you book yourself stays within what the organizer covers above and is reimbursed: record each booking on your referee home (Add a booking I made) and submit your expenses with receipts there. " : "")
+    + (bk.includes("organizer") ? `For what the organizer books, send them your travel details and copy ${contact}; record what gets booked on your referee home so the NRC sees it.` : "");
 
   // Availability for the tournament dates, per referee: blocked dates, weekend declarations (Saturday keys)
   const sat = d => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + ((6 - x.getUTCDay() + 7) % 7)); return x.toISOString().slice(0, 10); };

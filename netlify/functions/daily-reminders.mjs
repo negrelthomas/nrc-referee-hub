@@ -38,13 +38,13 @@ export default async () => {
   }
 
   // 2. travel not booked, NRC books, event within 21 days
-  const { data: soon } = await admin.from("tournaments").select("id,name,start_date,travel_managed_by").in("travel_managed_by", ["nrc", "referee"]).gte("start_date", inDays(0)).lte("start_date", inDays(21)).neq("status", "cancelled");
+  const { data: soon } = await admin.from("tournaments").select("id,name,start_date,travel_managed_by,hotel_booked_by").or("travel_managed_by.in.(nrc,referee),hotel_booked_by.in.(nrc,referee)").gte("start_date", inDays(0)).lte("start_date", inDays(21)).neq("status", "cancelled");
   for (const t of soon || []) {
     const { data: asg } = await admin.from("assignments").select("id, referees(first_name,last_name), guest_officials(first_name,last_name)").eq("tournament_id", t.id);
     for (const a of asg || []) {
       const { data: bk } = await admin.from("travel_bookings").select("kind,status").eq("assignment_id", a.id).eq("status", "booked");
       const kinds = new Set((bk || []).map(b => b.kind));
-      const missing = ["flight", "hotel"].filter(k => !kinds.has(k));
+      const missing = [["flight", t.travel_managed_by], ["hotel", t.hotel_booked_by]].filter(([k, by]) => ["nrc", "referee"].includes(by) && !kinds.has(k)).map(([k]) => k);
       if (missing.length) digest.push(`${t.name} (${fmtDate(t.start_date)}): ${(a.referees || a.guest_officials).first_name} ${(a.referees || a.guest_officials).last_name}${a.guest_officials ? " (guest)" : ""} has no booked ${missing.join(" or ")}`);
     }
   }

@@ -7,7 +7,7 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const FIELDS = ["name", "sanction", "region", "divisions", "club_id", "organizer_name", "organizer_email", "organizer_phone", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata",
   "start_date", "end_date", "pairs_total", "games_expected", "hotel_nights_covered", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport",
-  "food_stipend_per_day", "meals_provided", "earliest_return_last_day", "budget_owner", "notes", "supervisor_needed", "supervisor_notes", "travel_managed_by", "pairs_organizer", "organizer_pairs_note"];
+  "food_stipend_per_day", "meals_provided", "earliest_return_last_day", "budget_owner", "notes", "supervisor_needed", "supervisor_notes", "travel_managed_by", "hotel_booked_by", "car_booked_by", "pairs_organizer", "organizer_pairs_note"];
 
 export default async (req) => {
   if (req.method !== "POST") return json(405, { error: "POST only" });
@@ -29,6 +29,7 @@ export default async (req) => {
   if (row.pairs_organizer && !String(row.organizer_pairs_note || "").trim()) return json(400, { error: "Give the country or federation of the pairs you source outside USATH, for example Canada or Europe." });
   if (!row.pairs_organizer) row.organizer_pairs_note = null;
   if (row.travel_managed_by && !["organizer", "nrc", "referee"].includes(row.travel_managed_by)) row.travel_managed_by = "organizer";
+  ["hotel_booked_by", "car_booked_by"].forEach(k => { if (row[k] && !["organizer", "nrc", "referee", "none"].includes(row[k])) row[k] = row.travel_managed_by || "organizer"; });
   row.organizer_email = String(row.organizer_email).trim().toLowerCase();
   row.status = "submitted";
   // a signed in organizer owns the request

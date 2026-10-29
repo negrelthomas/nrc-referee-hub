@@ -39,16 +39,16 @@
         <h1>NRC dashboard</h1>
         <div id="tasks" style="display:grid;gap:8px;margin-bottom:18px"></div>
         <div class="grid c4" id="kpis">
-          <div class="stat"><div class="n" id="k-refs">&nbsp;</div><div class="l">Active referees</div></div>
-          <div class="stat good"><div class="n" id="k-certified">&nbsp;</div><div class="l">Certified (L1 and above)</div></div>
-          <div class="stat bad"><div class="n" id="k-noclub">&nbsp;</div><div class="l">Clubs with no referee</div></div>
-          <div class="stat"><div class="n" id="k-pairs">&nbsp;</div><div class="l">Clubs with a certified pair</div></div>
+          <div class="stat" data-go="#referees" role="link" tabindex="0"><div class="n" id="k-refs">&nbsp;</div><div class="l">Active referees</div></div>
+          <div class="stat good" data-go="#referees" role="link" tabindex="0"><div class="n" id="k-certified">&nbsp;</div><div class="l">Certified (L1 and above)</div></div>
+          <div class="stat bad" data-go="#clubs|noref" role="link" tabindex="0"><div class="n" id="k-noclub">&nbsp;</div><div class="l">Clubs with no referee</div></div>
+          <div class="stat" data-go="#clubs" role="link" tabindex="0"><div class="n" id="k-pairs">&nbsp;</div><div class="l">Clubs with a certified pair</div></div>
         </div>
         <div class="grid c4" style="margin-top:10px">
-          <div class="stat"><div class="n" id="k-inq">&nbsp;</div><div class="l">New contact requests</div></div>
-          <div class="stat bad"><div class="n" id="k-nobase">&nbsp;</div><div class="l">Referees without baseline</div></div>
-          <div class="stat"><div class="n" id="k-inprog">&nbsp;</div><div class="l">Programs in progress</div></div>
-          <div class="stat bad"><div class="n" id="k-overdue">&nbsp;</div><div class="l">Programs overdue</div></div>
+          <div class="stat" data-go="#inquiries" role="link" tabindex="0"><div class="n" id="k-inq">&nbsp;</div><div class="l">New contact requests</div></div>
+          <div class="stat bad" data-go="#programs|pstat" role="link" tabindex="0"><div class="n" id="k-nobase">&nbsp;</div><div class="l">Referees without baseline</div></div>
+          <div class="stat" data-go="#programs|pstat" role="link" tabindex="0"><div class="n" id="k-inprog">&nbsp;</div><div class="l">Programs in progress</div></div>
+          <div class="stat bad" data-go="#programs|pstat" role="link" tabindex="0"><div class="n" id="k-overdue">&nbsp;</div><div class="l">Programs overdue</div></div>
         </div>
         <h2>Action plan to grow the referee pool</h2>
         <p class="small muted">Recommended in priority order, recalculated from the roster, the clubs, contact requests and tournament requests each time the page loads. Prepare message opens a draft for the clubs concerned; nothing is sent until you press Send.</p>
@@ -110,7 +110,7 @@
       <!-- Staffing cards -->
       <!-- Tournaments -->
       <div id="pane-tournaments" class="hidden">
-        <div class="page-head"><div><h1>Tournaments</h1><p class="lede">Requests, staffing, games and evaluations for every event. Click a row to open it.</p></div><button class="btn sm" onclick="openNewTour()">Add tournament</button></div>
+        <div class="page-head"><div><h1>Tournaments</h1><p class="lede">Requests, staffing, games and evaluations for every event. Click a row to open it.</p></div><button class="btn sm pos" onclick="openNewTour()">Add tournament</button></div>
         <div class="rules-line" id="staff-settings-line"></div>
         <div id="staff-dups"></div>
         <div class="card" id="reports-card" style="margin:10px 0"><h3 style="margin-top:0">Games reported by referees <span class="pill amber hidden" id="reports-count"></span></h3><div class="table-wrap"><table id="reports"><thead><tr><th>Referee</th><th>Event</th><th>Games</th><th>Role</th><th>Partner</th><th>Reported</th><th></th></tr></thead><tbody></tbody></table></div><p class="small muted" style="margin-top:6px">Confirm records the referee in the event's Officiated tab with these games. Not confirmed sends the report back with your note.</p></div>
@@ -236,7 +236,7 @@
             <li><strong>Send invitations.</strong> Select the drafts and send. Each referee gets an email with the event, what is covered, and three answers: accept, tentative, decline, plus a prompt to sign in. The same proposal appears on their referee home. Answers show on the Answers tab as they come in; send a reminder after a few days to those still waiting.</li>
             <li><strong>Designate.</strong> Select the accepted referees and press Designate accepted. The hub checks that the designated count matches the pairs requested and that established pairs stay together, and warns if not. Designating emails each referee the full brief (dates, venue, airport, earliest departure, partner, the rest of the team, organizer contact, coverage) and records the assignment; the tournament moves to staffed.</li>
             <li><strong>Notify organizer.</strong> Sends the organizer the designated list and the link to their private tournament page, where they see names, levels, clubs, contact details and travel notes, and the coverage they committed to. Send it again after any change.</li>
-            <li><strong>Designated and travel.</strong> This tab lists who is designated with their contact and home airport, shows who else is open to officiate (accepted or tentative but not designated), lets you add a supervisor or observer directly, and remove a designated referee (their invitation is marked declined; pick a replacement from Find referees). When the NRC books travel, record each flight, hotel, car or train with provider, reference, times, cost and who pays; the referee sees every booking on their home with a calendar file, and the organizer sees them on their page. When the organizer books, record what they tell you so the referee still has one place to look.</li>
+            <li><strong>Designated pairs and travel.</strong> This tab lists every pair on the event first, USATH pairs then the organizer pairs from outside USATH, one light colour per pair, then the supervisor and observers. It shows each official's contact and home airport, shows who else is open to officiate (accepted or tentative but not designated), lets you add a supervisor or observer directly, and remove a designated referee (their invitation is marked declined; pick a replacement from Find referees). When the NRC books travel, record each flight, hotel, car or train with provider, reference, times, cost and who pays; the referee sees every booking on their home with a calendar file, and the organizer sees them on their page. When the organizer books, record what they tell you so the referee still has one place to look.</li>
             <li><strong>Changes and cancellations.</strong> Organizers can edit their request (dates, venue, pairs, coverage, who books travel) or cancel it from their page; every change is logged and emailed to the NRC and to the designated officials. The NRC edits the main fields in the tournament header and uses Notify changes to send the same email; a cancelled event sends a cancellation notice. Send brief sends each designated official a role specific confirmation (referee, supervisor, observer) with the full details.</li>
             <li><strong>After the event.</strong> The organizer files a two minute report from their page (games played, games per official, ratings, incidents); it fills the Officiated and games tab and shows under Expenses. You can still record or correct games on that tab. Referees submit expense claims with receipts from their home; the Expenses tab shows the money picture (bookings paid by the NRC or the organizer, claims to review), lets you approve, reject or mark reimbursed, and sets who reimburses each claim. Organizers see the totals on their page.</li>
             <li><strong>Automatic reminders, every morning at 8am Pacific.</strong> Unanswered invitations after 7 days (and once more at 14), designated officials without a booked flight or hotel within 21 days when the NRC books, organizers without a report 3 days after the event, overdue training programs. Each person is reminded at most once per item; you receive a digest at referee@handballusa.org of everything the job did and saw.</li>
@@ -415,7 +415,9 @@
         <div class="tip" data-tip="Pairs the organizer sources outside USA Team Handball, for example from Canada or Europe."><label>Pairs sourced outside USATH</label><input name="pairs_organizer" type="number" min="0" max="20"></div>
         <div><label>Pairs the NRC staffs</label><div class="calc-pairs" id="tour-pairs-calc"><strong id="tour-pairs-usath"></strong><span>calculated</span></div></div>
         <div><label>Organizer pairs from</label><input name="organizer_pairs_note" placeholder="Country or federation, outside USATH"></div>
-        <div><label>Travel booked by</label><select name="travel_managed_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option><option value="referee">Referees</option></select></div>
+        <div><label>Flights booked by</label><select name="travel_managed_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option><option value="referee">Referees</option></select></div>
+        <div><label>Hotel booked by</label><select name="hotel_booked_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option><option value="referee">Referees</option><option value="none">Not needed</option></select></div>
+        <div><label>Rental car booked by</label><select name="car_booked_by"><option value="organizer">Organizer</option><option value="nrc">NRC</option><option value="referee">Referees</option><option value="none">Not needed</option></select></div>
         <div><label>Staff by</label><input name="staff_by" type="date"></div>
         <div><label style="display:flex;gap:8px;align-items:center;font-weight:500;margin-top:26px"><input type="checkbox" style="width:auto" name="nrc_staffs"> The NRC staffs this event</label></div>
         <div class="tip" style="grid-column:1/-1" data-tip="Use it when you change the request after agreeing it with the organizer by phone, WhatsApp or email. It goes into the update email to the organizer and the change log."><label>How the change was agreed with the organizer (optional)</label><input name="agreed_note" placeholder="Phone call with the organizer on Oct 23: two USATH pairs and two pairs from France"></div>
@@ -452,7 +454,7 @@
   <div class="tabs">
     <button data-ttab="candidates">1. Find and invite</button>
     <button data-ttab="invites" class="active">2. Answers</button>
-    <button data-ttab="designated">3. Designated and travel</button>
+    <button data-ttab="designated">3. Designated pairs and travel</button>
   </div>
 
   <div id="ttab-invites">
@@ -478,19 +480,26 @@
 
   <div id="ttab-designated" class="hidden">
     <div id="des-summary" class="chips"></div>
-    <div class="table-wrap"><table id="des"><thead><tr><th>Official</th><th>Role</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
-    <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="sendBriefs()" data-tip="Emails every designated official the brief for their role, with the event details and the travel arrangement.">Send brief to all designated</button> <span class="small muted">Role specific confirmation (referee, supervisor, observer) with the full event details and the travel arrangement.</span></p>
+    <h4 class="des-h">USATH pairs</h4>
+    <div class="table-wrap"><table id="des"><thead><tr><th>Referee</th><th>Role</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
+    <p class="small muted" style="margin:6px 0 0">Removing a referee reopens their invitation as declined so you can pick a replacement from Find referees.</p>
+    <h4 class="des-h">Organizer pairs from outside USATH</h4>
+    <div id="guest-summary" class="chips"></div>
+    <div class="table-wrap"><table id="guests"><thead><tr><th>Referee</th><th>Nation</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
+    <p style="margin-top:8px"><button class="btn sm pos" type="button" id="btn-guest-add" onclick="openGuestPair()" data-tip="Records a pair from outside USATH that the organizer brings, up to the number set in Event details, Pairs sourced outside USATH.">Name an organizer pair</button></p>
+    <details class="howto"><summary class="small">How organizer pairs work</summary>
+    <ul class="small muted" style="padding-left:18px"><li>A pair from outside USATH is always the organizer's pair; USATH designates USATH pairs only. The NRC or the organizer records it, up to the number the organizer declared</li><li>To add one more, raise "Pairs sourced outside USATH" in the event details first: the pairs USATH staffs go down by one, and the change is logged and notified</li><li>Each referee with an email gets a sign in link to their own page: the events they are named for with every detail, travel and expenses. Training and the online tests are open to them, all optional. No invitation, no evaluation, no ranking</li><li>Their profile shows how complete it is; they complete it at first sign in, or you do here with Edit</li><li>Bookings and expenses are recorded here and reimbursed from the Expenses section</li></ul>
+    </details>
+    <h4 class="des-h">Supervisor and observers</h4>
+    <div class="table-wrap"><table id="des-off"><thead><tr><th>Official</th><th>Role</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="row" style="margin-top:10px;grid-template-columns:1fr auto auto;align-items:end;gap:8px">
-      <div><label>Add an official directly (supervisor, observer, replacement)</label><select id="des-ref"></select></div>
-      <div><label>Role</label><select id="des-role"><option value="referee">Referee</option><option value="delegate">Supervisor</option><option value="observer">Observer</option></select></div>
+      <div><label>Add an official directly (supervisor, observer, replacement referee)</label><select id="des-ref"></select></div>
+      <div><label>Role</label><select id="des-role"><option value="referee">Referee</option><option value="delegate">Supervisor (technical delegate)</option><option value="observer">Observer</option></select></div>
       <div><button class="btn sm pos" type="button" onclick="addDesignated()" data-tip="Designates the chosen official directly in the role selected, without an invitation. No email is sent; use Send brief to tell them.">Add</button></div>
     </div>
-    <p class="small muted">Removing a designated referee reopens their invitation as declined so you can pick a replacement from Find referees. Travel: the NRC books only when the organizer chose "NRC books"; otherwise record what the organizer or the referee booked so the referee sees everything in one place.</p>
-    <h4 style="margin:18px 0 6px">Organizer pairs from outside USATH</h4>
-    <div id="guest-summary" class="chips"></div>
-    <div class="table-wrap"><table id="guests"><thead><tr><th>Guest</th><th>Nation</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
-    <p style="margin-top:8px"><button class="btn sm pos" type="button" id="btn-guest-add" onclick="openGuestPair()" data-tip="Records a pair from outside USATH that the organizer brings, up to the number set in Event details, Pairs sourced outside USATH.">Name an organizer pair</button></p>
-    <ul class="small muted" style="padding-left:18px"><li>A pair from outside USATH is always the organizer's pair; USATH designates USATH pairs only. The NRC or the organizer records it, up to the number the organizer declared</li><li>To add one more, raise "Pairs sourced outside USATH" in the event details first: the pairs USATH staffs go down by one, and the change is logged and notified</li><li>Each referee with an email gets a sign in link to their own page: the events they are named for with every detail, travel and expenses. Training and the online tests are open to them, all optional. No invitation, no evaluation, no ranking</li><li>Their profile shows how complete it is; they complete it at first sign in, or you do here with Edit</li><li>Bookings and expenses are recorded here and reimbursed from the Expenses section</li></ul>
+    <h4 class="des-h">Brief and travel</h4>
+    <p style="margin-top:8px"><button class="btn sm secondary" type="button" onclick="sendBriefs()" data-tip="Emails every designated official the brief for their role, with the event details and the travel arrangement.">Send brief to all designated</button> <span class="small muted">Role specific confirmation (referee, supervisor, observer) with the full event details and the travel arrangement.</span></p>
+    <p class="small muted">Travel: the NRC books only when the organizer chose "NRC books"; otherwise record what the organizer or the referee booked so the referee sees everything in one place.</p>
   </div>
     </div>
   </details>

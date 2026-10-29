@@ -850,3 +850,36 @@ details.dups li{padding:8px 0;border-top:1px solid var(--line)}
 dialog .dlg-x{position:sticky;top:8px;float:right;margin:8px 8px -44px 0;z-index:6;width:36px;height:36px;border-radius:50%;border:0;background:var(--red);color:#fff;font-size:22px;line-height:1;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px -4px rgba(200,16,46,.6)}
 dialog .dlg-x:hover,dialog .dlg-x:focus{background:var(--red-dark)}
 dialog .dlg-x + .body > h3:first-child,dialog .dlg-x + .body h3:first-of-type{padding-right:40px}
+
+/* Oct 28 pass: phone layout switch, tournament cards, status colours, designated pairs, clickable dashboard cards */
+.admin-viewbar .view-switch{flex:0 0 auto}
+.admin-viewbar .view-switch button{white-space:nowrap}
+/* tournament status: the select is filled with the status colour; staffed reads green at first sight */
+select.tour-status{font-weight:700;border-width:1px}
+select.tour-status.s-staffed{background-color:var(--green-tint);color:#0A4A3A;border-color:#7CC2A8}
+select.tour-status.s-submitted,select.tour-status.s-reviewing{background-color:var(--amber-tint);color:#6B4A00;border-color:#E2C36B}
+select.tour-status.s-cancelled{background-color:var(--red-tint);color:var(--red-dark);border-color:#E9A3AE}
+select.tour-status.s-completed{background-color:#EEF1F5;color:#4A5868;border-color:#C9D2DD}
+select.tour-status option{background:#fff;color:var(--ink,#0B1B33);font-weight:500}
+/* tournament cards on phones: type colour on the card edge, name full width without a label */
+body.admin-phone #tour tbody tr{border-left:5px solid var(--tc,transparent);padding-left:12px}
+body.admin-phone #tour tbody tr td:first-child{box-shadow:none;padding:0 0 8px}
+body.admin-phone #tour tbody tr td:first-child::before{display:none}
+body.admin-phone #tour tbody tr td:first-child strong{font-size:17px}
+/* designated pairs: one light tint per pair, a darker edge in the same hue */
+.des-h{margin:18px 0 6px;color:var(--navy)}
+#dlg-tour tr.pt td{background:var(--pt)!important}
+#dlg-tour tr.pt td:first-child{box-shadow:inset 4px 0 0 var(--pte)}
+#dlg-tour tr.pt0{--pt:#EAF1FC;--pte:#5B84C4}
+#dlg-tour tr.pt1{--pt:#FFF5DC;--pte:#D9A72B}
+#dlg-tour tr.pt2{--pt:#E8F5EE;--pte:#3E9A6E}
+#dlg-tour tr.pt3{--pt:#F2ECFA;--pte:#8A68C4}
+body.admin-phone #dlg-tour tr.pt{background:var(--pt);border-left:5px solid var(--pte);border-bottom:2px solid #fff}
+body.admin-phone #dlg-tour tr.pt td:first-child{box-shadow:none}
+.pill.pair-n{background:#fff;border:1px solid currentColor}
+button.snap-i.snap-go{font:inherit;text-align:inherit;cursor:pointer;color:inherit}
+button.snap-i.snap-go:hover,button.snap-i.snap-go:focus{box-shadow:inset 0 0 0 2px var(--navy)}
+/* dashboard cards open the list they summarise */
+#pane-dashboard .stat[data-go]{cursor:pointer;transition:box-shadow .15s,transform .15s}
+#pane-dashboard .stat[data-go]:hover,#pane-dashboard .stat[data-go]:focus{box-shadow:0 6px 16px -8px rgba(4,35,79,.45);transform:translateY(-1px);outline:none}
+#pane-dashboard .stat[data-go] .l::after{content:" \203A";font-weight:700;color:var(--navy-2,#1B4F9C)}

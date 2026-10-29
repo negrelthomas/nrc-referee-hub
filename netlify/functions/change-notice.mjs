@@ -8,16 +8,21 @@ import { sendMail, fmtDate, coverage } from "./mailer.mjs";
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 // Fields officials and organizers see. Anything else in the change log (club, sanction, divisions...) stays internal.
-export const LABEL = { name: "Name", start_date: "Start date", end_date: "End date", venue_name: "Venue", venue_address: "Address", venue_city: "City", venue_state: "State", nearest_airport_iata: "Nearest airport", pairs_total: "Total pairs required", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "Pairs the organizer brings from outside USATH", organizer_pairs_note: "Organizer pairs from", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights covered", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers covered", airport_transfer_how: "Airport transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure on the last day", travel_managed_by: "Travel booked by", notes: "Notes", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
+export const LABEL = { name: "Name", start_date: "Start date", end_date: "End date", venue_name: "Venue", venue_address: "Address", venue_city: "City", venue_state: "State", nearest_airport_iata: "Nearest airport", pairs_total: "Total pairs required", pairs_needed: "Pairs the NRC staffs", pairs_organizer: "Pairs the organizer brings from outside USATH", organizer_pairs_note: "Organizer pairs from", games_expected: "Games expected", supervisor_needed: "Supervisor needed", supervisor_notes: "Supervisor notes", hotel_nights_covered: "Hotel nights covered", flights_covered: "Flights covered", airport_transfers_covered: "Airport transfers covered", airport_transfer_how: "Airport transfers", hotel_to_venue_transport: "Hotel to venue", food_stipend_per_day: "Food stipend per day", meals_provided: "Meals", earliest_return_last_day: "Earliest departure on the last day", travel_managed_by: "Flights booked by", hotel_booked_by: "Hotel booked by", car_booked_by: "Rental car booked by", notes: "Notes", organizer_name: "Organizer", organizer_email: "Organizer email", organizer_phone: "Organizer phone" };
 export const isPublic = c => Object.keys((c && c.changes) || {}).some(f => LABEL[f]);
 
-const TRAVEL = { nrc: "the NRC", organizer: "the organizer", referee: "the referees" };
+const TRAVEL = { nrc: "the NRC", organizer: "the organizer", referee: "the referees", none: "not needed" };
+// Who books each part of the trip: flights (travel_managed_by), hotel, rental car
+const WHO = (v, you) => v === "nrc" ? "the NRC" : v === "referee" ? (you ? "you" : "each referee") : "the organizer";
+export const bookingSentence = (t, you) => [["Flights", t.travel_managed_by], ["Hotel", t.hotel_booked_by || t.travel_managed_by], ["Rental car", t.car_booked_by || t.travel_managed_by]]
+  .map(([l, v]) => v === "none" ? (l === "Hotel" ? "No hotel needed" : "No rental car needed") : `${l} booked by ${WHO(v || "organizer", you)}`).join(". ") + ".";
+
 function fmtVal(f, v) {
   if (v == null || v === "") return "none";
   if (v === "true" || v === true) return "yes";
   if (v === "false" || v === false) return "no";
   if (f === "start_date" || f === "end_date") return fmtDate(String(v).slice(0, 10));
-  if (f === "travel_managed_by") return TRAVEL[v] || v;
+  if (["travel_managed_by", "hotel_booked_by", "car_booked_by"].includes(f)) return TRAVEL[v] || v;
   if (f === "food_stipend_per_day") return "$" + Number(v).toFixed(0);
   if (f === "earliest_return_last_day") return String(v).slice(0, 5);
   return String(v);
@@ -57,7 +62,7 @@ export async function sendChangeNotice(admin, t, { kind, agreed = "", actor = ""
 
   const when = `${fmtDate(t.start_date)} to ${fmtDate(t.end_date)}`;
   const where = [t.venue_name, t.venue_city, t.venue_state].filter(Boolean).join(", ");
-  const covers = `<p><strong>What the organizer covers now</strong><br>${coverage(t).map(esc).join("<br>")}<br>Travel booked by ${TRAVEL[t.travel_managed_by] || "the organizer"}.</p>`;
+  const covers = `<p><strong>What the organizer covers now</strong><br>${coverage(t).map(esc).join("<br>")}<br>${esc(bookingSentence(t, false))}</p>`;
   const list = `<ul>${rows.join("")}</ul>`;
   const subject = cancelled ? `Cancelled: ${t.name}, ${fmtDate(t.start_date)}` : `Update: ${t.name}, ${fmtDate(t.start_date)}`;
   const results = [];

@@ -26,6 +26,13 @@
   NRC.divisionPills = (arr) => (arr || []).slice().sort((x, y) => NRC.DIV_AGES.indexOf(x.split("-")[0]) - NRC.DIV_AGES.indexOf(y.split("-")[0]) || x.localeCompare(y)).map(c => `<span class="pill">${NRC.esc(NRC.divisionLabel(c))}</span>`).join(" ");
   // ---------- event type (colour coded) and date status ----------
   NRC.SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
+  // Who books each part of the trip: flights (travel_managed_by), hotel, rental car
+  NRC.BOOKER = { organizer: "Organizer", nrc: "NRC", referee: "Referees", none: "Not needed" };
+  NRC.bookers = (t) => ({ flights: (t && t.travel_managed_by) || "organizer", hotel: (t && (t.hotel_booked_by || t.travel_managed_by)) || "organizer", car: (t && (t.car_booked_by || t.travel_managed_by)) || "organizer" });
+  NRC.bookingShort = (t) => { const b = NRC.bookers(t); return `Flights: ${NRC.BOOKER[b.flights]} | Hotel: ${NRC.BOOKER[b.hotel]} | Car: ${NRC.BOOKER[b.car]}`; };
+  NRC.bookingSentence = (t, forReferee) => { const b = NRC.bookers(t), who = v => v === "nrc" ? "the NRC" : v === "referee" ? (forReferee ? "you" : "each referee") : "the organizer";
+    const parts = [["Flights", b.flights], ["Hotel", b.hotel], ["Rental car", b.car]].map(([l, v]) => v === "none" ? (l === "Hotel" ? "No hotel needed" : "No rental car needed") : `${l} booked by ${who(v)}`);
+    return parts.join(". ") + "." + (forReferee && Object.values(b).includes("referee") ? " Record what you book below and submit your expenses with receipts for reimbursement." : ""); };
   NRC.sanctionPill = (s) => `<span class="pill s-${s === "usath" ? "usath" : s === "international" ? "intl" : "club"}">${NRC.SANCTION[s] || "Club"}</span>`;
   NRC.datePill = (t) => t && t.date_status === "tentative" ? ' <span class="pill amber" title="Dates projected from the last edition; not announced by the organizer yet">Tentative dates</span>' : "";
   NRC.divisionPicker = (name, selected) => {
