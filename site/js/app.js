@@ -8,6 +8,9 @@
 
   // ---------- helpers ----------
   NRC.$ = (sel, root) => (root || document).querySelector(sel);
+  // neutral head and shoulders shown wherever a referee has no photo yet
+  NRC.PHOTO_PLACEHOLDER = "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96"><rect width="96" height="96" fill="#D7DEE8"/><circle cx="48" cy="38" r="17" fill="#9AA8BC"/><path d="M14 92c3-20 17-30 34-30s31 10 34 30z" fill="#9AA8BC"/></svg>');
+  NRC.photoSrc = (url) => url || NRC.PHOTO_PLACEHOLDER;
   NRC.$$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
   NRC.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // calendar date in the viewer's time zone (toISOString would give the UTC date, a day ahead in the evening in the US)

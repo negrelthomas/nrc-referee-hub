@@ -16,7 +16,7 @@
 <div class="wrap" id="main">
 <section>
   <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
-    <h1 style="margin:0" id="hello">My referee home</h1>
+    <div style="display:flex;align-items:center;gap:14px"><img id="hello-photo" class="avatar" style="width:64px;height:64px" alt=""><h1 style="margin:0" id="hello">My referee home</h1></div>
     <div class="small"><a href="guide/referees.html">How it works</a> &middot; <a href="#" onclick="startTour(true);return false">Welcome tour</a></div>
   </div>
   <div id="msg" class="notice hidden" style="margin-top:12px"></div>
@@ -63,7 +63,7 @@
   <div id="tab-profile" class="card hidden">
     <form id="form">
       <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
-        <img id="photo" class="avatar lg" alt="">
+        <img id="photo" class="avatar lg" alt="Your photo">
         <div><label style="margin-top:0">Photo</label><input type="file" id="photo-file" accept="image/*"><div class="help">Square headshot, shown to the NRC and in the directory.</div></div>
       </div>
       <div class="row">
@@ -218,10 +218,11 @@ function startPreview(r) {
   document.body.classList.add("preview");
   $("#main").insertAdjacentHTML("afterbegin", `<div class="notice" style="margin:14px 0 0;background:var(--amber-tint);color:var(--amber);border-color:transparent"><strong>Admin preview, read only.</strong> This is ${NRC.esc(r.first_name + " " + r.last_name)}'s ${r.federation ? "page" : "referee home"} as they see it. Buttons are inactive. <a href="admin/index.html${r.federation ? "" : "#referee/" + r.id}">Back to ${r.federation ? "the admin console" : "the record"}</a></div>`);
   // nothing in the preview writes: every button except tabs, details and dialog close is inert, every form submit is stopped
-  document.addEventListener("click", (e) => { const b = e.target.closest("button, .btn, [onclick]"); if (!b || b.closest(".tabs") || b.closest("#site-nav") || b.closest(".info-btn") || b.closest(".dlg-x") || b.closest("#dlg-phys-std") || b.closest(".cp-done") || (b.tagName === "A" && b.getAttribute("href") && !b.getAttribute("href").startsWith("#") && !b.getAttribute("onclick"))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
+  document.addEventListener("click", (e) => { const b = e.target.closest("button, .btn, [onclick]"); if (!b || b.closest(".tabs") || b.closest("#site-nav") || b.closest(".info-btn") || b.closest(".dlg-x") || b.closest("#dlg-phys-std") || b.closest(".cp-done") || b.closest("#dlg-gprofile") || /Guest\.editProfile/.test(b.getAttribute("onclick") || "") || (b.tagName === "A" && b.getAttribute("href") && !b.getAttribute("href").startsWith("#") && !b.getAttribute("onclick"))) return; e.preventDefault(); e.stopImmediatePropagation(); }, true);
   document.addEventListener("submit", (e) => { e.preventDefault(); e.stopImmediatePropagation(); }, true);
 }
 const $ = NRC.$;
+$("#hello-photo").src = $("#photo").src = NRC.PHOTO_PLACEHOLDER;
 NRC.$$(".tabs button").forEach(b => b.onclick = () => { NRC.$$(".tabs button").forEach(x => x.classList.toggle("active", x === b)); ["home","profile","tournaments","games","evals"].forEach(t => $("#tab-" + t).classList.toggle("hidden", t !== b.dataset.tab)); });
 
 async function load() {
@@ -252,7 +253,7 @@ async function load() {
   if (ref) {
     ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
     f.share_contact.checked = !!ref.share_contact; f.show_on_leaderboard.checked = !!ref.show_on_leaderboard;
-    if (ref.photo_url) $("#photo").src = ref.photo_url;
+    $("#photo").src = $("#hello-photo").src = NRC.photoSrc(ref.photo_url);
     $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", ""); if (ref.level1_theory_passed_on && ref.cert_level === "candidate") $("#st-level").insertAdjacentHTML("afterend", '<span class="pill green" style="margin-top:4px;display:inline-block">Theory passed</span>');
     const today = NRC.localDate();
     const item = (l, d) => `<div>${l}: ${d ? (d >= today ? '<span class="pill green">valid to ' + NRC.fmtDate(d) + '</span>' : '<span class="pill red">expired ' + NRC.fmtDate(d) + '</span>') : '<span class="pill amber">not on file</span>'}</div>`;
@@ -294,7 +295,7 @@ $("#form").addEventListener("submit", async (e) => {
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
     const path = `${user.id}/photo.${ext}`;
     const up = await NRC.sb.storage.from("referee-photos").upload(path, file, { upsert: true, contentType: file.type });
-    if (!up.error) { const url = NRC.sb.storage.from("referee-photos").getPublicUrl(path).data.publicUrl + "?v=" + Date.now(); await NRC.sb.from("referees").update({ photo_url: url }).eq("id", ref.id); $("#photo").src = url; }
+    if (!up.error) { const url = NRC.sb.storage.from("referee-photos").getPublicUrl(path).data.publicUrl + "?v=" + Date.now(); await NRC.sb.from("referees").update({ photo_url: url }).eq("id", ref.id); $("#photo").src = $("#hello-photo").src = url; }
     else NRC.notice($("#msg"), "Profile saved, photo upload failed: " + NRC.esc(up.error.message), "error");
   }
   NRC.notice($("#msg"), "Profile saved.", "ok"); window.scrollTo({ top: 0, behavior: "smooth" });
@@ -625,7 +626,7 @@ async function tourSaveDetails() {
   if (file) {
     const ext = (file.name.split(".").pop() || "jpg").toLowerCase(); const path = `${user.id}/photo.${ext}`;
     const up = await NRC.sb.storage.from("referee-photos").upload(path, file, { upsert: true, contentType: file.type });
-    if (!up.error) { const url = NRC.sb.storage.from("referee-photos").getPublicUrl(path).data.publicUrl + "?v=" + Date.now(); await NRC.sb.from("referees").update({ photo_url: url }).eq("id", ref.id); ref.photo_url = url; $("#photo").src = url; }
+    if (!up.error) { const url = NRC.sb.storage.from("referee-photos").getPublicUrl(path).data.publicUrl + "?v=" + Date.now(); await NRC.sb.from("referees").update({ photo_url: url }).eq("id", ref.id); ref.photo_url = url; $("#photo").src = $("#hello-photo").src = url; }
   }
   const pf = $("#form"); ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","usath_member_id"].forEach(k => pf[k].value = ref[k] || "");
   return true;

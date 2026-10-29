@@ -115,7 +115,7 @@
   // ---------- profile tab ----------
   function renderProfile() {
     const f = [["Name", G.first_name + " " + G.last_name], ["Email", G.email], ["Phone", G.phone], ["Home", [G.home_city, G.country].filter(Boolean).join(", ")], ["Closest airport", G.home_airport_iata], ["Nation", G.federation], ["Level", NRC.GUEST_LEVEL[G.federation_level]], ["Reimbursement", G.payment_notes]];
-    $("#g-profile").innerHTML = `<div class="card"><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px">${G.photo_url ? `<img class="avatar lg" src="${NRC.esc(G.photo_url)}" alt="">` : ""}<div><h3 style="margin:0">${NRC.esc(G.first_name + " " + G.last_name)}</h3><div class="small muted">Visible to you, the NRC and the organizers of your events</div></div></div>
+    $("#g-profile").innerHTML = `<div class="card"><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><img class="avatar lg" src="${NRC.esc(NRC.photoSrc(G.photo_url))}" alt=""><div><h3 style="margin:0">${NRC.esc(G.first_name + " " + G.last_name)}</h3><div class="small muted">Visible to you, the NRC and the organizers of your events</div></div></div>
       <dl class="prof-facts">${f.map(([k, v]) => `<dt>${k}</dt><dd>${v ? NRC.esc(v) : '<span class="muted">not given</span>'}</dd>`).join("")}</dl>
       <p style="margin-top:14px"><button class="btn" type="button" onclick="NRC.Guest.editProfile()">Edit my profile</button></p></div>`;
   }
@@ -141,10 +141,11 @@
     const f = $("#form-gprofile");
     ["first_name", "last_name", "phone", "home_city", "country", "home_airport_iata", "federation", "federation_level", "payment_notes"].forEach(k => f[k].value = G[k] || "");
     f.email.value = G.email || USER.email || ""; f.photo.value = "";
-    $("#gp-photo").src = G.photo_url || ""; $("#gp-photo").classList.toggle("hidden", !G.photo_url);
+    $("#gp-photo").src = NRC.photoSrc(G.photo_url);
+    NRC.$$("input, select", f).forEach(el => el.disabled = PREVIEW); f.querySelector("button[type=submit]").classList.toggle("hidden", PREVIEW);
     $("#gp-title").textContent = first ? "Welcome, " + G.first_name : "Your profile";
     $("#gp-intro").textContent = first ? "You are named by the organizer for an event on the USA Team Handball Referee Hub. A few details help the organizer and the NRC plan your travel and reach you. Everything can be changed later." : "Visible to you, the NRC and the organizers of your events.";
-    $("#gp-later").textContent = first ? "Later" : "Cancel";
+    $("#gp-later").textContent = PREVIEW ? "Close" : first ? "Later" : "Cancel";
     $("#gp-msg").classList.add("hidden");
     $("#dlg-gprofile").showModal();
   }
@@ -171,6 +172,7 @@
     const { data } = PREVIEW ? await NRC.sb.from("guest_officials").select("*").eq("id", G.id) : await NRC.sb.from("guest_officials").select("*").eq("user_id", USER.id).order("created_at", { ascending: false });
     ROWS = data || ROWS; G = ROWS[0] || G;
     $("#hello").textContent = "Hello " + G.first_name;
+    $("#hello-photo").src = NRC.photoSrc(G.photo_url);
     renderProfile();
     const [, tr] = await Promise.all([renderEvents(), renderTraining()]);
     const html = `<div id="g-complete" style="margin-top:14px">${completion(tr.asmt, tr.tests, tr.answers)}</div>`;
