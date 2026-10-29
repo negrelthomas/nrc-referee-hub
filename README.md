@@ -15,12 +15,16 @@ site/                      published folder (Netlify publish = site)
   referees.html            public list of certified referees (name, dates, club; level visible to the NRC and the referee only; no contact details)
   directory.html           referee directory (signed in)
   login.html               magic link sign in, with a one time code fallback
-  guide/                   user guides (index, referees, organizers, admin) with click by click walkthroughs; images in guide/img
+  guide/                   How to section: index.html (videos and questions by user type), faq.html (every question by theme,
+                           filter by user type, search, every video), role guides (referees, guests, organizers, admin, evaluators,
+                           table officials); howto-data.js holds the videos and questions; videos in guide/videos, screenshots in
+                           guide/media and guide/img
   auth.html                exchanges the token from the email link (not consumed by mail scanners)
   profile.html             referee profile, games, evaluations, assignments
   admin/index.html         NRC admin: dashboard, tasks, referees, clubs, requests, questions, imports
   js/config.js             Supabase URL and anon key (fill in)
   js/app.js                shared shell, auth, data helpers
+  js/howto.js              renders the How to page, the FAQ page and the videos and questions inside each role guide
   js/training.js, js/program.js (Level 1 course, baseline assessment, tailored program, re-test), js/admin.js
   data/questions.js        static copy of the question seed (training works without a database)
 supabase/
@@ -48,6 +52,7 @@ supabase/
   organizers_travel.sql    organizer sign in (role organizer for emails that submitted a request), travel_managed_by, travel_bookings, organizer and staffing views
 netlify/functions/        daily-reminders.mjs (scheduled, 15:00 UTC), mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data), club-message.mjs (NRC messages to club contacts, one email per contact with the club's figures, test mode to the admin), referee-message.mjs (NRC messages to selected referees from the roster, test mode to the admin), availability-override.mjs (admin override of declared availability, email to the referee, answer from override.html)
 netlify.toml, package.json
+tools/howto-videos/        local demo copy of the hub (real schema, invented data) that records the How to videos and guide screenshots; not deployed
 reference/                 NRC source documents: IHF indoor observation report and its instructions (sent by the NRC chair, Oct 21, 2026); basis of the evaluation report
 ```
 

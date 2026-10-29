@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>How to use the hub | NRC Referee Hub</title>
+<title>How to | NRC Referee Hub</title>
 <link rel="icon" type="image/png" href="../assets/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,21 +15,15 @@
 <header id="site-nav"></header>
 <section class="hero">
   <div class="wrap">
-    <div class="kicker">User guide</div>
+    <div class="kicker">How to</div>
     <h1>How to use the hub</h1>
-    <p class="sub">Step by step instructions with screenshots, for referees, tournament organizers and NRC administrators.</p>
+    <p class="sub">Short videos of each task, the questions people ask most, and the full guide for your role.</p>
   </div>
 </section>
 <div class="wrap guide" id="main">
 <section>
-  <div class="guide-cards">
-    <a class="card" href="guide/referees.html"><h3>Referees</h3><ul class="plain small"><li>Sign in, profile and email</li><li>Weekends and invitations</li><li>Trip, bookings, expenses</li><li>History and evaluations</li><li>Training, Level 1 course, program</li></ul><p class="cta-row"><span class="btn secondary">Open the referee guide</span></p></a>
-    <a class="card" href="guide/organizers.html"><h3>Tournament organizers</h3><ul class="plain small"><li>Request referees</li><li>Follow the request</li><li>Designated referees and bookings</li><li>Edit, cancel, duplicate</li><li>Report after the event</li></ul><p class="cta-row"><span class="btn secondary">Open the organizer guide</span></p></a>
-    <a class="card" href="guide/evaluators.html"><h3>Evaluators</h3><ul class="plain small"><li>Who can evaluate</li><li>Rules exam and video calibration</li><li>The IHF rating scale</li><li>Writing a report</li><li>NRC review</li></ul><p class="cta-row"><span class="btn secondary">Open the evaluator guide</span></p></a>
-    <a class="card" href="guide/table-officials.html"><h3>Table officials and delegates</h3><ul class="plain small"><li>Timekeeper and scorekeeper duties</li><li>Time-outs and suspensions</li><li>Substitution area</li><li>The score sheet</li><li>Technical delegate</li></ul><p class="cta-row"><span class="btn secondary">Open the guide</span></p></a>
-    <a class="card" href="guide/table-sheet.html"><h3>At the table: one page</h3><ul class="plain small"><li>Printable summary for timekeepers and scorekeepers</li><li>What to do during the game</li><li>What to write on the score sheet</li><li>The most frequent misses</li></ul><p class="cta-row"><span class="btn secondary">Open and print</span></p></a>
-    <a class="card" href="guide/admin.html"><h3>NRC administrators</h3><ul class="plain small"><li>Roster and referee records</li><li>Staffing overview, deadlines, reminders</li><li>Tournaments and clubs</li><li>Travel, expenses, reports</li><li>Programs, sessions, questions, imports</li></ul><p class="cta-row"><span class="btn secondary">Open the admin guide</span></p></a>
-  </div>
+  <div id="ht-hub"><p class="muted">Loading the videos and questions...</p></div>
+  <p class="small" style="margin-top:18px"><a href="guide/faq.html">Every question for every user, by theme</a></p>
 
   <h2>How a tournament gets staffed</h2>
   <p>From the organizer's request to the report after the event.</p>
@@ -43,19 +37,19 @@
     <span>Event, then expenses and the organizer report</span>
   </div>
 
-  <h2>Signing in, for everyone</h2>
-  <p>There is no password. Enter your email on the <a href="login.html">sign in page</a>; the hub sends a link and a one time code. Click the link, or type the code on the sign in page if your mail app opened the link before you did. Both expire after one hour. Referees, organizers and NRC administrators use the same door and land on their own page.</p>
-  <div class="walk" data-steps='[
-    {"img":"guide/img/signin-form.jpg","cap":"Type the email the NRC has on file and press Send me a link."},
-    {"img":"guide/img/signin-code.jpg","cap":"Check your inbox. Click the link, or type the code from the email here."}
-  ]'></div>
-  <p class="small muted">Access is by invitation: referees are added to the roster by the NRC, organizers are known from the request they submitted, administrators are invited by the NRC. An email that is none of these gets a clear message and the NRC contact address.</p>
+  <h2>Other guides</h2>
+  <div class="guide-cards">
+    <a class="card" href="guide/evaluators.html"><h3>Evaluators</h3><ul class="plain small"><li>Who can evaluate</li><li>Rules exam and video calibration</li><li>The IHF rating scale</li><li>Writing a report</li></ul><p class="cta-row"><span class="btn secondary">Open the evaluator guide</span></p></a>
+    <a class="card" href="guide/table-officials.html"><h3>Table officials and delegates</h3><ul class="plain small"><li>Timekeeper and scorekeeper duties</li><li>Time-outs and suspensions</li><li>The score sheet</li><li>Technical delegate</li></ul><p class="cta-row"><span class="btn secondary">Open the guide</span></p></a>
+    <a class="card" href="guide/table-sheet.html"><h3>At the table: one page</h3><ul class="plain small"><li>Printable summary for timekeepers and scorekeepers</li><li>What to write on the score sheet</li><li>The most frequent misses</li></ul><p class="cta-row"><span class="btn secondary">Open and print</span></p></a>
+  </div>
 </section>
 </div>
 <footer id="site-footer"></footer>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
-<script src="js/guide.js"></script>
+<script src="guide/howto-data.js"></script>
+<script src="js/howto.js"></script>
 </body>
 </html>
