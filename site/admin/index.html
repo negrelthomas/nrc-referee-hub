@@ -126,7 +126,7 @@
           </div>
           <div class="filterbar"><button type="button" class="chip" data-f="past">Past</button><button type="button" class="chip" data-f="all">All</button><input id="tour-q" placeholder="Search name, city, club" style="max-width:240px;margin-left:auto"></div>
         </div>
-        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Type</th><th>Dates</th><th>Where</th><th title="Tentative contact for events the NRC placed on the calendar; Reach out invites them to place their request">Organizer</th><th title="Referees designated against referees the NRC staffs; staff by date and invitations for upcoming events">Staffing</th><th title="Games logged one by one, against games expected">Games</th><th title="Referee evaluations entered">Evaluations</th><th>Status</th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="tour"><thead><tr><th>Tournament</th><th>Type</th><th>Dates</th><th>Where</th><th title="Tentative contact for events the NRC placed on the calendar; Reach out invites them to place their request">Organizer</th><th title="Referees designated against referees the NRC staffs; staff by date and invitations for upcoming events">Staffing</th><th>Status</th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <div id="pane-rankings" class="hidden">
@@ -395,7 +395,7 @@
 <dialog id="dlg-tour" style="max-width:980px"><div class="body">
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap">
     <div><h3 id="dlg-tour-title" style="margin:0">Tournament</h3><div class="small muted" id="dlg-tour-sub"></div></div>
-    <div style="display:flex;gap:10px;align-items:center"><span class="small" id="tour-save-state" aria-live="polite"></span><button class="btn ghost sm" type="button" onclick="closeTour()">Close</button></div>
+    <div style="display:flex;gap:10px;align-items:center"><span class="small" id="tour-save-state" aria-live="polite"></span><button class="btn red sm" type="button" onclick="closeTour()">Close</button></div>
   </div>
   <div id="tour-snap" class="snap"></div>
   <div class="tblock-bar"><span class="small muted">Edits save as you go; officials and the organizer are told when you close this window.</span><span><button class="btn sm ghost" type="button" onclick="tourBlocks(true)" data-tip="Opens every section of this tournament.">Open all</button> <button class="btn sm ghost" type="button" onclick="tourBlocks(false)" data-tip="Closes every section so you see the whole tournament at a glance.">Close all</button></span></div>
