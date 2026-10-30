@@ -178,7 +178,7 @@
   };
   NRC.GUEST_LEVEL = { regional: "Regional or club", national: "National", continental: "Continental (EHF, PATHF, other)", ihf: "IHF international" };
   NRC.guestQuizLevel = (l) => ({ regional: "level_2", national: "level_3", continental: "nachc", ihf: "ihf" }[l] || "level_3");
-  NRC.notice = (el, msg, kind) => { if (!el) return; el.className = "notice " + (kind || ""); el.innerHTML = msg; el.classList.remove("hidden"); };
+  NRC.notice = (el, msg, kind) => { if (!el) return; el.className = "notice " + (kind || ""); el.innerHTML = msg; el.classList.remove("hidden"); const r = el.getBoundingClientRect(); if (r.top < 70 || r.bottom > window.innerHeight) el.scrollIntoView({ behavior: "smooth", block: "center" }); };
   NRC.shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
   // ---------- nav ----------

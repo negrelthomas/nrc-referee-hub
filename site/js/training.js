@@ -31,6 +31,7 @@
   // ---------- tabs ----------
   NRC.$$(".tabs button").forEach(b => b.onclick = () => showTab(b.dataset.tab));
   function showTab(t) {
+    if (tab === "cards" && t !== "cards" && NRC.Training && NRC.Training.saveCards) cardsSave = NRC.Training.saveCards();
     tab = t; clearInterval(timerId);
     NRC.$$(".tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === t));
     const quizTabs = t === "practice";
@@ -134,7 +135,9 @@
     clearInterval(timerId);
     if (!session) return;
     const s = session; session = null;
-    const total = s.answers.length; if (!total) { showTab(tab); return; }
+    const answered = s.answers.length; if (!answered) { if (custom) { custom = null; showTab("path"); } else showTab(tab); return; }
+    // a learning path quiz ended early is scored on all its questions: unanswered ones count as missed, so stopping after one good answer cannot complete a card
+    const total = custom ? s.qs.length : answered, early = answered < s.qs.length;
     const dur = Math.round((Date.now() - s.started) / 1000);
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.remove("hidden");
     $("#result-text").textContent = `${s.correct} of ${total} correct (${Math.round(s.correct / total * 100)}%) in ${dur} seconds.` + (s.mode === "timed" ? (user ? (total >= 10 ? ` ${s.correct} points added to your season on the leaderboard.` : " Sessions of fewer than 10 questions do not count for the leaderboard.") : " Sign in for timed sessions to count on the leaderboard.") : "");
@@ -142,18 +145,20 @@
     // save
     const lesson = custom;
     $("#btn-path").classList.toggle("hidden", !lesson); $("#quiz").style.borderTop = "";
-    if (lesson) { const pct = Math.round(s.correct / total * 100); $("#result-text").innerHTML = `<span class="lesson-score ${pct >= 80 ? "pass" : ""}" style="--tc:${lesson.color}">${pct}%</span> <strong>${NRC.esc(lesson.title)}</strong>: ${s.correct} of ${total} correct. ${pct >= 80 ? "Complete. The card on your path shows this score and today's date." : "80% completes the quiz. Review the answers below and try again."}`; }
+    if (lesson) { const pct = Math.round(s.correct / total * 100); $("#result-text").innerHTML = `<span class="lesson-score ${pct >= 80 ? "pass" : ""}" style="--tc:${lesson.color}">${pct}%</span> <strong>${NRC.esc(lesson.title)}</strong>: ${s.correct} of ${total} correct. ${early ? `Ended after ${answered} of ${total} questions; the unanswered ones count as missed. ` : ""}${pct >= 80 ? "Complete. The card on your path shows this score and today's date." : "80% completes the quiz. Review the answers below and try again."}`; }
+    else if (early) $("#result-text").textContent += ` Ended after ${answered} of ${s.qs.length} questions; only the answered ones are recorded.`;
     const rec = { mode: lesson ? "lesson:" + lesson.key : s.mode, difficulty: lesson ? lesson.difficulty : (diff || null), rule_number: lesson ? null : (rule ? parseInt(rule, 10) : null), total, correct: s.correct, duration_seconds: dur, created_at: new Date().toISOString() };
     const d = local(); d.sessions.unshift(rec); s.answers.forEach(a => { const k = a.rule || "0"; d.answers[k] = d.answers[k] || { n: 0, c: 0 }; d.answers[k].n++; if (a.correct) d.answers[k].c++; }); d.sessions = d.sessions.slice(0, 100); saveLocal(d);
     if (user && NRC.sb) {
       const { data: att } = await NRC.sb.from("quiz_attempts").insert({ ...rec, user_id: user.id, created_at: undefined }).select("id").single();
       if (att) { const rows = s.answers.filter(a => !String(a.id).startsWith("seed-")).map(a => ({ attempt_id: att.id, question_id: a.id, correct: a.correct })); if (rows.length) await NRC.sb.from("quiz_answers").insert(rows); }
     }
+    $("#result-text").insertAdjacentHTML("beforeend", user && NRC.sb ? ' <span class="small muted">Saved to My progress; the NRC sees it on your record.</span>' : ' <span class="small muted">Saved on this device only. Sign in to keep it on your record.</span>');
     if (lesson && lesson.onDone) lesson.onDone();
   }
 
   // ---------- flashcards ----------
-  let deck = [], ci = 0, flipped = false, scores = {};
+  let deck = [], ci = 0, flipped = false, scores = {}, cardsStarted = null, cardsSave = null;
   function startCards(review) {
     const base = review ? pool(false).filter(q => scores[q.id] === false) : pool(false);
     deck = NRC.shuffle(base.slice()); ci = 0; flipped = false;
@@ -176,11 +181,23 @@
     $("#c-knew").textContent = knew; $("#c-missed").textContent = missed; $("#c-seen").textContent = vals.length; $("#c-pct").textContent = vals.length ? Math.round(knew / vals.length * 100) + "%" : "0%";
   }
   $("#flash").onclick = () => { flipped = !flipped; $("#flash").classList.toggle("flipped", flipped); };
-  function mark(v) { if (!deck.length) return; scores[deck[ci].id] = v; ci = (ci + 1) % deck.length; showCard(); }
+  function mark(v) { if (!deck.length) return; if (!cardsStarted) cardsStarted = Date.now(); scores[deck[ci].id] = v; ci = (ci + 1) % deck.length; showCard(); }
   $("#fc-knew").onclick = () => mark(true);
   $("#fc-missed").onclick = () => mark(false);
   $("#fc-shuffle").onclick = () => startCards(false);
   $("#fc-review").onclick = () => startCards(true);
+  // a flashcard session is saved when it ends (End session button, or leaving the Flashcards tab): cards marked, cards known, time spent.
+  // Self marked, so it shows in My progress and on the NRC record but does not count in the scores by rule or the leaderboard.
+  async function saveCards() {
+    const vals = Object.values(scores); if (!vals.length) return null;
+    const rec = { mode: "flashcard", difficulty: diff || null, rule_number: rule ? parseInt(rule, 10) : null, total: vals.length, correct: vals.filter(v => v).length, duration_seconds: Math.round((Date.now() - (cardsStarted || Date.now())) / 1000), created_at: new Date().toISOString() };
+    scores = {}; cardsStarted = null; updateCardStats();
+    const d = local(); d.sessions.unshift(rec); d.sessions = d.sessions.slice(0, 100); saveLocal(d);
+    if (user && NRC.sb) await NRC.sb.from("quiz_attempts").insert({ ...rec, user_id: user.id, created_at: undefined });
+    return rec;
+  }
+  NRC.Training.saveCards = saveCards;
+  $("#fc-end").onclick = async () => { await saveCards(); showTab(user ? "progress" : "path"); };
 
   // ---------- leaderboard ----------
   async function renderBoard() {
@@ -205,6 +222,7 @@
 
   // ---------- progress ----------
   async function renderProgress() {
+    if (cardsSave) { await cardsSave; cardsSave = null; }
     let sessions = local().sessions, byRule = local().answers;
     if (user && NRC.sb) {
       const { data } = await NRC.sb.from("quiz_attempts").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50);
@@ -212,7 +230,7 @@
       const { data: ans } = await NRC.sb.from("quiz_answers").select("correct, quiz_questions(rule_number), quiz_attempts!inner(user_id)").eq("quiz_attempts.user_id", user.id);
       if (ans && ans.length) { byRule = {}; ans.forEach(a => { const k = (a.quiz_questions && a.quiz_questions.rule_number) || "0"; byRule[k] = byRule[k] || { n: 0, c: 0 }; byRule[k].n++; if (a.correct) byRule[k].c++; }); }
     }
-    $("#progress-list").innerHTML = sessions.length ? sessions.map(s => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">${NRC.fmtDate(s.created_at)} &middot; ${String(s.mode).startsWith("lesson:") ? "path: " + NRC.esc(((NRC.THEMES || []).concat(NRC.TABLE_THEMES || []).find(t => s.mode.slice(7).startsWith(t.key + "-")) || {}).title || "theme") : s.mode + " &middot; " + (s.rule_number ? "Rule " + s.rule_number : "all rules")}${s.difficulty ? ", " + NRC.levelLabel(s.difficulty).replace(" (National)", "") : ""} &middot; <strong>${s.correct}/${s.total}</strong></div>`).join("") : "No sessions yet." + (user ? "" : " Sign in to keep progress across devices.");
+    $("#progress-list").innerHTML = sessions.length ? sessions.map(s => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">${NRC.fmtDate(s.created_at)} &middot; ${String(s.mode).startsWith("lesson:") ? "path: " + NRC.esc(((NRC.THEMES || []).concat(NRC.TABLE_THEMES || []).find(t => s.mode.slice(7).startsWith(t.key + "-")) || {}).title || "theme") : (s.mode === "flashcard" ? "flashcards, self marked" : s.mode) + " &middot; " + (s.rule_number ? "Rule " + s.rule_number : "all rules")}${s.difficulty ? ", " + NRC.levelLabel(s.difficulty).replace(" (National)", "") : ""} &middot; <strong>${s.correct}/${s.total}</strong></div>`).join("") : "No sessions yet." + (user ? "" : " Sign in to keep progress across devices.");
     const tb = $("#progress-rules tbody"); tb.innerHTML = "";
     Object.keys(byRule).map(Number).sort((a, b) => a - b).forEach(r => { const v = byRule[r]; const pct = Math.round(v.c / v.n * 100); tb.insertAdjacentHTML("beforeend", `<tr><td>Rule ${r}: ${NRC.esc(NRC.RULES[r] || "")}</td><td>${v.n}</td><td>${v.c}</td><td><span class="pill ${pct >= 80 ? "green" : pct >= 60 ? "amber" : "red"}">${pct}%</span></td></tr>`); });
     if (!Object.keys(byRule).length) tb.innerHTML = '<tr><td colspan="4">Answer a few questions first.</td></tr>';

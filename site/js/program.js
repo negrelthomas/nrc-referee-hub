@@ -109,11 +109,11 @@
 
   // ---------- study cards for a module ----------
   function studyCards(rules, maxDiff, back, onTest, testLabel) {
-    const deck = NRC.shuffle(ALL.filter(q => rules.includes(q.rule) && (!maxDiff || (DIFF_RANK[q.diff] || 2) <= DIFF_RANK[maxDiff])).slice()).slice(0, 25);
+    const deck = NRC.shuffle(ALL.filter(q => rules.includes(q.rule) && q.options && q.options.length && (!maxDiff || (DIFF_RANK[q.diff] || 2) <= DIFF_RANK[maxDiff])).slice()).slice(0, 25);
     let ci = 0;
-    host.innerHTML = `<div class="card"><div class="small muted" id="sc-meta"></div><div class="flash" id="sc-flash"><div class="face front"><div class="q" id="sc-q"></div><div class="hint">Tap to reveal</div></div><div class="face back"><div class="a" id="sc-a"></div><div class="rule" id="sc-r"></div></div></div>
+    host.innerHTML = `<div class="card"><div class="small muted" id="sc-meta"></div><div class="flash" id="sc-flash"><div class="inner"><div class="face front"><div class="q" id="sc-q"></div><ol class="fc-opts" id="sc-opts"></ol><div class="small muted" style="margin-top:14px">Pick your answer, then tap to reveal</div></div><div class="face back"><div class="a" id="sc-a"></div><div class="rule" id="sc-r"></div></div></div></div>
       <p style="margin-top:14px"><button class="btn ghost" id="sc-prev">Previous</button> <button class="btn" id="sc-next">Next card</button> <button class="btn secondary" id="sc-done">${testLabel || "Done studying, take the module test"}</button> <button class="btn ghost" id="sc-back2">Back</button></p></div>`;
-    const show = () => { const q = deck[ci]; $("#sc-flash").classList.remove("flipped"); $("#sc-meta").textContent = `Card ${ci + 1} of ${deck.length}` + (q.rule ? `, Rule ${q.rule}: ${NRC.RULES[q.rule] || ""}` : ""); $("#sc-q").textContent = q.q; $("#sc-a").textContent = q.a; $("#sc-r").textContent = q.rr || ""; };
+    const show = () => { const q = deck[ci]; $("#sc-flash").classList.remove("flipped"); $("#sc-meta").textContent = `Card ${ci + 1} of ${deck.length}` + (q.rule ? `, Rule ${q.rule}: ${NRC.RULES[q.rule] || ""}` : ""); $("#sc-q").textContent = q.q; const L = (i) => String.fromCharCode(97 + i) + ")"; const ok = q.cis && q.cis.length ? q.cis : [q.ci]; $("#sc-opts").innerHTML = q.options.map((o, i) => `<li><span class="fc-l">${L(i)}</span>${esc(o)}</li>`).join(""); $("#sc-a").innerHTML = (ok.length > 1 ? "Correct answers: " : "Correct answer: ") + ok.map(i => `<strong>${L(i)} ${esc(q.options[i] || "")}</strong>`).join(", "); $("#sc-r").textContent = q.rr ? "Rule " + q.rr : ""; };
     $("#sc-flash").onclick = () => $("#sc-flash").classList.toggle("flipped");
     $("#sc-next").onclick = () => { ci = (ci + 1) % deck.length; show(); };
     $("#sc-prev").onclick = () => { ci = (ci - 1 + deck.length) % deck.length; show(); };

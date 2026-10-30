@@ -969,3 +969,7 @@ dialog.ht-player.laptop video{width:100%;max-height:calc(100dvh - 260px)}
   dialog.ht-player.phone video{max-height:calc(100dvh - 230px)}
   .ht-p-foot{display:flex}
 }
+
+/* referee names that open the referee record (admin tournament dialog, games) */
+a.ref-link { color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
+a.ref-link:hover { color: var(--red, #C8102E); }

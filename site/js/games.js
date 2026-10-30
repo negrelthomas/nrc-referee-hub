@@ -75,7 +75,7 @@
   function render() {
     const t = ctx.tournament, admin = ctx.mode === "admin";
     const repOf = (gid) => ctx.evals.filter(r => r.game_id === gid);
-    const cell = (rid) => rid ? esc(refName(rid)) : "";
+    const cell = (rid) => !rid ? "" : admin && window.openRef ? `<a href="#" class="ref-link" title="Open the referee record" onclick="openRef('${rid}');return false">${esc(refName(rid))}</a>` : esc(refName(rid));
     const reps = (g) => repOf(g.id).map(r => `<a href="#" onclick="NRC.Report.openView('${r.id}');return false" title="${esc((r.evaluator_name || "") + ", " + (r.method === "live" ? "live" : "video"))}">${r.overall != null ? NRC.scoreHtml(r.overall) : ""} ${NRC.Report.statusPill(r.status)}</a>`).join(" ") + ` <a class="btn sm ghost" href="evaluator.html#game=${g.id}">Write report</a> <button class="btn sm ghost" type="button" onclick="NRC.Games.aiLog('${g.id}')" title="Load the AI log and flagged moments for this game">${ctx.ai && ctx.ai[g.id] ? (ctx.ai[g.id].facts_checked ? "AI log" : "AI log, not reconciled") : "AI log"}</button>`;
     const done = ctx.games.length, evaluated = new Set(ctx.evals.filter(r => r.status !== "draft").map(r => r.game_id)).size;
     ctx.el.innerHTML = `<div class="filterbar"><span class="tag"><strong>${done}</strong> game${done === 1 ? "" : "s"} logged${t.games_expected ? " of " + t.games_expected + " expected" : ""}</span>${admin ? `<span class="tag"><strong>${evaluated}</strong> of ${done} games with an observation report</span><span class="tag"><strong>${ctx.games.filter(g => g.video_url).length}</strong> with video</span>` : ""}<span style="flex:1"></span><button class="btn sm" type="button" onclick="NRC.Games.newGame()">Add a game</button></div>` +
