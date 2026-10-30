@@ -195,7 +195,7 @@
         <span class="word">National Referee Committee<small>Referee Hub</small></span></a>
       <button class="burger" id="burger" aria-label="Menu">&#9776;</button>
       <nav class="menu" id="menu">
-        ${links.map(([h, t]) => `<a href="${h}" class="${active === h || (active === "guide" && h === "guide/index.html") ? "active" : ""}">${t}</a>`).join("")}
+        ${links.map(([h, t]) => `<a href="${h}" class="${active === h || (active === "guide" && h === "guide/index.html") ? "active" : ""}${h === "guide/index.html" ? " howto" : ""}">${t}</a>`).join("")}
         <a href="login.html" id="nav-login" class="cta">Sign in</a>
       </nav></div>`;
     NRC.$("#burger").onclick = () => NRC.$("#menu").classList.toggle("open");
