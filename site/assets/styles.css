@@ -973,3 +973,72 @@ dialog.ht-player.laptop video{width:100%;max-height:calc(100dvh - 260px)}
 /* referee names that open the referee record (admin tournament dialog, games) */
 a.ref-link { color: inherit; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
 a.ref-link:hover { color: var(--red, #C8102E); }
+
+/* ==========================================================================
+   Site colour pass (Oct 30, 2026): the admin colour pass carried to every
+   page. Same vocabulary, no new colours: red slash on section titles,
+   red and yellow rule under page titles, coloured top edge on cards, navy
+   table headers, tinted bands on long pages. Heroes, panels and the admin
+   console keep their own rules.
+   ========================================================================== */
+
+/* Background: two soft brand glows under the diagonal stripes */
+body::before{background:
+  radial-gradient(60vw 50vh at 100% 0%,rgba(30,90,184,.10),transparent 70%),
+  radial-gradient(50vw 45vh at 0% 100%,rgba(200,16,46,.06),transparent 70%),
+  repeating-linear-gradient(118deg,rgba(4,35,79,.035) 0 2px,transparent 2px 18px),
+  linear-gradient(180deg,#F4F6FA 0%,#E9EEF5 100%)}
+
+/* Page titles outside the hero: red and yellow rule underneath */
+h1{color:var(--navy)}
+h1::after{content:"";display:block;width:64px;height:5px;margin-top:8px;background:linear-gradient(90deg,var(--red) 0 62%,var(--yellow) 62% 100%);transform:skewX(-24deg);transform-origin:left}
+.hero h1,.hero h1::after,dialog h1::after,.panel h1::after{color:#fff}
+.hero h1::after,dialog h1::after,.panel h1::after,.recruit h1::after{display:none}
+
+/* Section titles: navy with the red slash used in the admin console */
+section:not(.hero) > h2,.wrap > h2,.guide-sec > h2,main > h2{color:var(--navy)}
+section:not(.hero) > h2::before,.wrap > h2::before,.guide-sec > h2::before,main > h2::before{content:"";display:inline-block;width:10px;height:18px;margin-right:10px;background:var(--red);transform:skewX(-20deg);vertical-align:-1px}
+
+/* Cards: navy top edge; a row of exactly three cards reads navy, red, yellow */
+.card{border-top:3px solid var(--navy)}
+.grid > .card:first-child:nth-last-child(3) ~ .card:nth-child(2){border-top-color:var(--red)}
+.grid > .card:first-child:nth-last-child(3) ~ .card:nth-child(3){border-top-color:var(--yellow)}
+.card h2,.card h3{color:var(--navy)}
+.card h2:first-child{padding-bottom:8px;border-bottom:1px solid var(--line)}
+.card li::marker,section li::marker,.guide-sec li::marker{color:var(--red)}
+.card > ul:not([class]) > li,.card > section > ul:not([class]) > li{padding-left:2px}
+/* Form section labels: short yellow tick */
+form h3::before{content:"";display:inline-block;width:6px;height:15px;margin-right:9px;background:var(--yellow);transform:skewX(-20deg);vertical-align:-1px;box-shadow:inset 0 0 0 1px rgba(92,94,0,.25)}
+
+/* Stat tiles: coloured left edge everywhere, as in the admin console */
+.stat{border-left:5px solid var(--navy)}
+.stat.bad{border-left-color:var(--red)}
+.stat.good{border-left-color:var(--green)}
+.stat.warn{border-left-color:var(--amber)}
+
+/* Tables: navy header with the red line, light zebra rows */
+.table-wrap thead th,table.rows thead th{background:var(--navy);color:#fff;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;box-shadow:inset 0 -3px 0 var(--red)}
+.table-wrap tbody tr:nth-child(even) td{background:#F8FAFD}
+.table-wrap tbody tr:hover td,.table-wrap tr.clickable:hover td{background:#EAF0F9}
+.table-wrap{border-color:rgba(4,35,79,.12);box-shadow:var(--shadow)}
+
+/* Tabs: active tab sits on a light navy tint */
+.tabs button:hover{color:var(--navy)}
+.tabs button.active{background-image:linear-gradient(180deg,rgba(4,35,79,0),rgba(4,35,79,.07))}
+
+/* Notices: a stronger left edge in their status colour */
+.notice{border-left:5px solid #E2B33C}
+.notice.error{border-left-color:var(--red)}
+.notice.ok{border-left-color:var(--green)}
+
+/* Reference links and chips: navy on hover */
+.links a{border-color:rgba(4,35,79,.18)}
+.links a:hover{background:var(--navy);color:#fff;border-color:var(--navy);text-decoration:none}
+
+/* Long pages: every second section on a tinted band cut on the diagonal */
+.wrap > section:nth-of-type(even):not(.no-band){position:relative;isolation:isolate}
+.wrap > section:nth-of-type(even):not(.no-band)::after{content:"";position:absolute;z-index:-1;top:0;bottom:0;left:50%;width:100vw;transform:translateX(-50%);pointer-events:none;
+  background:repeating-linear-gradient(-32deg,transparent 0 120px,rgba(4,35,79,.025) 120px 170px),linear-gradient(100deg,#E4EBF5,#EDF1F8 60%,#F3F1E2);
+  clip-path:polygon(0 14px,100% 0,100% calc(100% - 14px),0 100%)}
+html,body{overflow-x:clip}
+@media print{.wrap > section::after,body::before{display:none!important}}
