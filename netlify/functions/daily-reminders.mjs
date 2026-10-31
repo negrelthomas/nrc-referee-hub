@@ -5,7 +5,7 @@
 //  4. Programs overdue: reminder to the referee (once), listed in the NRC digest.
 //  5. Tournaments not fully staffed: staffing reminder to the NRC at the cadence set on the admin Staffing page.
 //  6. Initial assessment: certified referees who have signed in but not taken the baseline assessment get a reminder
-//     every 48 hours (first one the day after their first sign in), with a link straight to the test. Due 7 days after
+//     every 7 days (first one the day after their first sign in), with a link straight to the test. Due 7 days after
 //     the first sign in; overdue referees are listed in the NRC digest.
 //  7. Expenses: organizers get one email a day while claims wait for their approval (weekly while approved claims are
 //     unpaid); claimants get one email a day listing claims approved, declined or paid since the last email.
@@ -103,7 +103,7 @@ export default async () => {
     }
   }
 
-  // 6. Initial assessment within 7 days of the first sign in, reminder every 48 hours until taken
+  // 6. Initial assessment within 7 days of the first sign in, reminder every 7 days until taken
   {
     const { data: rs } = await admin.from("referees").select("id,first_name,email,user_id,cert_level").eq("active", true).neq("cert_level", "candidate").not("user_id", "is", null);
     const list = (rs || []).filter(r => r.email && !/@demo\.nrc$/i.test(r.email));
@@ -123,9 +123,9 @@ export default async () => {
         const late = Date.now() > due.getTime();
         if (late) digest.push(`Initial assessment overdue: ${r.first_name} (${r.email}), due ${fmtDate(due.toISOString().slice(0, 10))}`);
         const { data: last } = await admin.from("reminder_log").select("created_at").eq("kind", "assessment").eq("target_id", r.id).order("created_at", { ascending: false }).limit(1);
-        if (last && last.length && Date.now() - new Date(last[0].created_at).getTime() < 47 * 3600e3) continue;   // every 48 hours (job runs daily)
+        if (last && last.length && Date.now() - new Date(last[0].created_at).getTime() < (7 * 24 - 1) * 3600e3) continue;   // weekly (job runs daily)
         const subject = late ? "Your initial rules assessment is overdue" : `Your initial rules assessment, due ${fmtDate(due.toISOString().slice(0, 10))}`;
-        const html = `<p>Hi ${esc(r.first_name)},</p><p>${late ? "Your initial assessment on the NRC Referee Hub was due on " + fmtDate(due.toISOString().slice(0, 10)) + " and is not done yet." : "Please take your initial assessment on the NRC Referee Hub by " + fmtDate(due.toISOString().slice(0, 10)) + "."} It gives the NRC a first picture of where every referee stands on the rules, and builds your own study program on the rules you miss.</p><ul><li>50 questions on the IHF rules at your level</li><li>60 minutes, in one sitting</li><li>Results by rule right after, visible to you and the NRC only</li></ul><p><a href="${link}" style="display:inline-block;background:#04234F;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Take the assessment</a></p><p style="font-size:13px;color:#666">The link signs you in if needed, then opens the assessment. Questions: ${esc(contact)}. This reminder repeats every two days until the assessment is done.</p><p>National Referee Committee</p>`;
+        const html = `<p>Hi ${esc(r.first_name)},</p><p>${late ? "Your initial assessment on the NRC Referee Hub was due on " + fmtDate(due.toISOString().slice(0, 10)) + " and is not done yet." : "Please take your initial assessment on the NRC Referee Hub by " + fmtDate(due.toISOString().slice(0, 10)) + "."} It gives the NRC a first picture of where every referee stands on the rules, and builds your own study program on the rules you miss.</p><ul><li>30 questions on the IHF rules at your level</li><li>60 minutes, in one sitting</li><li>Results by rule right after, visible to you and the NRC only</li></ul><p><a href="${link}" style="display:inline-block;background:#04234F;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Take the assessment</a></p><p style="font-size:13px;color:#666">The link signs you in if needed, then opens the assessment. Questions: ${esc(contact)}. This reminder repeats every week until the assessment is done.</p><p>National Referee Committee</p>`;
         const res = await sendMail({ to: r.email, subject, html });
         await admin.from("email_log").insert({ to_email: r.email, subject, kind: "assessment_reminder", sent: res.sent, error: res.error });
         if (res.sent) await log("assessment", r.id, r.email);

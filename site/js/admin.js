@@ -590,7 +590,7 @@
   };
 
   // ---------- programs ----------
-  // initial assessment due 7 days after the first sign in; reminders go out every 48 hours (daily job)
+  // initial assessment due 7 days after the first sign in; reminders go out weekly (daily job)
   function baselineDue(p) {
     const r = refs.find(x => x.id === p.referee_id); const first = r && r._firstLogin;
     if (!p.user_id || !first) return '<span class="pill">not signed in</span>';
