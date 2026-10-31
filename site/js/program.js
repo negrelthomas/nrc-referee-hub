@@ -82,20 +82,22 @@
       q.options.forEach((t, idx) => { const b = document.createElement("button"); b.textContent = (multi ? String.fromCharCode(97 + idx) + ") " : "") + t; b.dataset.idx = idx; b.onclick = () => { if (multi) b.classList.toggle("picked"); else answer(idx); }; o.appendChild(b); });
     };
     const answer = (idx) => {
-      const q = qs[i]; const multi = q.cis && q.cis.length > 1; const correctSet = multi ? q.cis : [q.ci];
+      const q = qs[i]; const multi = q.cis && q.cis.length > 1;
       const picked = idx === -1 ? [] : multi ? NRC.$$("#pq-opts button.picked").map(b => +b.dataset.idx) : [idx];
-      const ok = picked.length === correctSet.length && picked.every(p => correctSet.includes(p));
+      const g = NRC.grade(q, picked), correctSet = g.correct, ok = g.ok;
       $("#pq-check").classList.add("hidden");
       NRC.$$("#pq-opts button").forEach((b, k) => { b.disabled = true; b.classList.remove("picked"); if (correctSet.includes(k)) b.classList.add("correct"); else if (picked.includes(k)) b.classList.add("wrong"); });
       if (ok) correct++;
-      answers.push({ id: q.id, rule: q.rule, correct: ok, q });
-      if (!opts.hideExplanations) { const ex = $("#pq-explain"); ex.className = "notice " + (ok ? "ok" : "error"); ex.innerHTML = (ok ? "<strong>Correct.</strong> " : "<strong>Not this one.</strong> ") + NRC.explain(q); ex.classList.remove("hidden"); }
+      answers.push({ id: q.id, rule: q.rule, correct: ok, ok, points: g.points, max: g.max, q });
+      if (!opts.hideExplanations) { const ex = $("#pq-explain"); ex.className = "notice " + (ok ? "ok" : "error"); ex.innerHTML = (ok ? "<strong>Correct.</strong> " : g.points ? `<strong>Partly right: ${g.points} of ${g.max} points.</strong> ` : "<strong>Not this one.</strong> ") + NRC.explain(q); ex.classList.remove("hidden"); }
       $("#pq-next").disabled = false; $("#pq-next").textContent = i + 1 >= qs.length ? "See results" : "Next";
     };
     const finish = () => {
       clearInterval(timer);
-      const byRule = {}; answers.forEach(a => { const k = a.rule || 0; byRule[k] = byRule[k] || { n: 0, c: 0 }; byRule[k].n++; if (a.correct) byRule[k].c++; });
-      opts.onDone({ total: qs.length, answered: answers.length, correct, pct: pct(correct, qs.length), byRule, duration: Math.round((Date.now() - started) / 1000), answers, missed: answers.filter(a => !a.correct).map(a => a.q) });
+      // questions left unanswered (time up) score 0 against their full points
+      const byRule = NRC.byRule(answers.concat(qs.slice(answers.length).map(q => ({ q, rule: q.rule, ok: false, points: 0, max: q.cis && q.cis.length > 1 ? q.cis.length : 1 }))));
+      const points = answers.reduce((t, a) => t + a.points, 0), maxPts = Object.values(byRule).reduce((t, v) => t + v.m, 0);
+      opts.onDone({ total: qs.length, answered: answers.length, correct, points, max_points: maxPts, pct: pct(points, maxPts), byRule, duration: Math.round((Date.now() - started) / 1000), answers, missed: answers.filter(a => !a.correct).map(a => a.q) });
       host.scrollIntoView({ block: "start" });
     };
     $("#pq-check").onclick = () => answer(-2);
@@ -155,30 +157,39 @@
       <p><button class="btn" id="l1-final" ${allDone && !passedAtt ? "" : "disabled"}>${passedAtt ? "Passed" : allDone ? "Start the final test" : "Complete all modules first"}</button></p>
       ${(lastAtt || []).length ? '<p class="small muted">Attempts: ' + lastAtt.map(a => NRC.fmtDate(a.created_at) + " " + a.pct + "%" + (a.passed ? " (passed)" : "")).join(", ") + "</p>" : ""}</div>`;
     host.innerHTML = html;
-    const startTest = (m) => runQuiz({ title: m.title, questions: pickQuestions(m.rules, "level_1", certTest.module_question_count), onDone: async (r) => { await saveModuleResult(course, m.key, r.pct, certTest.module_pass_pct); const ok = r.pct >= certTest.module_pass_pct; showResult(notice(ok ? "ok" : "error", `<strong>${r.correct} of ${r.total} (${r.pct}%).</strong> ${ok ? "Module completed." : "Below the " + certTest.module_pass_pct + "% mark: review the rules below, then retake the module test."}`) + (ok ? "" : reviewCard(r.byRule)) + missedReview(r.missed) + '<p><button class="btn" id="back">Back to the course</button></p>', "level_1", renderLevel1); } });
+    const startTest = (m) => runQuiz({ title: m.title, questions: pickQuestions(m.rules, "level_1", certTest.module_question_count), onDone: async (r) => { await saveModuleResult(course, m.key, r.pct, certTest.module_pass_pct); const ok = r.pct >= certTest.module_pass_pct; showResult(notice(ok ? "ok" : "error", `<strong>${r.pct}%: ${r.points} of ${r.max_points} points.</strong> ${ok ? "Module completed." : "Below the " + certTest.module_pass_pct + "% mark: review the rules below, then retake the module test."}`) + (ok ? "" : reviewCard(r.byRule)) + missedReview(r.missed, r.answers) + '<p><button class="btn" id="back">Back to the course</button></p>', "level_1", renderLevel1); } });
     NRC.$$("[data-study]").forEach(b => b.onclick = () => { const m = L1_MODULES.find(x => x.key === b.dataset.study); studyCards(m.rules, "level_1", renderLevel1, () => startTest(m)); });
     NRC.$$("[data-test]").forEach(b => b.onclick = () => startTest(L1_MODULES.find(x => x.key === b.dataset.test)));
     $("#l1-plan").onclick = async () => { const start = $("#l1-start").value; if (!start) return; const { error } = await NRC.sb.from("course_plans").upsert({ user_id: user.id, course, start_date: start, sessions_per_week: 2 }, { onConflict: "user_id,course" }); if (error) { alert("Could not save the plan: " + error.message); return; } downloadIcs("level1-study-plan.ics", planSessions(L1_MODULES, new Date(start + "T12:00:00"), 2, 3, location.origin + "/training.html#program")); await renderLevel1(); host.insertAdjacentHTML("afterbegin", notice("ok", "Plan saved from " + NRC.fmtDate(start) + ". The calendar file level1-study-plan.ics was downloaded: open it to add the study sessions to your calendar.")); };
     $("#l1-final").onclick = () => runQuiz({ title: "Level 1 final test", hideExplanations: true, timeLimitSeconds: certTest.time_limit_minutes * 60, questions: pickAcrossModules(L1_MODULES, certTest.max_difficulty, certTest.question_count), onDone: async (r) => {
       const passed = r.pct >= certTest.pass_pct;
-      const { data: att } = await NRC.sb.from("certification_attempts").insert({ user_id: user.id, level: "level_1", total: r.total, correct: r.correct, pct: r.pct, passed, duration_seconds: r.duration }).select("id").single();
+      const { data: att } = await NRC.sb.from("certification_attempts").insert({ user_id: user.id, level: "level_1", total: r.total, correct: r.correct, points: r.points, max_points: r.max_points, pct: r.pct, passed, duration_seconds: r.duration }).select("id").single();
       let award = null; if (passed && att) { const { data } = await NRC.sb.rpc("award_certification", { p_attempt_id: att.id }); award = data; }
-      host.innerHTML = notice(passed ? "ok" : "error", `<strong>${r.correct} of ${r.total} (${r.pct}%).</strong> ` + (passed ? (award && award.ok ? "Theory passed and recorded on your profile. The NRC sees it and schedules the practical part before awarding Level 1." : "Passed. The result could not be recorded automatically (" + esc(award && award.reason || "unknown") + "); the NRC will record it.") : "Below the " + certTest.pass_pct + "% pass mark. Review the rules below, then retake when ready.")) + (passed ? "" : reviewCard(r.byRule)) + weakRulesTable(r.byRule) + missedReview(r.missed) + '<p><button class="btn" id="back">Back to the course</button></p>'; showResult(host.innerHTML, certTest.max_difficulty || "level_1", renderLevel1); } });
+      host.innerHTML = notice(passed ? "ok" : "error", `<strong>${r.pct}%: ${r.points} of ${r.max_points} points.</strong> ` + (passed ? (award && award.ok ? "Theory passed and recorded on your profile. The NRC sees it and schedules the practical part before awarding Level 1." : "Passed. The result could not be recorded automatically (" + esc(award && award.reason || "unknown") + "); the NRC will record it.") : "Below the " + certTest.pass_pct + "% pass mark. Review the rules below, then retake when ready.")) + (passed ? "" : reviewCard(r.byRule)) + missedReview(r.missed, r.answers) + '<p><button class="btn" id="back">Back to the course</button></p>'; showResult(host.innerHTML, certTest.max_difficulty || "level_1", renderLevel1); } });
   }
 
-  function missedReview(missed) {
-    if (!missed || !missed.length) return "";
-    return '<h3 style="margin-top:16px">Review what you missed</h3>' + missed.map(q => `<div class="notice error" style="margin-bottom:8px"><strong>${esc(q.q)}</strong><br>${NRC.explain(q, true)}</div>`).join("");
+  // Retry right after a test: the questions not fully right, in a new order. Practice only, never recorded as an exam.
+  let lastMissed = [];
+  NRC.retryMissed = function () {
+    if (!lastMissed.length) return; const qs = NRC.shuffle(lastMissed.slice());
+    runQuiz({ title: "Retry of missed questions", questions: qs, onDone: (res) => {
+      host.innerHTML = notice(res.pct >= 80 ? "ok" : "error", `<strong>${res.pct}%: ${res.points} of ${res.max_points} points</strong> on the retry. Practice only: not recorded as an exam.`) + NRC.statsHtml(res.answers) + missedReview(res.missed) + '<p style="margin-top:12px"><button class="btn ghost" type="button" onclick="NRC.renderProgram()">Back to My program</button></p>';
+    } });
+  };
+  function missedReview(missed, answers) {
+    if (!missed || !missed.length) return answers ? NRC.statsHtml(answers) : "";
+    lastMissed = missed.slice();
+    return (answers ? NRC.statsHtml(answers) : "") + `<p style="margin-top:12px"><button class="btn" type="button" onclick="NRC.retryMissed()" data-tip="Practice on the ${missed.length} question${missed.length === 1 ? "" : "s"} you did not get fully right. Not recorded as an exam.">Retry the ${missed.length} missed question${missed.length === 1 ? "" : "s"}</button></p>` + '<h3 style="margin-top:16px">Review what you missed</h3>' + missed.map(q => `<div class="notice error" style="margin-bottom:8px"><strong>${esc(q.q)}</strong><br>${NRC.explain(q, true)}</div>`).join("");
   }
   // After a failed exam: one button per rule scored below the mark. Each opens the study cards for that rule,
   // then a 10 question practice (not recorded as an exam); Back returns to the exam result.
   const REVIEW_PCT = 80;
   function reviewCard(byRule) {
-    const weak = Object.keys(byRule || {}).map(Number).filter(k => k && byRule[k].n && pct(byRule[k].c, byRule[k].n) < REVIEW_PCT)
-      .sort((a, b) => pct(byRule[a].c, byRule[a].n) - pct(byRule[b].c, byRule[b].n) || a - b);
+    const weak = Object.keys(byRule || {}).map(Number).filter(k => k && byRule[k].n && NRC.rulePct(byRule[k]) < REVIEW_PCT)
+      .sort((a, b) => NRC.rulePct(byRule[a]) - NRC.rulePct(byRule[b]) || a - b);
     if (!weak.length) return "";
     return `<div class="card" style="margin-top:12px;border-left:4px solid var(--red)"><h3 style="margin-top:0">Review the rules below ${REVIEW_PCT}%</h3><p class="small">Tap a rule to study its cards, then take a 10 question practice on it. Practice scores do not count as an exam.</p><div style="display:flex;flex-direction:column;gap:6px">`
-      + weak.map(k => { const p = pct(byRule[k].c, byRule[k].n); return `<button type="button" class="btn ghost" data-review="${k}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;width:100%"><span><strong>Rule ${k}</strong> ${esc(NRC.RULES[k] || "")}</span><span style="display:flex;gap:8px;align-items:center;white-space:nowrap"><span class="pill ${p >= 60 ? "amber" : "red"}">${p}%</span><span>Review &rsaquo;</span></span></button>`; }).join("") + "</div></div>";
+      + weak.map(k => { const p = NRC.rulePct(byRule[k]); return `<button type="button" class="btn ghost" data-review="${k}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;text-align:left;width:100%"><span><strong>Rule ${k}</strong> ${esc(NRC.RULES[k] || "")}</span><span style="display:flex;gap:8px;align-items:center;white-space:nowrap"><span class="pill ${p >= 60 ? "amber" : "red"}">${p}%</span><span>Review &rsaquo;</span></span></button>`; }).join("") + "</div></div>";
   }
   // Shows an exam result and keeps it reachable: reviewing a rule comes back to this screen
   function showResult(html, maxDiff, home) {
@@ -187,7 +198,7 @@
       NRC.$$("[data-review]", host).forEach(btn => btn.onclick = () => {
         const r = Number(btn.dataset.review);
         studyCards([r], maxDiff, show, () => runQuiz({ title: "Rule " + r + " practice: " + (NRC.RULES[r] || ""), questions: pickQuestions([r], maxDiff, 10), onDone: (res) => {
-          host.innerHTML = notice(res.pct >= REVIEW_PCT ? "ok" : "error", `<strong>${res.correct} of ${res.total} (${res.pct}%)</strong> on Rule ${r}. ${res.pct >= REVIEW_PCT ? "This rule is back above " + REVIEW_PCT + "%." : "Still below " + REVIEW_PCT + "%: go through the cards again."}`) + missedReview(res.missed) + '<p><button class="btn" id="rv-back">Back to my result</button></p>';
+          host.innerHTML = notice(res.pct >= REVIEW_PCT ? "ok" : "error", `<strong>${res.pct}%: ${res.points} of ${res.max_points} points</strong> on Rule ${r}. ${res.pct >= REVIEW_PCT ? "This rule is back above " + REVIEW_PCT + "%." : "Still below " + REVIEW_PCT + "%: go through the cards again."}`) + missedReview(res.missed) + '<p><button class="btn" id="rv-back">Back to my result</button></p>';
           $("#rv-back").onclick = show; } }), "Done studying, take a 10 question practice");
       });
       host.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -195,8 +206,8 @@
     show();
   }
   function weakRulesTable(byRule) {
-    const rows = Object.keys(byRule).map(Number).sort((a, b) => pct(byRule[a].c, byRule[a].n) - pct(byRule[b].c, byRule[b].n));
-    return '<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Rule</th><th>Answered</th><th>Score</th></tr></thead><tbody>' + rows.map(r => { const v = byRule[r]; const p = pct(v.c, v.n); return `<tr><td>Rule ${r}: ${esc(NRC.RULES[r] || "")}</td><td>${v.n}</td><td><span class="pill ${p >= 80 ? "green" : p >= 60 ? "amber" : "red"}">${p}%</span></td></tr>`; }).join("") + "</tbody></table></div>";
+    const rows = Object.keys(byRule).map(Number).sort((a, b) => NRC.rulePct(byRule[a]) - NRC.rulePct(byRule[b]));
+    return '<div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Rule</th><th>Answered</th><th>Score</th></tr></thead><tbody>' + rows.map(r => { const v = byRule[r]; const p = NRC.rulePct(v); return `<tr><td>Rule ${r}: ${esc(NRC.RULES[r] || "")}</td><td>${v.n}</td><td><span class="pill ${p >= 80 ? "green" : p >= 60 ? "amber" : "red"}">${p}%</span></td></tr>`; }).join("") + "</tbody></table></div>";
   }
 
   // ================= CERTIFIED REFEREES: assessment, program, re-test =================
@@ -209,8 +220,8 @@
     const maxDiff = maxDiffForLevel(levelForRef());
     const startAssessment = (kind) => runQuiz({ title: kind === "baseline" ? "Baseline assessment" : "Re-test", hideExplanations: true, timeLimitSeconds: S.time_limit_minutes * 60, questions: pickAcrossModules(L1_MODULES, maxDiff, S.assessment_questions), onDone: async (r) => {
       const passed = r.pct >= S.assessment_pass_pct;
-      const { data: a } = await NRC.sb.from("assessments").insert({ user_id: user.id, kind, total: r.total, correct: r.correct, pct: r.pct, passed, by_rule: r.byRule, duration_seconds: r.duration }).select("id").single();
-      const weak = Object.keys(r.byRule).map(Number).filter(k => k && pct(r.byRule[k].c, r.byRule[k].n) < S.weak_rule_pct).sort((x, y) => pct(r.byRule[x].c, r.byRule[x].n) - pct(r.byRule[y].c, r.byRule[y].n));
+      const { data: a } = await NRC.sb.from("assessments").insert({ user_id: user.id, kind, total: r.total, correct: r.correct, points: r.points, max_points: r.max_points, pct: r.pct, passed, by_rule: r.byRule, duration_seconds: r.duration }).select("id").single();
+      const weak = Object.keys(r.byRule).map(Number).filter(k => k && NRC.rulePct(r.byRule[k]) < S.weak_rule_pct).sort((x, y) => NRC.rulePct(r.byRule[x]) - NRC.rulePct(r.byRule[y]));
       // Cleared only when the overall mark is reached and no rule sits below the weak rule threshold:
       // a 92% with two rules at 0% still gets a short program on those rules.
       const cleared = passed && !weak.length;
@@ -221,7 +232,7 @@
         if (program && program.status !== "cleared") await NRC.sb.from("programs").update({ status: "expired" }).eq("id", program.id);
         await NRC.sb.from("programs").insert({ user_id: user.id, assessment_id: a && a.id, weak_rules: weak, due_on: isoDate(addDays(new Date(), S.program_weeks * 7)), status: "active" });
       }
-      host.innerHTML = notice(cleared ? "ok" : "amber", `<strong>${r.correct} of ${r.total} (${r.pct}%).</strong> ` + (cleared ? "Hurdle cleared (" + S.assessment_pass_pct + "% overall, every rule at " + S.weak_rule_pct + "% or more). Nothing further required this season; keep practising." : passed ? "Above the " + S.assessment_pass_pct + "% overall mark, but " + weak.length + (weak.length > 1 ? " rules are" : " rule is") + " below " + S.weak_rule_pct + "%. A short program on " + (weak.length > 1 ? "those rules" : "that rule") + " is ready, to complete within " + S.program_weeks + " weeks; the re-test at the end closes it." : "Below the " + S.assessment_pass_pct + "% hurdle. A program covering your " + weak.length + " weakest rules is ready, to complete within " + S.program_weeks + " weeks.")) + (cleared ? "" : reviewCard(r.byRule)) + weakRulesTable(r.byRule) + missedReview(r.missed) + '<p><button class="btn" id="back">Open my program</button></p>'; showResult(host.innerHTML, maxDiff, renderProgram); } });
+      host.innerHTML = notice(cleared ? "ok" : "amber", `<strong>${r.pct}%: ${r.points} of ${r.max_points} points.</strong> ` + (cleared ? "Hurdle cleared (" + S.assessment_pass_pct + "% overall, every rule at " + S.weak_rule_pct + "% or more). Nothing further required this season; keep practising." : passed ? "Above the " + S.assessment_pass_pct + "% overall mark, but " + weak.length + (weak.length > 1 ? " rules are" : " rule is") + " below " + S.weak_rule_pct + "%. A short program on " + (weak.length > 1 ? "those rules" : "that rule") + " is ready, to complete within " + S.program_weeks + " weeks; the re-test at the end closes it." : "Below the " + S.assessment_pass_pct + "% hurdle. A program covering your " + weak.length + " weakest rules is ready, to complete within " + S.program_weeks + " weeks.")) + (cleared ? "" : reviewCard(r.byRule)) + missedReview(r.missed, r.answers) + '<p><button class="btn" id="back">Open my program</button></p>'; showResult(host.innerHTML, maxDiff, renderProgram); } });
 
     if (!A.length) {
       host.innerHTML = `<div class="card"><h3 style="margin-top:0">Baseline assessment</h3><p>Every referee on the roster starts with a ${S.assessment_questions} question assessment at the level of their certification (${NRC.levelLabel(levelForRef())}), ${S.time_limit_minutes} minutes, no explanations until the end. It measures your strength rule by rule. The hurdle is ${S.assessment_pass_pct}% overall with every rule at ${S.weak_rule_pct}% or more; otherwise the platform builds a program on the rules you missed, to complete within ${S.program_weeks} weeks, and you re-test at the end.</p><p><button class="btn" id="start">Start the assessment</button></p><p class="small muted" style="margin:6px 0 0">Private: your score is visible to you and the NRC only.</p></div>`;
@@ -244,11 +255,11 @@
     html += `<div class="card"><h3 style="margin-top:0">Study sessions in your calendar</h3><p class="small">${S.sessions_per_week} sessions a week of 45 minutes, weakest rule first, spread until the deadline. Download the calendar file and open it with Google Calendar, Outlook or Apple Calendar; each session has a reminder and a link back here.</p>
       <div class="row" style="align-items:end"><div><label>First session</label><input type="date" id="pg-start" value="${plan ? plan.start_date : isoDate(addDays(new Date(), 1))}"></div><div><button class="btn sm" id="pg-plan">Save plan and download calendar</button></div></div></div>`;
     html += `<div class="card"><h3 style="margin-top:0">Modules, weakest first</h3><div class="table-wrap"><table><thead><tr><th>Rule</th><th>Assessment</th><th>Best module score</th><th>Status</th><th></th></tr></thead><tbody>` +
-      modules.map(m => { const p = prog[m.key]; const v = last.by_rule[m.key] || { n: 0, c: 0 }; return `<tr><td><strong>${esc(m.title)}</strong></td><td>${pct(v.c, v.n)}%</td><td>${p ? p.best_pct + "%" : ""}</td><td>${p && p.passed ? '<span class="pill green">Completed</span>' : p ? '<span class="pill amber">In progress</span>' : '<span class="pill">Not started</span>'}</td><td><button class="btn sm ghost" data-study="${m.key}">Study</button> <button class="btn sm" data-test="${m.key}">Module test</button></td></tr>`; }).join("") + `</tbody></table></div></div>`;
+      modules.map(m => { const p = prog[m.key]; const v = last.by_rule[m.key] || { n: 0, c: 0 }; return `<tr><td><strong>${esc(m.title)}</strong></td><td>${NRC.rulePct(v)}%</td><td>${p ? p.best_pct + "%" : ""}</td><td>${p && p.passed ? '<span class="pill green">Completed</span>' : p ? '<span class="pill amber">In progress</span>' : '<span class="pill">Not started</span>'}</td><td><button class="btn sm ghost" data-study="${m.key}">Study</button> <button class="btn sm" data-test="${m.key}">Module test</button></td></tr>`; }).join("") + `</tbody></table></div></div>`;
     html += `<div class="card"><h3 style="margin-top:0">Re-test</h3><p class="small">Private: your score is visible to you and the NRC only. ${S.assessment_questions} questions, ${S.time_limit_minutes} minutes, pass mark ${S.assessment_pass_pct}%. If you fall short, a new program is built from that result.</p><p><button class="btn" id="pg-retest" ${allDone ? "" : "disabled"}>${allDone ? "Start the re-test" : "Complete all modules first"}</button></p>
       <p class="small muted">History: ${A.map(a => NRC.fmtDate(a.created_at) + " " + a.kind + " " + a.pct + "%").join(", ")}</p></div>`;
     host.innerHTML = html;
-    const startTest = (m) => runQuiz({ title: m.title, questions: pickQuestions(m.rules, maxDiff, S.module_question_count), onDone: async (r) => { await saveModuleResult(course, m.key, r.pct, S.module_pass_pct); const nowDone = allDone || (done + (r.pct >= S.module_pass_pct && !(prog[m.key] && prog[m.key].passed) ? 1 : 0)) === modules.length; if (nowDone && program.status === "active") await NRC.sb.from("programs").update({ status: "ready_for_retest" }).eq("id", program.id); const ok = r.pct >= S.module_pass_pct; showResult(notice(ok ? "ok" : "error", `<strong>${r.correct} of ${r.total} (${r.pct}%).</strong> ${ok ? "Module completed." : "Below the " + S.module_pass_pct + "% mark: review the rule below, then retake the module test."}`) + (ok ? "" : reviewCard(r.byRule)) + missedReview(r.missed) + '<p><button class="btn" id="back">Back to my program</button></p>', maxDiff, renderProgram); } });
+    const startTest = (m) => runQuiz({ title: m.title, questions: pickQuestions(m.rules, maxDiff, S.module_question_count), onDone: async (r) => { await saveModuleResult(course, m.key, r.pct, S.module_pass_pct); const nowDone = allDone || (done + (r.pct >= S.module_pass_pct && !(prog[m.key] && prog[m.key].passed) ? 1 : 0)) === modules.length; if (nowDone && program.status === "active") await NRC.sb.from("programs").update({ status: "ready_for_retest" }).eq("id", program.id); const ok = r.pct >= S.module_pass_pct; showResult(notice(ok ? "ok" : "error", `<strong>${r.pct}%: ${r.points} of ${r.max_points} points.</strong> ${ok ? "Module completed." : "Below the " + S.module_pass_pct + "% mark: review the rule below, then retake the module test."}`) + (ok ? "" : reviewCard(r.byRule)) + missedReview(r.missed, r.answers) + '<p><button class="btn" id="back">Back to my program</button></p>', maxDiff, renderProgram); } });
     NRC.$$("[data-study]").forEach(b => b.onclick = () => { const m = modules.find(x => x.key === b.dataset.study); studyCards(m.rules, maxDiff, renderProgram, () => startTest(m)); });
     NRC.$$("[data-test]").forEach(b => b.onclick = () => startTest(modules.find(x => x.key === b.dataset.test)));
     $("#pg-plan").onclick = async () => { const start = $("#pg-start").value; if (!start) return; const { error } = await NRC.sb.from("course_plans").upsert({ user_id: user.id, course, start_date: start, sessions_per_week: S.sessions_per_week }, { onConflict: "user_id,course" }); if (error) { alert("Could not save the plan: " + error.message); return; } const weeks = Math.max(1, Math.ceil((new Date(program.due_on) - new Date(start)) / (7 * 864e5))); downloadIcs("referee-study-plan.ics", planSessions(modules, new Date(start + "T12:00:00"), S.sessions_per_week, weeks, location.origin + "/training.html#program")); await renderProgram(); host.insertAdjacentHTML("afterbegin", notice("ok", "Plan saved from " + NRC.fmtDate(start) + ". The calendar file referee-study-plan.ics was downloaded: open it to add the study sessions to your calendar.")); };
@@ -269,7 +280,7 @@
     if (NRC.sb) {
       const [t, s] = await Promise.all([NRC.sb.from("certification_tests").select("*").eq("level", "level_1").maybeSingle(), NRC.sb.from("program_settings").select("*").eq("id", 1).maybeSingle()]);
       certTest = t.data || { question_count: 30, pass_pct: 80, time_limit_minutes: 30, max_difficulty: "level_1", module_pass_pct: 70, module_question_count: 10 };
-      settings = s.data || { assessment_questions: 50, assessment_pass_pct: 80, weak_rule_pct: 80, program_weeks: 12, sessions_per_week: 2, module_question_count: 10, module_pass_pct: 80, time_limit_minutes: 60 };
+      settings = s.data || { assessment_questions: 30, assessment_pass_pct: 80, weak_rule_pct: 80, program_weeks: 12, sessions_per_week: 2, module_question_count: 10, module_pass_pct: 80, time_limit_minutes: 60 };
       if (user) { const { data } = await NRC.sb.from("referees").select("id,cert_level,first_name").eq("user_id", user.id).maybeSingle(); ref = data; }
       // referees from outside USATH: same assessment and program, at the level of their own federation, nothing mandatory
       if (user && !ref) { const { data: g } = await NRC.sb.from("guest_officials").select("first_name,federation_level").eq("user_id", user.id).order("created_at", { ascending: false }).limit(1); if (g && g[0]) ref = { id: null, guest: true, first_name: g[0].first_name, cert_level: NRC.guestQuizLevel(g[0].federation_level) }; }

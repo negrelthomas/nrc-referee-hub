@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  .cq-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .cq-clock { font-family: "Barlow Condensed", sans-serif; font-size: 26px; font-weight: 700; color: var(--navy); }
+  .cq-clock.low { color: var(--red); }
+  .cq-dots { display: flex; flex-wrap: wrap; gap: 4px; margin: 10px 0 0; }
+  .cq-dots span { width: 22px; height: 22px; border-radius: 50%; background: var(--line); font-size: 11px; display: grid; place-items: center; cursor: pointer; }
+  .cq-dots span.done { background: #C9D6E8; } .cq-dots span.cur { background: var(--navy); color: #fff; }
+  /* print sheet */
+  #print-sheet { display: none; }
+  @media print {
+    @page { margin: 16mm 14mm; }
+    body > *:not(#print-sheet) { display: none !important; }
+    #print-sheet { display: block; font-family: Barlow, Arial, sans-serif; color: #000; font-size: 11.5pt; }
+    .ps-head { border-bottom: 2px solid #04234F; padding-bottom: 6px; margin-bottom: 10px; }
+    .ps-head h1 { font-family: "Barlow Condensed", Arial, sans-serif; font-size: 20pt; margin: 0; color: #04234F; }
+    .ps-meta { display: flex; justify-content: space-between; font-size: 10pt; margin-top: 4px; }
+    .ps-name { margin: 8px 0 12px; font-size: 10.5pt; }
+    .ps-q { break-inside: avoid; margin: 0 0 10px; }
+    .ps-q .n { font-weight: 700; }
+    .ps-q ol { list-style: none; margin: 3px 0 0; padding-left: 16px; }
+    .ps-q li::before { content: "\2610  "; }
+    .ps-key { break-before: page; }
+    .ps-key table { width: 100%; border-collapse: collapse; font-size: 10pt; }
+    .ps-key td, .ps-key th { border: 1px solid #999; padding: 3px 6px; text-align: left; vertical-align: top; }
+    .ps-foot { margin-top: 12px; font-size: 9pt; color: #444; }
+  }
+</style>
+</head>
+<body data-page="training.html">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+
+<section class="hero compact" id="main">
+  <div class="court"></div><div class="glow"></div>
+  <div class="wrap">
+    <p class="kicker">Training, IHF rules only</p>
+    <h1 id="cq-title">Quiz</h1>
+    <p class="sub" id="cq-sub"></p>
+  </div>
+</section>
+
+<div class="wrap">
+<section>
+  <div id="cq-msg" class="notice hidden"></div>
+  <div class="card hidden" id="cq-intro">
+    <div id="cq-intro-body"></div>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" id="cq-go" type="button">Start</button><button class="btn ghost" id="cq-print" type="button" data-tip="Opens a print layout: the questions with tick boxes, then the answer key on a separate page. Choose Save as PDF in the print window.">PDF for in person training</button><button class="btn ghost" id="cq-copy" type="button" data-tip="Copies the link to this quiz. Everyone who opens it gets the same questions.">Copy the link</button></p>
+  </div>
+  <div class="card hidden" id="cq-quiz">
+    <div class="cq-head"><div class="small muted" id="cq-meta"></div><div class="cq-clock hidden" id="cq-clock"></div></div>
+    <div class="quiz-q" id="cq-q"></div>
+    <div class="quiz-opts" id="cq-opts"></div>
+    <div id="cq-explain" class="notice hidden" style="margin-top:14px"></div>
+    <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" id="cq-prev" type="button">Previous</button><button class="btn secondary hidden" id="cq-check" type="button">Check answer</button><button class="btn" id="cq-next" type="button">Next</button><button class="btn ghost" id="cq-end" type="button" data-tip="Ends the quiz and scores it. Questions not answered score 0.">Finish and score</button></p>
+    <div class="cq-dots" id="cq-dots"></div>
+  </div>
+  <div class="card hidden" id="cq-result"></div>
+</section>
+</div>
+
+<div id="print-sheet"></div>
+
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="data/questions.js"></script>
+<script src="js/app.js"></script>
+<script src="js/quizcustom.js"></script>
+</body>
+</html>

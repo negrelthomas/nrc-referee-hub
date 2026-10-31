@@ -1025,7 +1025,7 @@ window.HOWTO = {
     "referee"
    ],
    "q": "What is the initial assessment?",
-   "a": "<p>Every certified referee takes 50 questions on the IHF rules at their level, 60 minutes in one sitting, within 7 days of their first sign in. It gives the NRC a first picture of everyone's rules knowledge. A reminder comes every 48 hours until it is done.</p>",
+   "a": "<p>Every certified referee takes 30 questions on the IHF rules at their level, 60 minutes in one sitting, within 7 days of their first sign in. It gives the NRC a first picture of everyone's rules knowledge. A reminder comes every 48 hours until it is done.</p>",
    "video": "r-assessment"
   },
   {

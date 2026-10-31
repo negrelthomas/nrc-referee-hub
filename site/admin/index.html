@@ -67,7 +67,7 @@
       <div id="pane-referees" class="hidden">
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><h1 style="margin:0">Referee roster</h1><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm" id="btn-ref-email" onclick="openRefComposer()" disabled>Email selected</button><button class="btn sm ghost" onclick="openRef(null)">Add referee</button></div></div>
         <div class="toolbar" style="margin-top:12px"><input id="r-q" placeholder="Search"><select id="r-level"><option value="">All levels</option><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select><select id="r-login"><option value="">Any sign in status</option><option value="never">Never signed in</option><option value="30">Not signed in for 30 days</option><option value="yes">Signed in</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="r-inactive" style="width:auto"> show inactive</label><button class="btn ghost sm" onclick="exportCsv()">Export CSV</button></div>
-        <div class="table-wrap"><table id="refs"><thead><tr><th><input type="checkbox" id="ref-all" style="width:auto" title="Select all shown"></th><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airport</th><th>Games</th><th>Last eval</th><th title="Latest in person theory exam or online assessment, whichever is newer">Last theory</th><th></th></tr></thead><tbody></tbody></table></div>
+        <div class="table-wrap"><table id="refs"><thead><tr><th><input type="checkbox" id="ref-all" style="width:auto" title="Select all shown"></th><th></th><th>Name</th><th>Level</th><th>Club</th><th>Home</th><th>Airports</th><th title="Games played this season plus games ahead on events the referee is designated for: games scheduled for them, or games expected divided by the pairs on the event">Planned games</th><th>Last eval</th><th title="Latest in person theory exam or online assessment, whichever is newer">Last theory</th><th></th></tr></thead><tbody></tbody></table></div>
       </div>
 
       <!-- Clubs -->
@@ -252,7 +252,7 @@
         <div class="card"><h3 style="margin-top:0">8. Programs</h3>
           <p>Two tracks run automatically on the training page, under My program:</p>
           <p><strong>Candidates</strong> (level candidate) follow the Level 1 online course: six modules by rule group, each with study cards and a module test, a study plan they can push to their calendar, then a timed final test. A pass records "theory passed" with the date on their profile (visible in the Referees list); the NRC schedules the practical part (signals, whistle, physical test) at a clinic and then sets the level to Level 1 on the record. Referees whose level was entered from correspondence carry an "NRC to confirm" badge until you tick "Level confirmed" on their record.</p>
-          <p><strong>Certified referees</strong> take a baseline assessment at first sign in: 50 questions at their level by default. At the hurdle overall and with every rule at or above the threshold, they are cleared. Below, the hub builds a program on every rule they scored under the threshold, due in 12 weeks, with study sessions exported to their calendar and a module test per rule, then a re-test; a re-test below the hurdle builds a new program. The Programs page shows every referee's state (signed in or not, baseline date, last score, program status, modules done, due date) and lets you change the parameters of both tracks.</p></div>
+          <p><strong>Certified referees</strong> take a baseline assessment at first sign in: 30 questions at their level by default. At the hurdle overall and with every rule at or above the threshold, they are cleared. Below, the hub builds a program on every rule they scored under the threshold, due in 12 weeks, with study sessions exported to their calendar and a module test per rule, then a re-test; a re-test below the hurdle builds a new program. The Programs page shows every referee's state (signed in or not, baseline date, last score, program status, modules done, due date) and lets you change the parameters of both tracks.</p></div>
 
         <div class="card"><h3 style="margin-top:0">9. Imports</h3>
           <p><strong>Roster CSV:</strong> create or update many referees at once from a spreadsheet (match on email, then on name; empty cells keep the current value). Use it for the initial roster and after each NRC review. <strong>Sport80 export:</strong> refreshes membership IDs and expiry dates; this is the recurring 30 day task. <strong>IHF catalogue:</strong> loads a new edition of the question catalogue from its text.</p></div>
@@ -315,7 +315,7 @@
     <div class="row"><div><label>Club</label><select name="club_id"><option value="">No club affiliation</option></select></div><div><label>Certification level</label><select name="cert_level"><option value="candidate">Candidate</option><option value="level_1">Level 1</option><option value="level_2">Level 2</option><option value="level_3">Level 3 (National)</option><option value="nachc">NACHC</option><option value="ihf">IHF</option></select></div></div>
     <div class="row"><div><label>Certified on</label><input name="cert_date" type="date"></div><div><label>Certified by</label><input name="cert_by"></div></div>
     <div class="row"><div><label>Home city</label><input name="home_city"></div><div><label>State</label><input name="home_state" maxlength="2"></div></div>
-    <div class="row"><div><label>Home airport</label><input name="home_airport_iata" maxlength="3"></div><div><label>Departure airport</label><input name="departure_airport_iata" maxlength="3"></div></div>
+    <div class="row"><div><label>Airport 1, closest to home</label><input name="home_airport_iata" maxlength="3"></div><div><label>Airport 2</label><input name="departure_airport_iata" maxlength="3"></div><div><label>Airport 3</label><input name="airport_3_iata" maxlength="3"></div></div>
     <div class="row"><div><label>USATH member ID</label><input name="usath_member_id"></div><div><label>Membership valid until</label><input name="usath_membership_valid_until" type="date"></div></div>
     <div class="row"><div><label>SafeSport valid until</label><input name="safesport_valid_until" type="date"></div><div><label>Background check valid until</label><input name="background_check_valid_until" type="date"></div></div>
     <label>Admin notes (not visible to the referee)</label><textarea name="admin_notes"></textarea>
@@ -474,7 +474,7 @@
   <div id="ttab-candidates" class="hidden">
     <div class="toolbar"><input id="cand-q" placeholder="Search name, club, airport"><select id="cand-level"><option value="">All levels</option><option value="level_1">Level 1 and above</option><option value="level_2">Level 2 and above</option><option value="level_3">Level 3 and above</option></select><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-avail" checked style="width:auto"> hide unavailable</label><label style="margin:0;font-weight:400"><input type="checkbox" id="cand-pairs" checked style="width:auto"> invite pairs together</label></div>
     <div id="cand-hidden" class="small muted" style="margin:6px 0"></div>
-    <div class="table-wrap"><table id="cand"><thead><tr><th></th><th>Referee</th><th>Level</th><th>Club</th><th>Airport</th><th>Availability</th><th>Season</th><th>Pair</th></tr></thead><tbody></tbody></table></div>
+    <div class="table-wrap"><table id="cand"><thead><tr><th></th><th>Referee</th><th>Level</th><th>Club</th><th>Airports</th><th>Availability</th><th>Planned games</th><th>Pair</th></tr></thead><tbody></tbody></table></div>
     <p style="margin-top:10px"><button class="btn sm navy" type="button" onclick="addCandidates()" data-tip="Adds the ticked referees to tab 2, Answers, as drafts. Nothing is sent until you press Send invitations there.">Add selected as draft invitations</button> <span class="small muted">Then send them from tab 2, Answers.</span></p>
   </div>
 
@@ -494,7 +494,7 @@
     <div class="table-wrap"><table id="des-off"><thead><tr><th>Official</th><th>Role</th><th>From</th><th>Travel</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="row" style="margin-top:10px;grid-template-columns:1fr auto auto;align-items:end;gap:8px">
       <div><label>Add an official directly (supervisor, observer, replacement referee)</label><select id="des-ref"></select></div>
-      <div><label>Role</label><select id="des-role"><option value="referee">Referee</option><option value="delegate">Supervisor (technical delegate)</option><option value="observer">Observer</option></select></div>
+      <div><label>Role</label><select id="des-role"><option value="referee">Referee</option><option value="delegate">Technical delegate (supervisor)</option><option value="table_official">Table official (timekeeper, scorekeeper)</option><option value="observer">Observer</option></select></div>
       <div><button class="btn sm pos" type="button" onclick="addDesignated()" data-tip="Designates the chosen official directly in the role selected, without an invitation. No email is sent; use Send brief to tell them.">Add</button></div>
     </div>
     <h4 class="des-h">Brief and travel</h4>
@@ -527,7 +527,7 @@
     <button data-ttab="log">Change log</button>
   </div>
   <div id="ttab-officiated">
-    <p class="small muted" style="margin-top:0">Log every game below with its referee pair: it counts each referee's games and opens the observation reports. The team comes from Designated and travel.</p>
+    <p class="small muted" style="margin-top:0">Every game of the event: number, teams, score and the pair from the designated referees. Each game opens its IHF evaluation. Score sheets uploaded after the event are checked against these games.</p>
     <div id="tour-games"></div>
     <details style="margin-top:16px"><summary class="small"><strong>Games per official</strong> <span class="muted">(totals for past events without game by game detail)</span></summary>
       <div class="table-wrap" style="margin-top:8px"><table id="tour-asg"><thead><tr><th>Official</th><th>Role</th><th>Games logged</th><th title="Only when the games were not logged one by one: a total reported by the referee or from past records">Total without detail</th></tr></thead><tbody></tbody></table></div>
@@ -754,6 +754,8 @@
 <script src="js/report.js"></script>
 <script src="js/ai.js"></script>
 <script src="js/games.js"></script>
+<script src="js/sheets.js"></script>
+<script src="js/flights.js"></script>
 <script src="js/expenses.js"></script>
 <script src="js/admin.js"></script>
 <script src="js/evaluators-admin.js"></script>

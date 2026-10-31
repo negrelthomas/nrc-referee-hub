@@ -308,12 +308,21 @@ async function fn(req, res, u, bodyBuf) {
 }
 
 // ---------- outside services: receipt reader and FX rates, answered locally ----------
+// queued answers for the score sheet and flight readers: POST /__mock { sheets: [...], flights: [...] }
+const MOCK = { sheets: [], flights: [] };
 let NEXT_READ = { is_receipt: true, category: "airfare", merchant: "United Airlines", purchase_date: "2026-12-02", total_amount: 286.4, currency: "USD", nights: null, description: "SJC to DEN round trip, economy", confidence: "high" };
 process.env.GEMINI_API_KEY = "demo";
 process.env.RESEND_API_KEY = "demo";
 const realFetch = globalThis.fetch;
 globalThis.fetch = async (u, opts) => {
   const s = String(u);
+  if (s.includes("generativelanguage.googleapis.com") && opts && /handball score sheets|airline booking/.test(String(opts.body))) {
+    await new Promise(r => setTimeout(r, 500));
+    const sheet = /handball score sheets/.test(String(opts.body)), q = sheet ? MOCK.sheets : MOCK.flights;
+    const out = q.length ? q.shift() : (sheet ? { is_score_sheet: false, confidence: "low" } : { is_itinerary: false, confidence: "low" });
+    if (out.__status) return new Response(out.__body || "", { status: out.__status });
+    return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(out) }] } }] }), { status: 200, headers: { "content-type": "application/json" } });
+  }
   if (s.includes("generativelanguage.googleapis.com")) { await new Promise(r => setTimeout(r, 1400)); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(NEXT_READ) }] } }] }), { status: 200, headers: { "content-type": "application/json" } }); }
   if (s.includes("api.resend.com")) { try { const b = JSON.parse(opts.body); mailLog.push({ to: b.to, subject: b.subject }); if (process.env.DEBUG) console.log("MAIL", b.to, b.subject); } catch (e) {} return new Response(JSON.stringify({ id: "demo" }), { status: 200, headers: { "content-type": "application/json" } }); }
   if (s.includes("frankfurter")) { const rates = {}; for (let i = 0; i < 21; i++) rates["2026-11-" + String(i + 1).padStart(2, "0")] = { USD: 1.07 + (i % 5) * 0.004 }; return new Response(JSON.stringify({ rates }), { status: 200, headers: { "content-type": "application/json" } }); }
@@ -361,6 +370,7 @@ const server = http.createServer((req, res) => {
       if (u.pathname.startsWith("/api/") || u.pathname.startsWith("/.netlify/functions/")) return await fn(req, res, u, buf);
       if (u.pathname === "/__session" ) { const usr = await userByEmail(u.searchParams.get("email")); res.writeHead(200, { "content-type": "application/json" }); return res.end(JSON.stringify(session(usr))); }
       if (u.pathname === "/__next_read") { NEXT_READ = JSON.parse(buf.toString()); res.writeHead(200); return res.end("ok"); }
+      if (u.pathname === "/__mock" && req.method === "POST") { const b = JSON.parse(buf.toString() || "{}"); if (b.sheets) MOCK.sheets = b.sheets; if (b.flights) MOCK.flights = b.flights; res.writeHead(200); return res.end("ok"); }
       if (u.pathname === "/__reload") { meta.fk = null; res.writeHead(200); return res.end("ok"); }
       return serveStatic(req, res, u);
     } catch (e) { console.log("ERR", u.pathname, e); if (!res.headersSent) res.writeHead(500); res.end(String(e.message)); }

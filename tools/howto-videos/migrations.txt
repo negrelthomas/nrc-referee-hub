@@ -40,3 +40,4 @@ change_notices.sql
 booking_split.sql
 availability_ranges.sql
 expenses_v2.sql
+hub_2026_10_30.sql

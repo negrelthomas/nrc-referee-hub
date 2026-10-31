@@ -310,8 +310,62 @@
 
   // Explanation text for a question. The IHF catalogue answers read "Correct option: a. Rule reference: 1:1", which is not
   // helpful on screen: show the correct answer text instead, then the rule reference once.
+  // IHF Rules of the Game, edition 1 July 2025 (English). Each rule reference opens the official PDF at its page.
+  NRC.IHF_RULES_URL = "https://www.ihf.info/sites/default/files/2025-07/09A%20-%20Rules%20of%20the%20Game_Indoor%20Handball_E.pdf";
+  // first paragraph on each page, by rule: [paragraph, page]
+  const RULE_PAGES = { 1: [[1, 4], [9, 5]], 2: [[1, 8], [3, 9], [8, 10]], 3: [[1, 11], [4, 12]], 4: [[1, 12], [3, 13], [5, 14], [10, 15]], 5: [[1, 16]], 6: [[1, 17], [6, 18]],
+    7: [[1, 18], [4, 19], [11, 20]], 8: [[1, 20], [3, 21], [4, 22], [6, 23], [7, 24], [9, 25], [11, 26]], 9: [[1, 26], [2, 27]], 10: [[1, 28], [4, 29]], 11: [[1, 29], [2, 30]],
+    12: [[1, 30]], 13: [[1, 31], [3, 32], [7, 33]], 14: [[1, 33], [2, 34], [8, 35]], 15: [[1, 35], [3, 36], [6, 37]], 16: [[1, 38], [4, 39], [9, 40], [10, 41]], 17: [[1, 41], [2, 42]], 18: [[1, 43]] };
+  NRC.rulePage = function (rule, para) {
+    const t = RULE_PAGES[rule]; if (!t) return null; let pg = t[0][1];
+    t.forEach(([p, g]) => { if ((para || 1) >= p) pg = g; }); return pg;
+  };
+  NRC.ruleUrl = (page) => NRC.IHF_RULES_URL + (page ? "#page=" + page : "");
+  // "8:5a, 16:3, Clarification 6" -> each part a link to the right page of the IHF rules
+  NRC.ruleLinks = function (rr) {
+    if (!rr) return "";
+    const a = (pg, label, tip) => `<a class="rule-link" href="${NRC.ruleUrl(pg)}" target="_blank" rel="noopener" title="${tip}">${NRC.esc(label)}</a>`;
+    return String(rr).split(/\s*,\s*/).map(part => {
+      let m = /^(\d{1,2})[:.](\d{1,2})/.exec(part);
+      if (m && RULE_PAGES[+m[1]]) return a(NRC.rulePage(+m[1], +m[2]), part, "Open Rule " + m[1] + ":" + m[2] + " in the IHF Rules of the Game");
+      if (/clarification/i.test(part)) return a(54, part, "Open the Clarifications in the IHF Rules of the Game");
+      if (/substitution area/i.test(part)) return a(76, part, "Open the Substitution Area Regulations");
+      if (/guideline/i.test(part)) return a(78, part, "Open the Guidelines and Interpretations");
+      if (/hand signal/i.test(part)) return a(44, part, "Open the IHF hand signals");
+      return NRC.esc(part);
+    }).join(", ");
+  };
+  // Scoring (NRC, 2026-10-30): +1 for each correct option ticked, -1 for each wrong option ticked or correct option missed,
+  // never below 0 on a question. max = number of correct options. A single answer question scores 1 or 0.
+  NRC.grade = function (q, picked) {
+    const correct = q.cis && q.cis.length > 1 ? q.cis : [q.ci];
+    picked = picked || [];
+    const hit = picked.filter(p => correct.includes(p)).length, wrong = picked.filter(p => !correct.includes(p)).length, miss = correct.length - hit;
+    const points = Math.max(0, hit - wrong - miss);
+    return { points, max: correct.length, ok: points === correct.length, correct };
+  };
+  // Results by rule after a quiz: answers [{ q, rule, ok, points, max }]
+  NRC.byRule = function (answers) {
+    const b = {}; answers.forEach(x => { const k = x.rule || (x.q && x.q.rule) || 0; b[k] = b[k] || { n: 0, c: 0, p: 0, m: 0 }; b[k].n++; if (x.ok) b[k].c++; b[k].p += x.points || 0; b[k].m += x.max || 1; }); return b;
+  };
+  // quiz_answers rows -> { rule: { n, c, p, m } }; rows from before point scoring count 1 or 0
+  NRC.answersByRule = function (ans) {
+    const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0, p: 0, m: 0 }; m[k].n++; if (a.correct) m[k].c++; m[k].p += a.points != null ? a.points : (a.correct ? 1 : 0); m[k].m += a.max_points != null ? a.max_points : 1; }); return m;
+  };
+  // a saved session's score: points when recorded, else questions correct
+  NRC.sessionPct = (a) => a.max_points ? Math.round(a.points / a.max_points * 100) : a.total ? Math.round(a.correct / a.total * 100) : 0;
+  NRC.sessionScore = (a) => a.max_points ? `${a.points} of ${a.max_points} points (${NRC.sessionPct(a)}%)` : `${a.correct} of ${a.total} (${NRC.sessionPct(a)}%)`;
+  NRC.rulePct = (v) => !v ? 0 : v.m ? Math.round(v.p / v.m * 100) : v.n ? Math.round(v.c / v.n * 100) : 0;
+  NRC.statsHtml = function (answers, opts) {
+    const b = NRC.byRule(answers), keys = Object.keys(b).map(Number).sort((x, y) => NRC.rulePct(b[x]) - NRC.rulePct(b[y]) || x - y);
+    if (!keys.length) return "";
+    const pass = (opts && opts.pass) || 80;
+    return '<h3 style="margin-top:14px">Results by rule</h3><div class="table-wrap"><table class="stats-rule"><thead><tr><th>Rule</th><th>Questions</th><th>Fully correct</th><th>Points</th><th>Score</th></tr></thead><tbody>' +
+      keys.map(k => { const v = b[k], p = NRC.rulePct(v); return `<tr><td>${k ? "Rule " + k + ": " + NRC.esc(NRC.RULES[k] || "") : "Other"}${k && NRC.rulePage(k) ? ` <a class="rule-link small" href="${NRC.ruleUrl(NRC.rulePage(k, 1))}" target="_blank" rel="noopener" title="Open Rule ${k} in the IHF Rules of the Game">read</a>` : ""}</td><td>${v.n}</td><td>${v.c}</td><td>${v.p} / ${v.m}</td><td><span class="pill ${p >= pass ? "green" : p >= 60 ? "amber" : "red"}">${p}%</span></td></tr>`; }).join("") + "</tbody></table></div>";
+  };
+
   NRC.explain = function (q, full) {
-    const a = q.a || "";
+    let a = (q.a || "").replace(/\s*Rule references?:\s*[^]*$/i, "").trim();
     const m = /^correct options?:\s*([a-z](?:\s*,\s*[a-z])*)/i.exec(a);
     let text = a;
     if (m && q.options) {
@@ -321,9 +375,16 @@
       else if (full) text = "Correct answers: " + letters.map((l, i) => l + ") " + picks[i]).join(" ") ;
       else text = "Correct answers: " + letters.join(", ") + " (shown in green).";
     }
-    const ref = q.rr && !new RegExp(q.rr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).test(text) ? ` <span class="small muted">(Rule ${NRC.esc(q.rr)})</span>` : "";
+    const ref = q.rr ? ` <span class="small">Rule reference: ${NRC.ruleLinks(q.rr)}</span>` : "";
     return NRC.esc(text) + ref;
   };
+
+  // Roles on an event: referees, the technical delegate (supervisor), table officials and observers are separate functions
+  NRC.ROLE_LABEL = { referee: "referee", delegate: "technical delegate", table_official: "table official", observer: "observer" };
+  NRC.roleLabel = (r) => NRC.ROLE_LABEL[r] || r || "";
+  // Up to three airports (IATA) per referee: closest to home first
+  NRC.airports = (r) => [...new Set([r && r.home_airport_iata, r && r.departure_airport_iata, r && r.airport_3_iata].filter(Boolean).map(x => String(x).toUpperCase()))];
+  NRC.airportsText = (r) => NRC.airports(r).join(" / ");
 
   NRC.RULES = {
     1: "Playing court", 2: "Playing time, final signal, time-out", 3: "The ball", 4: "The team, substitutions, equipment, injuries",

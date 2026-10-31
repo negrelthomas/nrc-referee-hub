@@ -25,25 +25,36 @@
     { key: "exec", title: "Executing throws", rules: [15], fam: "restarts", icon: "arrow" },
     { key: "officials", title: "Referees, timekeeper, scorekeeper", rules: [17, 18], fam: "officials", icon: "table" }
   ].map(t => Object.assign(t, { color: FAM[t.fam].deep, accent: FAM[t.fam].accent, family: FAM[t.fam].name }));
-  // Table officials and technical delegates: same IHF catalogue, filtered to the questions that involve the table,
-  // the clock, the substitution area, team officials or the delegate. Two quizzes per theme (core, advanced).
-  const TABLE_RX = /timekeeper|scorekeeper|technical delegate|delegate|score ?sheet|clock|time-?out|green card|substitution (zone|area)|substitution area regulations|bench|team official|stops? the time|time is stopped|final signal|suspension/i;
+  // Table officials and technical delegates are two separate tracks (NRC, 2026-10-30): the timekeeper and scorekeeper run the table;
+  // the technical delegate supervises it, the substitution area and the team officials, with authority to interrupt the game.
+  // Same IHF catalogue, filtered to the questions that involve their work. Two quizzes per theme (core, advanced).
+  const TABLE_RX = /timekeeper|scorekeeper|score ?sheet|clock|time-?out|green card|substitution (zone|area)|substitution area regulations|bench|team official|stops? the time|time is stopped|final signal|suspension/i;
+  const DESK_RX = /timekeeper|scorekeeper|score ?sheet/i, DEL_RX = /delegate/i;
   const TFAM = {
     clock: { name: "Clock and time-outs", accent: "#2DD4BF", deep: "#0F766E" },
     bench: { name: "Substitution area and bench", accent: "#60A5FA", deep: "#1D4ED8" },
-    desk: { name: "Table and delegate", accent: "#A78BFA", deep: "#6D28D9" }
+    desk: { name: "The table", accent: "#A78BFA", deep: "#6D28D9" },
+    td: { name: "Delegate's authority", accent: "#FB7185", deep: "#BE123C" }
   };
+  const tableQ = (rules, rx) => (q) => !DEL_RX.test(q.q) && (!rules || rules.includes(q.rule)) && rx.test(q.q);
   NRC.TABLE_THEMES = [
-    { key: "t-clock", title: "Playing time, time-outs, final signal", rules: [2], fam: "clock", icon: "court", match: TABLE_RX },
-    { key: "t-sub", title: "Substitutions and the substitution area", rules: [4], fam: "bench", icon: "team", match: TABLE_RX },
-    { key: "t-bench", title: "Team officials, bench conduct, suspensions", rules: [8, 16], fam: "bench", icon: "card", match: TABLE_RX },
-    { key: "t-desk", title: "Timekeeper, scorekeeper, technical delegate", rules: [17, 18], fam: "desk", icon: "table", match: TABLE_RX, alsoDelegate: true }
+    { key: "t-clock", title: "Playing time, time-outs, final signal", rules: [2], fam: "clock", icon: "court", pick: tableQ([2], TABLE_RX) },
+    { key: "t-sub", title: "Substitutions and the substitution area", rules: [4], fam: "bench", icon: "team", pick: tableQ([4], TABLE_RX) },
+    { key: "t-bench", title: "Team officials, bench conduct, suspensions", rules: [8, 16], fam: "bench", icon: "card", pick: tableQ([8, 16], TABLE_RX) },
+    { key: "t-desk", title: "Timekeeper and scorekeeper duties, the score sheet", rules: [2, 4, 16, 17, 18], fam: "desk", icon: "table", pick: tableQ(null, DESK_RX) }
   ].map(t => Object.assign(t, { table: true, color: TFAM[t.fam].deep, accent: TFAM[t.fam].accent, family: TFAM[t.fam].name }));
+  NRC.DELEGATE_THEMES = [
+    { key: "d-auth", title: "The technical delegate's authority", rules: [2, 4, 8, 16, 18], fam: "td", icon: "whistle", pick: (q) => DEL_RX.test(q.q), oneLevel: true },
+    { key: "d-sub", title: "Substitution area, team officials, punishments at the bench", rules: [4, 8, 16], fam: "bench", icon: "team", pick: (q) => [4, 8, 16].includes(q.rule) && (TABLE_RX.test(q.q) || DEL_RX.test(q.q)) },
+    { key: "d-clock", title: "Time-outs, interruptions, the clock and the table", rules: [2, 17, 18], fam: "clock", icon: "court", pick: (q) => [2, 17, 18].includes(q.rule) && (TABLE_RX.test(q.q) || DEL_RX.test(q.q)) }
+  ].map(t => Object.assign(t, { table: true, delegate: true, color: TFAM[t.fam].deep, accent: TFAM[t.fam].accent, family: TFAM[t.fam].name }));
   const LEVELS = [["level_1", "Level 1"], ["level_2", "Level 2"], ["level_3", "Level 3"]];
   const TLEVELS = [["core", "Core", ["level_1", "level_2"]], ["adv", "Advanced", ["level_3"]]];
-  let track = /track=table/.test(location.search) ? "table" : "ref";
-  const themes = () => track === "table" ? NRC.TABLE_THEMES : NRC.THEMES;
-  const allThemes = () => NRC.THEMES.concat(NRC.TABLE_THEMES);
+  const ALEVELS = [["all", "All levels", ["level_1", "level_2", "level_3"]]];
+  let track = /track=table/.test(location.search) ? "table" : /track=delegate/.test(location.search) ? "delegate" : "ref";
+  const themes = () => track === "table" ? NRC.TABLE_THEMES : track === "delegate" ? NRC.DELEGATE_THEMES : NRC.THEMES;
+  const allThemes = () => NRC.THEMES.concat(NRC.TABLE_THEMES, NRC.DELEGATE_THEMES);
+  const levelsOf = (t) => t.oneLevel ? ALEVELS : t.table ? TLEVELS : LEVELS;
   const ICONS = {
     court: '<rect x="3" y="7" width="26" height="18" rx="1"/><line x1="16" y1="7" x2="16" y2="25"/><path d="M3 11a5 5 0 0 1 0 10M29 11a5 5 0 0 0 0 10"/>',
     team: '<circle cx="11" cy="11" r="4"/><circle cx="22" cy="11" r="4"/><path d="M4 26c0-5 3-8 7-8s7 3 7 8M15 26c0-5 3-8 7-8s7 3 7 8"/>',
@@ -66,22 +77,20 @@
   const isIhf = q => q.src === "ihf" && q.options && q.options.length;
   const poolFor = (t, lv) => {
     if (!t.table) return ALL.filter(q => isIhf(q) && t.rules.includes(q.rule) && q.diff === lv);
-    const diffs = (TLEVELS.find(x => x[0] === lv) || [, , []])[2];
-    // Each question sits in one table theme only: the delegate theme takes every question naming the delegate
-    const taken = (q) => NRC.TABLE_THEMES.some(o => o.alsoDelegate && o !== t && /delegate/i.test(q.q));
-    return ALL.filter(q => isIhf(q) && diffs.includes(q.diff) && ((t.rules.includes(q.rule) && t.match.test(q.q) && !taken(q)) || (t.alsoDelegate && /delegate/i.test(q.q))));
+    const diffs = (levelsOf(t).find(x => x[0] === lv) || [, , []])[2];
+    return ALL.filter(q => isIhf(q) && diffs.includes(q.diff) && t.pick(q));
   };
-  const lessonsOf = (t) => (t.table ? TLEVELS : LEVELS).filter(([lv]) => poolFor(t, lv).length >= 5).map(([lv, label]) => ({ key: lessonKey(t, lv), lv, label, n: poolFor(t, lv).length }));
+  const lessonsOf = (t) => levelsOf(t).filter(([lv]) => poolFor(t, lv).length >= 5).map(([lv, label]) => ({ key: lessonKey(t, lv), lv, label, n: poolFor(t, lv).length }));
 
   async function loadResults() {
     results = {};
     const add = (key, pct, date) => { const r = results[key] = results[key] || { best: null, last: null, lastDate: null, n: 0 }; r.n++; if (r.best == null || pct > r.best) r.best = pct; if (!r.lastDate || date > r.lastDate) { r.lastDate = date; r.last = pct; } };
     if (user && NRC.sb) {
-      const { data } = await NRC.sb.from("quiz_attempts").select("mode,total,correct,created_at").eq("user_id", user.id).like("mode", "lesson:%").order("created_at", { ascending: false }).limit(1000);
-      (data || []).forEach(a => add(a.mode.slice(7), Math.round(100 * a.correct / a.total), a.created_at));
+      const { data } = await NRC.sb.from("quiz_attempts").select("mode,total,correct,points,max_points,created_at").eq("user_id", user.id).like("mode", "lesson:%").order("created_at", { ascending: false }).limit(1000);
+      (data || []).forEach(a => add(a.mode.slice(7), NRC.sessionPct(a), a.created_at));
     } else {
       let d = { sessions: [] }; try { d = JSON.parse(localStorage.getItem("nrc_training_v1") || '{"sessions":[]}'); } catch (e) { }
-      (d.sessions || []).filter(s => String(s.mode).startsWith("lesson:")).forEach(s => add(s.mode.slice(7), Math.round(100 * s.correct / s.total), s.created_at));
+      (d.sessions || []).filter(s => String(s.mode).startsWith("lesson:")).forEach(s => add(s.mode.slice(7), NRC.sessionPct(s), s.created_at));
     }
   }
 
@@ -103,12 +112,12 @@
     const wk = Object.values(results).filter(r => r.lastDate && r.lastDate >= new Date(Date.now() - 7 * 864e5).toISOString()).length;
     const nx = nextLesson();
     const pct = all.length ? Math.round(100 * passed / all.length) : 0;
-    const fams = track === "table" ? TFAM : FAM;
-    host.innerHTML = `<div class="seg wide track-switch" role="tablist" aria-label="Training track"><label class="${track === "ref" ? "on" : ""}"><input type="radio" name="track" value="ref" ${track === "ref" ? "checked" : ""}>Referees</label><label class="${track === "table" ? "on" : ""}"><input type="radio" name="track" value="table" ${track === "table" ? "checked" : ""}>Table officials and delegates</label></div>
-      ${track === "table" ? '<p class="small muted" style="margin:0 0 10px">Questions from the IHF catalogue that involve the table, the clock, the substitution area, team officials or the technical delegate. Core covers levels 1 and 2, Advanced level 3. Read the <a href="guide/table-officials.html">table officials and delegates guide</a> first.</p>' : ""}
+    const fams = track === "ref" ? FAM : Object.fromEntries([...new Set(themes().map(t => t.fam))].map(k => [k, TFAM[k]]));
+    host.innerHTML = `<div class="seg wide track-switch" role="tablist" aria-label="Training track"><label class="${track === "ref" ? "on" : ""}"><input type="radio" name="track" value="ref" ${track === "ref" ? "checked" : ""}>Referees</label><label class="${track === "table" ? "on" : ""}"><input type="radio" name="track" value="table" ${track === "table" ? "checked" : ""}>Table officials</label><label class="${track === "delegate" ? "on" : ""}"><input type="radio" name="track" value="delegate" ${track === "delegate" ? "checked" : ""}>Technical delegates</label></div>
+      ${track === "table" ? '<p class="small muted" style="margin:0 0 10px">For timekeepers and scorekeepers: questions from the IHF catalogue on the clock, time-outs, substitutions, suspensions and the score sheet. Core covers levels 1 and 2, Advanced level 3. Read the <a href="guide/table-officials.html">table officials guide</a> first.</p>' : track === "delegate" ? '<p class="small muted" style="margin:0 0 10px">For technical delegates, who supervise the table, the substitution area and the team officials and may interrupt the game. A delegate knows the referee rules too: the referee path applies. Read the <a href="guide/technical-delegate.html">technical delegate guide</a> first.</p>' : ""}
       <div class="path-top">
         <div class="pt-ring">${ring(pct, "#E8EB2F", 76, "rgba(255,255,255,.15)")}<span>${pct}%</span></div>
-        <div class="pt-txt"><div class="pt-k">${track === "table" ? "Table officials and delegates" : "Your path through the IHF rules"}</div><div class="path-count"><strong>${passed}</strong> of ${all.length} quizzes passed</div>
+        <div class="pt-txt"><div class="pt-k">${track === "table" ? "Table officials: timekeeper and scorekeeper" : track === "delegate" ? "Technical delegates" : "Your path through the IHF rules"}</div><div class="path-count"><strong>${passed}</strong> of ${all.length} quizzes passed</div>
         <div class="pt-sub">${PER} questions per quiz, ${PASS}% to pass.${wk ? " " + wk + " quiz" + (wk === 1 ? "" : "zes") + " this week." : ""}${user ? "" : ' <a href="login.html?next=training.html">Sign in</a> to keep your path across devices.'}</div></div>
         ${nx ? `<button class="btn yellow pt-next" type="button" data-start="${nx.l.key}"><span class="small" style="display:block;font-weight:600;opacity:.8">Up next</span>${esc(nx.t.title)}, ${nx.l.label}</button>` : '<span class="pill green">Every quiz passed. Retake the oldest to stay sharp.</span>'}
       </div>
@@ -118,8 +127,9 @@
           <span class="tc-title">${esc(t.title)}</span>
           <span class="tc-levels">${s.L.map(l => { const r = results[l.key]; return `<i class="lv ${r ? (r.best >= PASS ? "pass" : "try") : ""}" title="${l.label}${r ? ": best " + r.best + "%" : ": not started"}">${l.label.replace("Level ", "L")}</i>`; }).join("")}</span>
           <span class="tc-meta">${s.last ? (s.avg != null ? s.avg + "% average &middot; " : "") + NRC.fmtDate(NRC.localDate(new Date(s.last))) : "Not started"}</span></button>`; }).join("")}</div>
-      <div id="path-detail"></div>`;
-    NRC.$$('input[name="track"]', host).forEach(i => i.onchange = () => { track = i.value; openTheme = null; try { history.replaceState(null, "", track === "table" ? "?track=table" : location.pathname); } catch (e) { } render(); });
+      <div id="path-detail"></div>
+      ${track === "ref" ? '<a class="card skills-card" href="guide/skills.html" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;text-decoration:none"><div><strong>Skills beyond the rules</strong><div class="small muted">Positions, switches, pre-game preparation, game management, body language, composure. Built on the items of the IHF observation report.</div></div><span class="btn sm secondary">Open</span></a>' : ""}`;
+    NRC.$$('input[name="track"]', host).forEach(i => i.onchange = () => { track = i.value; openTheme = null; try { history.replaceState(null, "", track === "ref" ? location.pathname : "?track=" + track); } catch (e) { } render(); });
     NRC.$$("[data-theme]", host).forEach(b => b.onclick = () => { openTheme = openTheme === b.dataset.theme ? null : b.dataset.theme; render(); if (openTheme) $("#path-detail").scrollIntoView({ behavior: "smooth", block: "nearest" }); });
     NRC.$$("[data-start]", host).forEach(b => b.onclick = () => start(b.dataset.start));
     if (openTheme) renderDetail(themes().find(t => t.key === openTheme));
@@ -135,7 +145,7 @@
     const [tk, lv] = [key.slice(0, key.lastIndexOf("-")), key.slice(key.lastIndexOf("-") + 1)];
     const t = allThemes().find(x => x.key === tk); if (!t) return;
     const qs = NRC.shuffle(poolFor(t, lv).slice()).slice(0, PER);
-    const label = ((t.table ? TLEVELS : LEVELS).find(x => x[0] === lv) || [, ""])[1];
+    const label = (levelsOf(t).find(x => x[0] === lv) || [, ""])[1];
     NRC.Training.startLesson({ key, title: t.title + ", " + label, color: t.color, questions: qs, difficulty: t.table ? null : lv, onDone: async () => { await loadResults(); render(); } });
   }
 

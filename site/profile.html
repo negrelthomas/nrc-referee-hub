@@ -85,8 +85,9 @@
         <div><label>Home state</label><input name="home_state" maxlength="2" style="text-transform:uppercase"></div>
       </div>
       <div class="row">
-        <div><label>Closest airport to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="SFO" style="text-transform:uppercase"></div>
-        <div><label>Usual departure airport, if different</label><input name="departure_airport_iata" maxlength="3" placeholder="OAK" style="text-transform:uppercase"></div>
+        <div><label>Airport 1, closest to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="SFO" style="text-transform:uppercase"></div>
+        <div><label>Airport 2 (optional)</label><input name="departure_airport_iata" maxlength="3" placeholder="OAK" style="text-transform:uppercase"></div>
+        <div><label>Airport 3 (optional)</label><input name="airport_3_iata" maxlength="3" placeholder="SJC" style="text-transform:uppercase"></div>
       </div>
       <label>Availability notes</label><textarea name="availability_notes" placeholder="Weekends only, not available in March, can drive within 4 hours..."></textarea>
       <div class="row">
@@ -110,7 +111,7 @@
       <input type="hidden" name="id">
       <div><label>Event</label><select name="tournament_id" required></select></div>
       <div><label>Games</label><input name="games" type="number" min="1" max="60" required></div>
-      <div><label>Role</label><select name="role"><option value="referee">Referee</option><option value="observer">Observer</option><option value="delegate">Delegate</option></select></div>
+      <div><label>Role</label><select name="role"><option value="referee">Referee</option><option value="observer">Observer</option><option value="delegate">Technical delegate</option><option value="table_official">Table official</option></select></div>
       <div><label>Partner</label><input name="partner" placeholder="Name"></div>
       <div><button class="btn sm" type="submit">Report</button></div>
     </form>
@@ -163,8 +164,9 @@
         <div><label>Home state</label><input name="home_state" maxlength="2" style="text-transform:uppercase"></div>
       </div>
       <div class="row">
-        <div><label>Closest airport to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="SFO" style="text-transform:uppercase"></div>
-        <div><label>Usual departure airport, if different</label><input name="departure_airport_iata" maxlength="3" placeholder="OAK" style="text-transform:uppercase"></div>
+        <div><label>Airport 1, closest to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="SFO" style="text-transform:uppercase"></div>
+        <div><label>Airport 2 (optional)</label><input name="departure_airport_iata" maxlength="3" placeholder="OAK" style="text-transform:uppercase"></div>
+        <div><label>Airport 3 (optional)</label><input name="airport_3_iata" maxlength="3" placeholder="SJC" style="text-transform:uppercase"></div>
       </div>
       <div class="row">
         <div><label>USATH member ID (Sport80)</label><input name="usath_member_id"></div>
@@ -210,6 +212,7 @@
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script src="js/expenses.js"></script>
+<script src="js/flights.js"></script>
 <script src="js/report.js"></script>
 <script src="js/guest-home.js"></script>
 <script>
@@ -251,7 +254,7 @@ async function load() {
   const f = $("#form");
   f.email.value = user.email;
   if (ref) {
-    ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
+    ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","airport_3_iata","availability_notes"].forEach(k => f[k].value = ref[k] || "");
     f.share_contact.checked = !!ref.share_contact; f.show_on_leaderboard.checked = !!ref.show_on_leaderboard;
     $("#photo").src = $("#hello-photo").src = NRC.photoSrc(ref.photo_url);
     $("#level-ro").value = NRC.levelLabel(ref.cert_level); $("#st-level").textContent = NRC.levelLabel(ref.cert_level).replace(" (National)", ""); if (ref.level1_theory_passed_on && ref.cert_level === "candidate") $("#st-level").insertAdjacentHTML("afterend", '<span class="pill green" style="margin-top:4px;display:inline-block">Theory passed</span>');
@@ -282,8 +285,8 @@ $("#form-email").addEventListener("submit", async (e) => {
 $("#form").addEventListener("submit", async (e) => {
   e.preventDefault();
   const f = e.target; const row = {};
-  ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","availability_notes"].forEach(k => row[k] = f[k].value.trim() || null);
-  ["home_state","home_airport_iata","departure_airport_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
+  ["first_name","last_name","phone","club_id","usath_member_id","home_city","home_state","home_airport_iata","departure_airport_iata","airport_3_iata","availability_notes"].forEach(k => row[k] = f[k].value.trim() || null);
+  ["home_state","home_airport_iata","departure_airport_iata","airport_3_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
   row.share_contact = f.share_contact.checked; row.show_on_leaderboard = f.show_on_leaderboard.checked;
   row.updated_at = new Date().toISOString();
   let res;
@@ -358,7 +361,7 @@ async function loadHome() {
     $("#assess-banner").innerHTML = `<div class="card" style="margin-top:14px;border-left:6px solid ${late ? "var(--red)" : "#E8EB2F"};display:flex;gap:16px;align-items:center;justify-content:space-between;flex-wrap:wrap">
       <div style="flex:1;min-width:240px"><div class="small" style="font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:${late ? "var(--red)" : "var(--navy-2)"}">${dueTxt}</div>
       <h3 style="margin:4px 0 6px">Take your initial assessment</h3>
-      <ul class="small" style="margin:0;padding-left:18px"><li>50 questions on the IHF rules at your level, 60 minutes, one sitting</li><li>Gives the NRC a first picture of where every referee stands on the rules; your score is visible to you and the NRC only</li><li>Builds your study program on the rules you miss</li></ul></div>
+      <ul class="small" style="margin:0;padding-left:18px"><li>30 questions on the IHF rules at your level, 60 minutes, one sitting</li><li>Gives the NRC a first picture of where every referee stands on the rules; your score is visible to you and the NRC only</li><li>Builds your study program on the rules you miss</li></ul></div>
       <a class="btn" href="training.html#program" style="white-space:nowrap">Take the assessment</a></div>`;
   }
   if (needAssessment) { /* shown in the banner above */ }
@@ -371,10 +374,10 @@ async function loadHome() {
   renderCompletion(certified, asmt && asmt[0]);
   loadAvail();
   // training nudge
-  const { data: ans } = await NRC.sb.from("quiz_answers").select("correct,quiz_questions(rule_number),quiz_attempts!inner(user_id,created_at)").eq("quiz_attempts.user_id", user.id);
-  const m = {}; (ans || []).forEach(a => { const k = a.quiz_questions && a.quiz_questions.rule_number; if (k == null) return; m[k] = m[k] || { n: 0, c: 0 }; m[k].n++; if (a.correct) m[k].c++; });
-  const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => m[a].c / m[a].n - m[b].c / m[b].n)[0];
-  $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${Math.round(m[weak].c / m[weak].n * 100)}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way and counts on the <a href=\"training.html#board\">leaderboard</a>.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
+  const { data: ans } = await NRC.sb.from("quiz_answers").select("correct,points,max_points,quiz_questions(rule_number),quiz_attempts!inner(user_id,created_at)").eq("quiz_attempts.user_id", user.id);
+  const m = NRC.answersByRule(ans);
+  const weak = Object.keys(m).map(Number).filter(r => m[r].n >= 3).sort((a, b) => NRC.rulePct(m[a]) / 100 - NRC.rulePct(m[b]) / 100)[0];
+  $("#home-training").innerHTML = (ans || []).length ? (weak != null ? `Your weakest area is <strong>Rule ${weak}, ${NRC.esc(NRC.RULES[weak] || "")}</strong> at ${NRC.rulePct(m[weak])}%. Ten questions on it takes four minutes.` : "Good scores across the board. A timed challenge keeps it that way and counts on the <a href=\"training.html#board\">leaderboard</a>.") : "You have not trained here yet. Start with a 15 question practice quiz; your results by rule will show up on your Training tab.";
 }
 // profile completion: what the referee fills in, what the NRC records, tests to take
 async function renderCompletion(certified, asmt) {
@@ -396,7 +399,7 @@ async function renderCompletion(certified, asmt) {
     { label: "USATH member ID", done: !!ref.usath_member_id, kind: "you", action: edit }];
   if (certified) {
     items.push({ label: "Dates you can referee", done: wk > 0, kind: "you", detail: wk ? (wk0 ? wk0 + " weekend" + (wk0 > 1 ? "s" : "") : "") + (wk0 && rg ? " and " : "") + (rg ? rg + " other period" + (rg > 1 ? "s" : "") : "") + " declared" : "Tap your weekends on the grid below and answer for events during the week", action: { label: "Declare", onclick: "document.getElementById('weekends').scrollIntoView({behavior:'smooth',block:'center'})" } });
-    items.push({ label: "Initial rules assessment", done: !!asmt, kind: "you", detail: asmt ? asmt.pct + "% on " + NRC.fmtDate(asmt.created_at.slice(0, 10)) : "50 questions, 60 minutes", action: { label: "Take it", href: "training.html#program" } });
+    items.push({ label: "Initial rules assessment", done: !!asmt, kind: "you", detail: asmt ? asmt.pct + "% on " + NRC.fmtDate(asmt.created_at.slice(0, 10)) : "30 questions, 60 minutes", action: { label: "Take it", href: "training.html#program" } });
   } else {
     items.push({ label: "Level 1 online course", done: !!ref.level1_theory_passed_on, kind: "you", detail: ref.level1_theory_passed_on ? "Theory passed on " + NRC.fmtDate(ref.level1_theory_passed_on) : "Six modules and a final test", action: { label: "Open", href: "training.html#program" } });
   }
@@ -581,10 +584,11 @@ async function loadEvals() {
     ${e.strengths ? `<p><strong>Strengths.</strong> ${NRC.esc(e.strengths)}</p>` : ""}${e.points_to_improve ? `<p><strong>Points to improve.</strong> ${NRC.esc(e.points_to_improve)}</p>` : ""}${e.notes && e.report_id ? `<p><strong>Note for you.</strong> ${NRC.esc(e.notes)}</p>` : ""}<p class="small">${e.report_id ? `<a href="#" onclick="NRC.Report.openView('${e.report_id}');return false">Full observation report</a>` : ""}${e.report_id && e.video_url ? " &middot; " : ""}${e.video_url ? `<a href="${NRC.esc(e.video_url)}" target="_blank" rel="noopener">Game video</a>` : ""}</p></div>`; }).join("") || '<div class="card">No evaluation shared with you yet.</div>';
 }
 window.openClaim = (aid) => NRC.Exp.openClaim(aid, { onDone: () => (window.reloadTrip || loadHome)() });
+NRC.Flights && NRC.Flights.attach($("#form-mybooking"), { base: (f) => ({ assignment_id: f.assignment_id.value, status: "booked", paid_by: "referee", entered_by: "referee" }), onSaved: () => { $("#dlg-mybooking").close(); (window.reloadTrip || loadHome)(); } });
 window.openMyBooking = (aid) => { const f = $("#form-mybooking"); f.reset(); f.assignment_id.value = aid; $("#dlg-mybooking").showModal(); };
 $("#form-mybooking").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target;
-  const row = { assignment_id: f.assignment_id.value, kind: f.kind.value, status: "booked", provider: f.provider.value.trim() || null, reference: f.reference.value.trim() || null, cost: f.cost.value === "" ? null : parseFloat(f.cost.value), start_at: f.start_at.value ? new Date(f.start_at.value).toISOString() : null, end_at: f.end_at.value ? new Date(f.end_at.value).toISOString() : null, from_place: f.from_place.value.trim() || null, to_place: f.to_place.value.trim() || null, paid_by: "referee", entered_by: "referee" };
+  const row = { assignment_id: f.assignment_id.value, kind: f.kind.value, status: "booked", provider: f.provider.value.trim() || null, reference: f.reference.value.trim() || null, cost: f.cost.value === "" ? null : parseFloat(f.cost.value), start_at: f.start_at.value ? new Date(f.start_at.value).toISOString() : null, end_at: f.end_at.value ? new Date(f.end_at.value).toISOString() : null, from_place: f.from_place.value.trim() || null, to_place: f.to_place.value.trim() || null, paid_by: "referee", entered_by: "referee", document_path: f.dataset.doc || null };
   const { error } = await NRC.sb.from("travel_bookings").insert(row);
   if (error) { alert("Could not save: " + error.message); return; }
   $("#dlg-mybooking").close(); (window.reloadTrip || loadHome)();
@@ -603,21 +607,21 @@ window.startTour = function (replay) {
   if (!ref) return;
   const f = $("#tour-form");
   const sel = f.club_id; if (sel.options.length <= 1) NRC.$$("#form select[name=club_id] option").forEach(o => { if (o.value) sel.appendChild(o.cloneNode(true)); });
-  ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","usath_member_id"].forEach(k => f[k].value = ref[k] || "");
+  ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","airport_3_iata","usath_member_id"].forEach(k => f[k].value = ref[k] || "");
   $("#tour-hello").textContent = "Welcome to the NRC Referee Hub, " + ref.first_name;
   const cand = ref.cert_level === "candidate";
   $("#tour-train-title").textContent = cand ? "Your Level 1 course" : "Training and your assessment";
   $("#tour-train-text").textContent = cand
     ? "Your home shows the Level 1 online course: six modules by rule group, each with study cards and a 10 question test, then a final test. Pass it and the NRC contacts you for the practical part. The quiz, flashcards and leaderboard are open to you too."
-    : "Your first task is the baseline assessment: 50 questions at your level, 60 minutes. Clear it and nothing more is required this season; otherwise the hub builds a 12 week program on the rules you missed. The quiz, with or without the clock, and the timed challenge leaderboard are there all year.";
+    : "Your first task is the baseline assessment: 30 questions at your level, 60 minutes. Clear it and nothing more is required this season; otherwise the hub builds a 12 week program on the rules you missed. The quiz, with or without the clock, and the timed challenge leaderboard are there all year.";
   $("#tour-train-img").src = cand ? "guide/img/candidate-course.jpg" : "guide/img/training-quiz-setup.jpg";
   $("#tour-skip").classList.toggle("hidden", !!replay);
   tourShow(1); $("#dlg-tour").showModal();
 };
 async function tourSaveDetails() {
   const f = $("#tour-form"); const row = {};
-  ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","usath_member_id"].forEach(k => row[k] = f[k].value.trim() || null);
-  ["home_state","home_airport_iata","departure_airport_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
+  ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","airport_3_iata","usath_member_id"].forEach(k => row[k] = f[k].value.trim() || null);
+  ["home_state","home_airport_iata","departure_airport_iata","airport_3_iata"].forEach(k => { if (row[k]) row[k] = row[k].toUpperCase(); });
   row.updated_at = new Date().toISOString();
   const res = await NRC.sb.from("referees").update(row).eq("id", ref.id).select().single();
   if (res.error) { NRC.notice($("#tour-msg"), "Could not save: " + NRC.esc(res.error.message), "error"); return false; }
@@ -628,7 +632,7 @@ async function tourSaveDetails() {
     const up = await NRC.sb.storage.from("referee-photos").upload(path, file, { upsert: true, contentType: file.type });
     if (!up.error) { const url = NRC.sb.storage.from("referee-photos").getPublicUrl(path).data.publicUrl + "?v=" + Date.now(); await NRC.sb.from("referees").update({ photo_url: url }).eq("id", ref.id); ref.photo_url = url; $("#photo").src = $("#hello-photo").src = url; }
   }
-  const pf = $("#form"); ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","usath_member_id"].forEach(k => pf[k].value = ref[k] || "");
+  const pf = $("#form"); ["phone","club_id","home_city","home_state","home_airport_iata","departure_airport_iata","airport_3_iata","usath_member_id"].forEach(k => pf[k].value = ref[k] || "");
   return true;
 }
 async function tourFinish() {

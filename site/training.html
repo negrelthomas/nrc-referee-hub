@@ -18,7 +18,7 @@
   <div class="wrap">
     <p class="kicker">Training, IHF rules only</p>
     <h1>Training on the IHF rules</h1>
-    <p class="sub">Twelve themes for referees and a track for table officials and delegates, one short quiz per level. Each card keeps your best score and the date you last tested it. Free quiz, flashcards and the timed leaderboard are one tab away. Your scores are visible to you and the NRC only.</p>
+    <p class="sub">Twelve themes for referees, one track for table officials and one for technical delegates, one short quiz per level. Each card keeps your best score and the date you last tested it. Free quiz, flashcards and the timed leaderboard are one tab away. Your scores are visible to you and the NRC only.</p>
   </div>
 </section>
 
@@ -30,12 +30,14 @@
     <button data-tab="path" class="active">Learning path</button>
     <button data-tab="program">My program</button>
     <button data-tab="practice">Free quiz</button>
+    <button data-tab="build">Build a quiz</button>
     <button data-tab="cards">Flashcards</button>
     <button data-tab="board">Leaderboard</button>
     <button data-tab="progress">My progress</button>
   </div>
 
   <div id="path-ui"></div>
+  <div id="build-ui" class="hidden"></div>
   <div class="card hidden" id="filters">
     <div class="row">
       <div><label>Level</label>
@@ -44,8 +46,6 @@
         </div></div>
       <div><label>Rule</label><select id="f-rule"><option value="">All rules</option></select></div>
     </div>
-    <label>Source</label>
-    <div class="chips" id="chips-src"><span class="chip on" data-v="">All</span><span class="chip" data-v="ihf">IHF Catalogue 2025</span><span class="chip" data-v="calcup">Game situations deck</span><span class="chip" data-v="nrc_level1">Level 1 basics</span></div>
     <p class="small muted" id="pool-count"></p>
   </div>
 
@@ -66,7 +66,7 @@
       <button type="button" class="mode" data-mode="timed"><strong>Timed challenge</strong><span>A clock on every question, the next one comes by itself. Signed in, it counts for the leaderboard.</span></button>
     </div>
     <div class="row" style="align-items:end">
-      <div><label>Questions per session</label><select id="n-q" style="width:auto"><option>10</option><option selected>15</option><option>25</option><option>50</option></select></div>
+      <div><label>Questions per session</label><select id="n-q" style="width:auto"><option>10</option><option selected>15</option><option>25</option><option>30</option><option>50</option></select></div>
       <div id="secs-wrap" class="hidden"><label>Seconds per question (10 to 30, reading time included)</label><div style="display:flex;align-items:center;gap:10px"><input id="secs" type="range" min="10" max="30" step="1" value="20" style="width:160px"><strong id="secs-out">20 s</strong></div></div>
     </div>
     <button class="btn" id="btn-start">Start the practice</button>
@@ -130,6 +130,7 @@
 <script src="js/path.js"></script>
 <script src="js/training.js"></script>
 <script src="js/program.js"></script>
+<script src="js/quizcustom.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", async () => {
   const host = document.getElementById("sessions"); if (!host) return;

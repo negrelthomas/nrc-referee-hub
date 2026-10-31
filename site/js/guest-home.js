@@ -33,7 +33,8 @@
         <div class="row"><div><label>First name</label><input name="first_name" required></div><div><label>Last name</label><input name="last_name" required></div></div>
         <div class="row"><div><label>Email</label><input name="email" readonly style="background:#F0F3F8"><div class="help">Your sign in. <a href="#" onclick="openEmailChange();return false">Change email</a></div></div><div><label>Phone, with country code</label><input name="phone" autocomplete="tel" placeholder="+1 604 555 0100"></div></div>
         <div class="row"><div><label>Home city</label><input name="home_city"></div><div><label>Country you live in</label><input name="country" autocomplete="country-name"></div></div>
-        <div class="row"><div><label>Closest airport to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="YVR" style="text-transform:uppercase"></div><div><label>Nation you referee for</label><input name="federation"></div></div>
+        <div class="row"><div><label>Airport 1, closest to home (IATA)</label><input name="home_airport_iata" maxlength="3" placeholder="YVR" style="text-transform:uppercase"></div><div><label>Airport 2 (optional)</label><input name="departure_airport_iata" maxlength="3" style="text-transform:uppercase"></div><div><label>Airport 3 (optional)</label><input name="airport_3_iata" maxlength="3" style="text-transform:uppercase"></div></div>
+        <div class="row"><div><label>Nation you referee for</label><input name="federation"></div></div>
         <div class="row"><div><label>Your refereeing level</label><select name="federation_level"><option value="">Choose</option>${Object.entries(NRC.GUEST_LEVEL).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select><div class="help">Sets the difficulty of the questions if you take a test.</div></div>
           <div><label>How the organizer pays you back</label><input name="payment_notes" placeholder="Bank transfer, Wise, paid to my federation"><div class="help">Method and payee only. No bank or card numbers on the hub.</div></div></div>
         <div id="gp-msg" class="notice hidden" style="margin-top:8px"></div>
@@ -45,7 +46,7 @@
     $("#gp-later").onclick = async () => { $("#dlg-gprofile").close(); if (!G.onboarded_at && !PREVIEW) { await NRC.sb.rpc("save_my_guest_profile", { p: { ...profilePayload(G), onboarded: true } }); G.onboarded_at = new Date().toISOString(); } };
   }
 
-  const profilePayload = (g) => ({ first_name: g.first_name, last_name: g.last_name, phone: g.phone, home_city: g.home_city, country: g.country, home_airport_iata: g.home_airport_iata, federation_level: g.federation_level, federation: g.federation, payment_notes: g.payment_notes });
+  const profilePayload = (g) => ({ first_name: g.first_name, last_name: g.last_name, phone: g.phone, home_city: g.home_city, country: g.country, home_airport_iata: g.home_airport_iata, departure_airport_iata: g.departure_airport_iata, airport_3_iata: g.airport_3_iata, federation_level: g.federation_level, federation: g.federation, payment_notes: g.payment_notes });
 
   // ---------- completion ----------
   function completion(asmt, tests, answers) {
@@ -58,7 +59,7 @@
       { label: "Closest airport", done: !!G.home_airport_iata, kind: "you", detail: "Needed to plan your travel", action: edit },
       { label: "Your refereeing level", done: !!G.federation_level, kind: "you", detail: G.federation_level ? NRC.esc(NRC.GUEST_LEVEL[G.federation_level]) : "", action: edit },
       { label: "How the organizer pays you back", done: !!G.payment_notes, kind: "you", detail: G.payment_notes ? NRC.esc(G.payment_notes) : "Method and payee, for your expenses", action: edit },
-      { label: "Rules assessment", done: !!asmt, kind: "optional", detail: asmt ? `${asmt.pct}% on ${NRC.fmtDate(asmt.created_at.slice(0, 10))}` : "50 questions on the IHF rules, 60 minutes", action: { label: "Take it", href: "training.html#program" } },
+      { label: "Rules assessment", done: !!asmt, kind: "optional", detail: asmt ? `${asmt.pct}% on ${NRC.fmtDate(asmt.created_at.slice(0, 10))}` : "30 questions on the IHF rules, 60 minutes", action: { label: "Take it", href: "training.html#program" } },
       { label: "Physical test", done: !!(phys && phys.passed), kind: "optional", info: NRC.physicalInfo(), detail: phys ? `${NRC.esc(NRC.physResult(phys))}, ${NRC.fmtDate(phys.tested_on)}` : "Taken in person, recorded by the NRC" },
       { label: "Practice quiz", done: answers > 0, kind: "optional", detail: answers ? answers + " questions answered" : "Short quizzes on the IHF rules", action: { label: "Open", href: "training.html" } }
     ]);
@@ -114,7 +115,7 @@
 
   // ---------- profile tab ----------
   function renderProfile() {
-    const f = [["Name", G.first_name + " " + G.last_name], ["Email", G.email], ["Phone", G.phone], ["Home", [G.home_city, G.country].filter(Boolean).join(", ")], ["Closest airport", G.home_airport_iata], ["Nation", G.federation], ["Level", NRC.GUEST_LEVEL[G.federation_level]], ["Reimbursement", G.payment_notes]];
+    const f = [["Name", G.first_name + " " + G.last_name], ["Email", G.email], ["Phone", G.phone], ["Home", [G.home_city, G.country].filter(Boolean).join(", ")], ["Airports", NRC.airportsText(G)], ["Nation", G.federation], ["Level", NRC.GUEST_LEVEL[G.federation_level]], ["Reimbursement", G.payment_notes]];
     $("#g-profile").innerHTML = `<div class="card"><div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-bottom:10px"><img class="avatar lg" src="${NRC.esc(NRC.photoSrc(G.photo_url))}" alt=""><div><h3 style="margin:0">${NRC.esc(G.first_name + " " + G.last_name)}</h3><div class="small muted">Visible to you, the NRC and the organizers of your events</div></div></div>
       <dl class="prof-facts">${f.map(([k, v]) => `<dt>${k}</dt><dd>${v ? NRC.esc(v) : '<span class="muted">not given</span>'}</dd>`).join("")}</dl>
       <p style="margin-top:14px"><button class="btn" type="button" onclick="NRC.Guest.editProfile()">Edit my profile</button></p></div>`;
@@ -139,7 +140,7 @@
   // ---------- profile dialog ----------
   function editProfile(first) {
     const f = $("#form-gprofile");
-    ["first_name", "last_name", "phone", "home_city", "country", "home_airport_iata", "federation", "federation_level", "payment_notes"].forEach(k => f[k].value = G[k] || "");
+    ["first_name", "last_name", "phone", "home_city", "country", "home_airport_iata", "departure_airport_iata", "airport_3_iata", "federation", "federation_level", "payment_notes"].forEach(k => f[k].value = G[k] || "");
     f.email.value = G.email || USER.email || ""; f.photo.value = "";
     $("#gp-photo").src = NRC.photoSrc(G.photo_url);
     NRC.$$("input, select", f).forEach(el => el.disabled = PREVIEW); f.querySelector("button[type=submit]").classList.toggle("hidden", PREVIEW);
@@ -154,7 +155,7 @@
     const f = e.target, btn = f.querySelector("button[type=submit]"); btn.disabled = true;
     try {
       const p = { onboarded: true };
-      ["first_name", "last_name", "phone", "home_city", "country", "home_airport_iata", "federation", "federation_level", "payment_notes"].forEach(k => p[k] = f[k].value.trim());
+      ["first_name", "last_name", "phone", "home_city", "country", "home_airport_iata", "departure_airport_iata", "airport_3_iata", "federation", "federation_level", "payment_notes"].forEach(k => p[k] = f[k].value.trim());
       const file = f.photo.files[0];
       if (file) {
         const ext = (file.name.split(".").pop() || "jpg").toLowerCase(), path = `${USER.id}/photo.${ext}`;

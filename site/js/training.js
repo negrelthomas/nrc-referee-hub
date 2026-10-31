@@ -24,7 +24,6 @@
     const rules = [...new Set(ALL.map(q => q.rule).filter(Boolean))].sort((a, b) => a - b);
     rules.forEach(r => { const o = document.createElement("option"); o.value = r; o.textContent = "Rule " + r + ": " + (NRC.RULES[r] || ""); sel.appendChild(o); });
     sel.onchange = () => { rule = sel.value; updatePoolCount(); if (tab === "cards") startCards(); };
-    NRC.$$("#chips-src .chip").forEach(c => c.onclick = () => { NRC.$$("#chips-src .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); src = c.dataset.v; updatePoolCount(); if (tab === "cards") startCards(); });
     NRC.$$("#chips-diff .chip").forEach(c => c.onclick = () => { NRC.$$("#chips-diff .chip").forEach(x => x.classList.remove("on")); c.classList.add("on"); diff = c.dataset.v; updatePoolCount(); if (tab === "cards") startCards(); });
   }
 
@@ -38,11 +37,13 @@
     if (t !== "path") custom = null;
     $("#path-ui").classList.toggle("hidden", t !== "path");
     if (t === "path" && NRC.Path) NRC.Path.render();
-    $("#filters").classList.toggle("hidden", t === "progress" || t === "program" || t === "board" || t === "path");
+    $("#filters").classList.toggle("hidden", t === "progress" || t === "program" || t === "board" || t === "path" || t === "build");
+    $("#build-ui").classList.toggle("hidden", t !== "build");
+    if (t === "build" && NRC.CustomQuiz) NRC.CustomQuiz.renderBuilder($("#build-ui"), ALL, user);
     $("#program-ui").classList.toggle("hidden", t !== "program");
     if (t === "program" && NRC.renderProgram) NRC.renderProgram();
     $("#quiz-start").classList.toggle("hidden", !quizTabs);
-    $("#pool-count").classList.toggle("hidden", t === "program" || t === "board" || t === "path");
+    $("#pool-count").classList.toggle("hidden", t === "program" || t === "board" || t === "path" || t === "build");
     $("#board-ui").classList.toggle("hidden", t !== "board");
     if (t === "board") renderBoard();
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.add("hidden");
@@ -72,7 +73,7 @@
   NRC.Training = { startLesson(o) {
     if (!o.questions.length) { alert("No questions for this quiz yet."); return; }
     custom = o; clearInterval(timerId);
-    session = { mode: "practice", qs: o.questions, i: 0, correct: 0, missed: [], answers: [], started: Date.now(), secs: 20, clock: false };
+    session = { mode: "practice", qs: o.questions, i: 0, correct: 0, points: 0, max: 0, missed: [], answers: [], started: Date.now(), secs: 20, clock: false };
     $("#path-ui").classList.add("hidden"); $("#quiz-start").classList.add("hidden"); $("#quiz-result").classList.add("hidden"); $("#filters").classList.add("hidden");
     $("#quiz").classList.remove("hidden"); $("#quiz").style.borderTop = "6px solid " + (o.color || "var(--navy)");
     showQuestion(); window.scrollTo({ top: $("#quiz").offsetTop - 80, behavior: "smooth" });
@@ -85,7 +86,7 @@
     const n = parseInt($("#n-q").value, 10);
     const qs = NRC.shuffle(pool(false)).slice(0, n);
     if (!qs.length) { alert("No questions match these filters."); return; }
-    session = { mode, qs, i: 0, correct: 0, missed: [], answers: [], started: Date.now(), secs: secsPerQ(), clock: mode === "timed" };
+    session = { mode, qs, i: 0, correct: 0, points: 0, max: 0, missed: [], answers: [], started: Date.now(), secs: secsPerQ(), clock: mode === "timed" };
     try { localStorage.setItem(SKEY, String(session.secs)); } catch (e) { }
     $("#quiz-start").classList.add("hidden"); $("#quiz-result").classList.add("hidden"); $("#quiz").classList.remove("hidden");
     showQuestion();
@@ -115,16 +116,16 @@
     clearInterval(timerId);
     const q = session.qs[session.i];
     const multi = q.cis && q.cis.length > 1;
-    const correctSet = multi ? q.cis : [q.ci];
     const picked = idx === -1 ? [] : multi ? NRC.$$("#quiz-opts button.picked").map(b => +b.dataset.idx) : [idx];
-    const ok = picked.length === correctSet.length && picked.every(p => correctSet.includes(p));
+    const g = NRC.grade(q, picked), correctSet = g.correct, ok = g.ok;
+    session.points += g.points; session.max += g.max;
     $("#quiz-check").classList.add("hidden");
     NRC.$$("#quiz-opts button").forEach((b, i) => { b.disabled = true; b.classList.remove("picked"); if (correctSet.includes(i)) b.classList.add("correct"); else if (picked.includes(i)) b.classList.add("wrong"); });
     if (ok) session.correct++; else session.missed.push(q);
-    session.answers.push({ id: q.id, rule: q.rule, correct: ok });
+    session.answers.push({ id: q.id, rule: q.rule, correct: ok, ok, points: g.points, max: g.max, q });
     const ex = $("#quiz-explain");
     ex.className = "notice " + (ok ? "ok" : "error");
-    ex.innerHTML = (ok ? "<strong>Correct.</strong> " : idx === -1 ? "<strong>Time is up.</strong> " : "<strong>Not this one.</strong> ") + NRC.explain(q);
+    ex.innerHTML = (ok ? "<strong>Correct.</strong> " : idx === -1 ? "<strong>Time is up.</strong> " : g.points ? `<strong>Partly right: ${g.points} of ${g.max} points.</strong> ` : "<strong>Not this one.</strong> ") + NRC.explain(q);
     ex.classList.remove("hidden");
     $("#quiz-next").disabled = false;
     $("#quiz-next").textContent = session.i + 1 >= session.qs.length ? "See results" : "Next";
@@ -140,21 +141,25 @@
     const total = custom ? s.qs.length : answered, early = answered < s.qs.length;
     const dur = Math.round((Date.now() - s.started) / 1000);
     $("#quiz").classList.add("hidden"); $("#quiz-result").classList.remove("hidden");
-    $("#result-text").textContent = `${s.correct} of ${total} correct (${Math.round(s.correct / total * 100)}%) in ${dur} seconds.` + (s.mode === "timed" ? (user ? (total >= 10 ? ` ${s.correct} points added to your season on the leaderboard.` : " Sessions of fewer than 10 questions do not count for the leaderboard.") : " Sign in for timed sessions to count on the leaderboard.") : "");
-    $("#result-missed").innerHTML = s.missed.length ? "<h3 style='margin-top:14px'>Review</h3>" + s.missed.map(q => `<div class="notice error" style="margin-bottom:8px"><strong>${NRC.esc(q.q)}</strong><br>${NRC.explain(q, true)}</div>`).join("") : "<p>Nothing missed.</p>";
+    // unanswered questions of a learning path quiz count at zero against their full points
+    const maxAll = s.max + (custom ? s.qs.slice(answered).reduce((t, q) => t + ((q.cis && q.cis.length > 1) ? q.cis.length : 1), 0) : 0);
+    const spct = maxAll ? Math.round(s.points / maxAll * 100) : 0;
+    $("#result-text").textContent = `${spct}%: ${s.points} of ${maxAll} points, ${s.correct} of ${total} questions fully correct, in ${dur} seconds.` + (s.mode === "timed" ? (user ? (total >= 10 ? ` ${s.correct} points added to your season on the leaderboard.` : " Sessions of fewer than 10 questions do not count for the leaderboard.") : " Sign in for timed sessions to count on the leaderboard.") : "");
+    $("#result-missed").innerHTML = NRC.statsHtml(s.answers) + (s.missed.length ? `<p style="margin-top:12px"><button class="btn" type="button" id="btn-retry-missed" data-tip="Runs a new quiz on the ${s.missed.length} question${s.missed.length === 1 ? "" : "s"} you did not get fully right, in a new order.">Retry the ${s.missed.length} missed question${s.missed.length === 1 ? "" : "s"}</button></p><h3 style='margin-top:14px'>Review</h3>` + s.missed.map(q => `<div class="notice error" style="margin-bottom:8px"><strong>${NRC.esc(q.q)}</strong><br>${NRC.explain(q, true)}</div>`).join("") : "<p>Nothing missed.</p>");
+    const rb = $("#btn-retry-missed"); if (rb) { const again = s.missed.slice(); rb.onclick = () => { custom = null; NRC.Training.startLesson({ title: "Retry of missed questions", questions: NRC.shuffle(again), retry: true }); }; }
     // save
     const lesson = custom;
     $("#btn-path").classList.toggle("hidden", !lesson); $("#quiz").style.borderTop = "";
-    if (lesson) { const pct = Math.round(s.correct / total * 100); $("#result-text").innerHTML = `<span class="lesson-score ${pct >= 80 ? "pass" : ""}" style="--tc:${lesson.color}">${pct}%</span> <strong>${NRC.esc(lesson.title)}</strong>: ${s.correct} of ${total} correct. ${early ? `Ended after ${answered} of ${total} questions; the unanswered ones count as missed. ` : ""}${pct >= 80 ? "Complete. The card on your path shows this score and today's date." : "80% completes the quiz. Review the answers below and try again."}`; }
+    if (lesson && !lesson.retry) { const pct = spct; $("#result-text").innerHTML = `<span class="lesson-score ${pct >= 80 ? "pass" : ""}" style="--tc:${lesson.color}">${pct}%</span> <strong>${NRC.esc(lesson.title)}</strong>: ${s.points} of ${maxAll} points. ${early ? `Ended after ${answered} of ${total} questions; the unanswered ones count as missed. ` : ""}${pct >= 80 ? "Complete. The card on your path shows this score and today's date." : "80% completes the quiz. Review the answers below and try again."}`; }
     else if (early) $("#result-text").textContent += ` Ended after ${answered} of ${s.qs.length} questions; only the answered ones are recorded.`;
-    const rec = { mode: lesson ? "lesson:" + lesson.key : s.mode, difficulty: lesson ? lesson.difficulty : (diff || null), rule_number: lesson ? null : (rule ? parseInt(rule, 10) : null), total, correct: s.correct, duration_seconds: dur, created_at: new Date().toISOString() };
-    const d = local(); d.sessions.unshift(rec); s.answers.forEach(a => { const k = a.rule || "0"; d.answers[k] = d.answers[k] || { n: 0, c: 0 }; d.answers[k].n++; if (a.correct) d.answers[k].c++; }); d.sessions = d.sessions.slice(0, 100); saveLocal(d);
+    const rec = { mode: lesson ? (lesson.retry ? "retry" : lesson.mode || "lesson:" + lesson.key) : s.mode, points: s.points, max_points: maxAll, difficulty: lesson ? lesson.difficulty : (diff || null), rule_number: lesson ? null : (rule ? parseInt(rule, 10) : null), total, correct: s.correct, duration_seconds: dur, created_at: new Date().toISOString() };
+    const d = local(); d.sessions.unshift(rec); s.answers.forEach(a => { const k = a.rule || "0"; d.answers[k] = d.answers[k] || { n: 0, c: 0, p: 0, m: 0 }; d.answers[k].n++; if (a.correct) d.answers[k].c++; d.answers[k].p = (d.answers[k].p || 0) + a.points; d.answers[k].m = (d.answers[k].m || 0) + a.max; }); d.sessions = d.sessions.slice(0, 100); saveLocal(d);
     if (user && NRC.sb) {
       const { data: att } = await NRC.sb.from("quiz_attempts").insert({ ...rec, user_id: user.id, created_at: undefined }).select("id").single();
-      if (att) { const rows = s.answers.filter(a => !String(a.id).startsWith("seed-")).map(a => ({ attempt_id: att.id, question_id: a.id, correct: a.correct })); if (rows.length) await NRC.sb.from("quiz_answers").insert(rows); }
+      if (att) { const rows = s.answers.filter(a => !String(a.id).startsWith("seed-")).map(a => ({ attempt_id: att.id, question_id: a.id, correct: a.correct, points: a.points, max_points: a.max })); if (rows.length) await NRC.sb.from("quiz_answers").insert(rows); }
     }
     $("#result-text").insertAdjacentHTML("beforeend", user && NRC.sb ? ' <span class="small muted">Saved to My progress; the NRC sees it on your record.</span>' : ' <span class="small muted">Saved on this device only. Sign in to keep it on your record.</span>');
-    if (lesson && lesson.onDone) lesson.onDone();
+    if (lesson && lesson.onDone) lesson.onDone({ points: s.points, max: maxAll, pct: spct, answers: s.answers });
   }
 
   // ---------- flashcards ----------
@@ -173,14 +178,14 @@
     $("#fc-q").textContent = q.q;
     $("#fc-opts").innerHTML = q.options.map((o, i) => `<li><span class="fc-l">${letter(i)}</span>${NRC.esc(o)}</li>`).join("");
     $("#fc-ans").innerHTML = (correct.length > 1 ? "Correct answers: " : "Correct answer: ") + correct.map(i => `<strong>${letter(i)} ${NRC.esc(q.options[i] || "")}</strong>`).join(", ");
-    $("#fc-a").textContent = q.a; $("#fc-rule").textContent = q.rr || "";
+    $("#fc-a").textContent = (q.a || "").replace(/\s*Rule references?:[^]*$/i, ""); $("#fc-rule").innerHTML = q.rr ? "Rule reference: " + NRC.ruleLinks(q.rr) : "";
     updateCardStats();
   }
   function updateCardStats() {
     const vals = Object.values(scores); const knew = vals.filter(v => v).length, missed = vals.filter(v => v === false).length;
     $("#c-knew").textContent = knew; $("#c-missed").textContent = missed; $("#c-seen").textContent = vals.length; $("#c-pct").textContent = vals.length ? Math.round(knew / vals.length * 100) + "%" : "0%";
   }
-  $("#flash").onclick = () => { flipped = !flipped; $("#flash").classList.toggle("flipped", flipped); };
+  $("#flash").onclick = (e) => { if (e.target.closest("a")) return; flipped = !flipped; $("#flash").classList.toggle("flipped", flipped); };
   function mark(v) { if (!deck.length) return; if (!cardsStarted) cardsStarted = Date.now(); scores[deck[ci].id] = v; ci = (ci + 1) % deck.length; showCard(); }
   $("#fc-knew").onclick = () => mark(true);
   $("#fc-missed").onclick = () => mark(false);
@@ -227,12 +232,12 @@
     if (user && NRC.sb) {
       const { data } = await NRC.sb.from("quiz_attempts").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(50);
       if (data && data.length) sessions = data;
-      const { data: ans } = await NRC.sb.from("quiz_answers").select("correct, quiz_questions(rule_number), quiz_attempts!inner(user_id)").eq("quiz_attempts.user_id", user.id);
-      if (ans && ans.length) { byRule = {}; ans.forEach(a => { const k = (a.quiz_questions && a.quiz_questions.rule_number) || "0"; byRule[k] = byRule[k] || { n: 0, c: 0 }; byRule[k].n++; if (a.correct) byRule[k].c++; }); }
+      const { data: ans } = await NRC.sb.from("quiz_answers").select("correct, points, max_points, quiz_questions(rule_number), quiz_attempts!inner(user_id)").eq("quiz_attempts.user_id", user.id);
+      if (ans && ans.length) byRule = NRC.answersByRule(ans);
     }
-    $("#progress-list").innerHTML = sessions.length ? sessions.map(s => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">${NRC.fmtDate(s.created_at)} &middot; ${String(s.mode).startsWith("lesson:") ? "path: " + NRC.esc(((NRC.THEMES || []).concat(NRC.TABLE_THEMES || []).find(t => s.mode.slice(7).startsWith(t.key + "-")) || {}).title || "theme") : (s.mode === "flashcard" ? "flashcards, self marked" : s.mode) + " &middot; " + (s.rule_number ? "Rule " + s.rule_number : "all rules")}${s.difficulty ? ", " + NRC.levelLabel(s.difficulty).replace(" (National)", "") : ""} &middot; <strong>${s.correct}/${s.total}</strong></div>`).join("") : "No sessions yet." + (user ? "" : " Sign in to keep progress across devices.");
+    $("#progress-list").innerHTML = sessions.length ? sessions.map(s => `<div style="padding:6px 0;border-bottom:1px solid var(--line)">${NRC.fmtDate(s.created_at)} &middot; ${String(s.mode).startsWith("lesson:") ? "path: " + NRC.esc(((NRC.THEMES || []).concat(NRC.TABLE_THEMES || []).find(t => s.mode.slice(7).startsWith(t.key + "-")) || {}).title || "theme") : (s.mode === "flashcard" ? "flashcards, self marked" : s.mode) + " &middot; " + (s.rule_number ? "Rule " + s.rule_number : "all rules")}${s.difficulty ? ", " + NRC.levelLabel(s.difficulty).replace(" (National)", "") : ""} &middot; <strong>${s.max_points ? s.points + "/" + s.max_points + " points" : s.correct + "/" + s.total}</strong></div>`).join("") : "No sessions yet." + (user ? "" : " Sign in to keep progress across devices.");
     const tb = $("#progress-rules tbody"); tb.innerHTML = "";
-    Object.keys(byRule).map(Number).sort((a, b) => a - b).forEach(r => { const v = byRule[r]; const pct = Math.round(v.c / v.n * 100); tb.insertAdjacentHTML("beforeend", `<tr><td>Rule ${r}: ${NRC.esc(NRC.RULES[r] || "")}</td><td>${v.n}</td><td>${v.c}</td><td><span class="pill ${pct >= 80 ? "green" : pct >= 60 ? "amber" : "red"}">${pct}%</span></td></tr>`); });
+    Object.keys(byRule).map(Number).sort((a, b) => a - b).forEach(r => { const v = byRule[r]; const pct = NRC.rulePct(v); tb.insertAdjacentHTML("beforeend", `<tr><td>Rule ${r}: ${NRC.esc(NRC.RULES[r] || "")}</td><td>${v.n}</td><td>${v.c}</td><td><span class="pill ${pct >= 80 ? "green" : pct >= 60 ? "amber" : "red"}">${pct}%</span></td></tr>`); });
     if (!Object.keys(byRule).length) tb.innerHTML = '<tr><td colspan="4">Answer a few questions first.</td></tr>';
   }
 
@@ -247,6 +252,6 @@
     setMode(m === "timed" ? "timed" : "practice");
     if (NRC.Path) await NRC.Path.init(user, ALL);
     const h = location.hash.slice(1);
-    showTab(["board", "practice", "cards", "progress", "program"].includes(h) ? h : "path");
+    showTab(["board", "practice", "cards", "progress", "program", "build"].includes(h) ? h : "path");
   });
 })();

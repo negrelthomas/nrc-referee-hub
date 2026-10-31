@@ -185,7 +185,7 @@ FAQ = [
     ("train-path", "training", [R], "How does the learning path work?",
      "<p>The rules are grouped in themed series. Each card shows completion, your average score and the date you last tested. Open a series, start a lesson, answer and read the explanation and rule reference after each question. 80% passes a lesson.</p>", "r-training"),
     ("train-assess", "training", [R], "What is the initial assessment?",
-     "<p>Every certified referee takes 50 questions on the IHF rules at their level, 60 minutes in one sitting, within 7 days of their first sign in. It gives the NRC a first picture of everyone's rules knowledge. A reminder comes every 48 hours until it is done.</p>", "r-assessment"),
+     "<p>Every certified referee takes 30 questions on the IHF rules at their level, 60 minutes in one sitting, within 7 days of their first sign in. It gives the NRC a first picture of everyone's rules knowledge. A reminder comes every 48 hours until it is done.</p>", "r-assessment"),
     ("train-program", "training", [R], "What happens if I do not clear the assessment?",
      "<p>The hurdle is 80% overall with no rule under 80%. Otherwise the hub builds a program on the rules you missed, to complete within 12 weeks with study sessions in your calendar, then you re-test. After a failed exam, each section under 80% has a button to review it.</p>", None),
     ("train-l1", "training", [R, V], "How does the Level 1 online course work?",
