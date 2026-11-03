@@ -105,7 +105,7 @@ grant select on public.event_pairs to authenticated;
 insert into public.evaluators (first_name, last_name, email, origin, status, certified_on, certified_by, admin_notes)
 values
   ('Vafa', 'Ahmadiyeh', 'vafa.ahmadiyeh@gmail.com', 'nrc', 'certified', current_date, 'NRC (direct)', 'Former NRC chair. Added 2026-10-30.'),
-  ('Majid', '', 'majid80ref@yahoo.com', 'nrc', 'certified', current_date, 'NRC (direct)', 'NACHC Referee Chair, NRC member. Last name to confirm. Added 2026-10-30.'),
+  ('Majid', 'Kolahdouzan', 'majid80ref@yahoo.com', 'nrc', 'certified', current_date, 'NRC (direct)', 'NACHC Referee Chair, NRC member. Added 2026-10-30, last name confirmed 2026-11-02.'),
   ('Butso', '', 'buco11@aol.com', 'referee', 'certified', current_date, 'NRC (direct)', 'Former technical delegate. Full name to confirm. Added 2026-10-30.'),
   ('Rafael', 'Marques', 'rafael2marques@gmail.com', 'referee', 'certified', current_date, 'NRC (direct)', 'Added 2026-10-30.')
 on conflict ((lower(email))) do nothing;
