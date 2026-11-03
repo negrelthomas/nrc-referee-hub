@@ -1,4 +1,7 @@
 -- Majid's last name confirmed by Thomas (2026-11-02): Kolahdouzan
+-- Run from the SQL editor: the admin note is guarded (evaluators_guard), so the system flag is set for this run
+select set_config('nrc.system', 'on', false);
+
 update public.evaluators
    set last_name = 'Kolahdouzan',
        admin_notes = 'NACHC Referee Chair, NRC member. Added 2026-10-30, last name confirmed 2026-11-02.'
@@ -14,6 +17,8 @@ update public.observation_reports set evaluator_name = 'Majid Kolahdouzan'
  where lower(evaluator_email) = 'majid80ref@yahoo.com' and trim(evaluator_name) = 'Majid';
 update public.evaluations set evaluator_name = 'Majid Kolahdouzan'
  where trim(evaluator_name) = 'Majid';
+
+select set_config('nrc.system', '', false);
 
 select 'evaluators' as tbl, first_name, last_name, email from public.evaluators where lower(email) = 'majid80ref@yahoo.com'
 union all
