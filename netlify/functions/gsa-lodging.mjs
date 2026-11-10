@@ -27,12 +27,12 @@ export default async (req) => {
   let list = null, used = fy;
   for (const yr of [fy, fy - 1, fy - 2]) { list = await fetchYear(city, state, yr, key); if (list) { used = yr; break; } }
   if (!list) return json(404, { error: "No federal lodging rate found for this city" });
-  const lc = city.toLowerCase();
-  const pick = list.find(r => String(r.city || "").toLowerCase().split(/\s*\/\s*/).includes(lc)) || list.find(r => !r.standardRate) || list[0];
+  const lc = city.toLowerCase(), isStd = r => r.standardRate === true || String(r.standardRate).toLowerCase() === "true";
+  const pick = list.find(r => String(r.city || "").toLowerCase().split(/\s*\/\s*/).includes(lc)) || list.find(r => !isStd(r)) || list[0];
   const month = (pick.months && pick.months.month || []).find(x => +x.number === m);
   const lodging = Number(month ? month.value : 0);
   if (!lodging) return json(404, { error: "No federal lodging rate found for this month" });
-  return json(200, { lodging, benchmark: Math.round(lodging * (1 + TAX_UPLIFT)), uplift: TAX_UPLIFT, area: pick.city || city, county: pick.county || null, standard: !!pick.standardRate, fiscal_year: used, same_year: used === fy, month: m });
+  return json(200, { lodging, benchmark: Math.round(lodging * (1 + TAX_UPLIFT)), uplift: TAX_UPLIFT, area: pick.city || city, county: pick.county || null, standard: isStd(pick), fiscal_year: used, same_year: used === fy, month: m });
 };
 
 export const config = { path: "/api/gsa-lodging" };
