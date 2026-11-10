@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Record a payment | NRC Referee Hub</title>
+<link rel="icon" type="image/png" href="assets/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body data-page="pay.html">
+<a class="skip" href="#main">Skip to content</a>
+<header id="site-nav"></header>
+<div class="wrap" id="main">
+<section>
+  <div class="card" id="box" style="max-width:640px"><h2 style="margin-top:0">Loading</h2></div>
+</section>
+</div>
+<footer id="site-footer"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+// Payment link from the payment request email: the club's payment contact records how and when the official was paid.
+// No sign in. The link covers the claims listed in the email, works once and expires after 30 days.
+const token = new URLSearchParams(location.search).get("t");
+const usd = n => "$" + Number(n || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const call = async (body) => { const r = await fetch("/api/payment-request", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(Object.assign({ token }, body)) }); return { ok: r.ok, d: await r.json().catch(() => ({})) }; };
+document.addEventListener("DOMContentLoaded", async () => {
+  const box = NRC.$("#box"), esc = NRC.esc;
+  if (!token) { box.innerHTML = "<h2 style='margin-top:0'>Missing link</h2><p>Open this page from the payment request email.</p>"; return; }
+  const r = await call({ action: "view" });
+  if (!r.ok) { box.innerHTML = `<h2 style="margin-top:0">Link not valid</h2><p>${esc(r.d.error || "This link could not be read.")}</p>`; return; }
+  const d = r.d, paidRow = d.claims.find(c => c.status === "reimbursed");
+  const table = `<div class="table-wrap"><table><thead><tr><th>Category</th><th>Merchant</th><th>Date</th><th style="text-align:right">To pay</th></tr></thead><tbody>${d.claims.map(c => `<tr><td>${esc(c.kind)}</td><td>${esc(c.merchant || "")}</td><td>${c.date ? NRC.fmtDate(c.date) : ""}</td><td style="text-align:right">${usd(c.amount)}</td></tr>`).join("")}<tr><td colspan="3"><strong>Total</strong></td><td style="text-align:right"><strong>${usd(d.amount)}</strong></td></tr></tbody></table></div>`;
+  const head = `<h2 style="margin-top:0">Payment to ${esc(d.official)}</h2><p class="small">${esc(d.tournament ? d.tournament.name : "")}${d.tournament && d.tournament.start_date ? ", " + NRC.fmtDate(d.tournament.start_date) : ""}. Approved by ${esc((d.tournament && d.tournament.organizer_name) || "the organizer")}.</p>
+    <p>${d.payee ? `Pay to: <strong>${esc(d.payee)}</strong>` : "No Venmo, PayPal or Zelle handle on file: agree the details with the official."}${d.ref ? `<br>Reference for the memo: <strong>${esc(d.ref)}</strong>` : ""}</p>${table}`;
+  if (d.used_at || paidRow) { box.innerHTML = head + `<div class="notice ok" style="margin-top:12px">This payment is recorded${paidRow && paidRow.paid_at ? ": " + esc(paidRow.paid_method || "") + ", " + NRC.fmtDate(String(paidRow.paid_at).slice(0, 10)) + (paidRow.paid_reference ? ", reference " + esc(paidRow.paid_reference) : "") : ""}. Nothing more to do.</div>`; return; }
+  if (d.expired) { box.innerHTML = head + `<div class="notice" style="margin-top:12px">This link expired on ${NRC.fmtDate(String(d.expires_at).slice(0, 10))}. ${esc((d.tournament && d.tournament.organizer_name) || "The organizer")} can record the payment on the hub.</div>`; return; }
+  const pref = d.payee && /^(Venmo|PayPal|Zelle)/.exec(d.payee);
+  box.innerHTML = head + `<h3 style="margin-top:18px">Record the payment</h3><p class="small muted" style="margin:0 0 8px">Once you have paid, enter how and when. ${esc(d.official.split(" ")[0] || "The official")} is told by email.</p>
+    <form id="f"><div class="row"><div><label>Paid by</label><select name="method">${d.methods.map(m => `<option${pref && pref[1] === m ? " selected" : ""}>${m}</option>`).join("")}</select></div><div><label>Date paid</label><input name="paid_on" type="date" required></div></div>
+    <label>Transaction reference (optional)</label><input name="reference" maxlength="120" placeholder="Venmo or PayPal transaction ID, check number">
+    <div id="m" class="notice hidden" style="margin-top:10px"></div>
+    <p style="margin-top:14px"><button class="btn pos" type="submit">Record the payment of ${usd(d.amount)}</button></p></form>`;
+  const f = NRC.$("#f"); f.paid_on.value = NRC.localDate();
+  f.addEventListener("submit", async (e) => {
+    e.preventDefault(); const b = f.querySelector("button"); b.disabled = true;
+    const x = await call({ action: "paid", method: f.method.value, paid_on: f.paid_on.value, reference: f.reference.value.trim() });
+    b.disabled = false;
+    if (!x.ok) { NRC.notice(NRC.$("#m"), esc(x.d.error || "Could not record the payment."), "error"); return; }
+    box.innerHTML = head + `<div class="notice ok" style="margin-top:12px">Recorded: ${usd(x.d.amount)} paid by ${esc(f.method.value)} on ${NRC.fmtDate(f.paid_on.value)}. ${esc(d.official.split(" ")[0] || "The official")} will be told by email. Thank you.</div>`;
+  });
+});
+</script>
+</body>
+</html>

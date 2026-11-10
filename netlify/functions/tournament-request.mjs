@@ -7,7 +7,8 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const FIELDS = ["name", "sanction", "region", "divisions", "club_id", "organizer_name", "organizer_email", "organizer_phone", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata",
   "start_date", "end_date", "pairs_total", "games_expected", "hotel_nights_covered", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport",
-  "food_stipend_per_day", "meals_provided", "earliest_return_last_day", "budget_owner", "notes", "supervisor_needed", "supervisor_notes", "travel_managed_by", "hotel_booked_by", "car_booked_by", "pairs_organizer", "organizer_pairs_note"];
+  "food_stipend_per_day", "meals_provided", "earliest_return_last_day", "budget_owner", "notes", "supervisor_needed", "supervisor_notes", "travel_managed_by", "hotel_booked_by", "car_booked_by", "pairs_organizer", "organizer_pairs_note",
+  "hotel_rate_per_night", "payment_email", "payment_requests_auto"];
 
 export default async (req) => {
   if (req.method !== "POST") return json(405, { error: "POST only" });
@@ -31,6 +32,16 @@ export default async (req) => {
   if (row.travel_managed_by && !["organizer", "nrc", "referee"].includes(row.travel_managed_by)) row.travel_managed_by = "organizer";
   ["hotel_booked_by", "car_booked_by"].forEach(k => { if (row[k] && !["organizer", "nrc", "referee", "none"].includes(row[k])) row[k] = row.travel_managed_by || "organizer"; });
   row.organizer_email = String(row.organizer_email).trim().toLowerCase();
+  // Hotel reimbursed on receipts: the organizer agrees a fully loaded cost per night (all taxes and fees) and confirms it
+  const hotelClaimed = ["nrc", "referee"].includes(row.hotel_booked_by) && parseInt(row.hotel_nights_covered, 10) > 0;
+  if (row.hotel_rate_per_night != null) row.hotel_rate_per_night = Math.round(parseFloat(row.hotel_rate_per_night) * 100) / 100;
+  if (hotelClaimed) {
+    if (!(row.hotel_rate_per_night > 0)) return json(400, { error: "Enter the hotel cost per night, all taxes and fees included." });
+    if (body.hotel_rate_confirmed !== true && body.hotel_rate_confirmed !== "true") return json(400, { error: "Confirm that the hotel cost per night includes all taxes and fees." });
+    row.hotel_rate_confirmed_at = new Date().toISOString();
+  } else if (!(row.hotel_rate_per_night > 0)) delete row.hotel_rate_per_night;
+  if (row.payment_email) { row.payment_email = String(row.payment_email).trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.payment_email)) return json(400, { error: "The email for payment requests looks wrong." }); }
+  row.payment_requests_auto = !(row.payment_requests_auto === false || row.payment_requests_auto === "false");
   row.status = "submitted";
   // a signed in organizer owns the request
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");

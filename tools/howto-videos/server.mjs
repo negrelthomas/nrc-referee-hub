@@ -324,7 +324,8 @@ globalThis.fetch = async (u, opts) => {
     return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(out) }] } }] }), { status: 200, headers: { "content-type": "application/json" } });
   }
   if (s.includes("generativelanguage.googleapis.com")) { await new Promise(r => setTimeout(r, 1400)); return new Response(JSON.stringify({ candidates: [{ content: { parts: [{ text: JSON.stringify(NEXT_READ) }] } }] }), { status: 200, headers: { "content-type": "application/json" } }); }
-  if (s.includes("api.resend.com")) { try { const b = JSON.parse(opts.body); mailLog.push({ to: b.to, subject: b.subject }); if (process.env.DEBUG) console.log("MAIL", b.to, b.subject); } catch (e) {} return new Response(JSON.stringify({ id: "demo" }), { status: 200, headers: { "content-type": "application/json" } }); }
+  if (s.includes("api.resend.com")) { try { const b = JSON.parse(opts.body); mailLog.push({ to: b.to, cc: b.cc, subject: b.subject, html: b.html }); if (process.env.DEBUG) console.log("MAIL", b.to, b.subject); } catch (e) {} return new Response(JSON.stringify({ id: "demo" }), { status: 200, headers: { "content-type": "application/json" } }); }
+  if (s.includes("api.gsa.gov")) { const m = 1; return new Response(JSON.stringify({ rates: [{ rate: [{ city: "Fremont", county: "Alameda", standardRate: "false", months: { month: Array.from({ length: 12 }, (_, i) => ({ value: 189, number: i + 1 })) } }] }] }), { status: 200, headers: { "content-type": "application/json" } }); }
   if (s.includes("frankfurter")) { const rates = {}; for (let i = 0; i < 21; i++) rates["2026-11-" + String(i + 1).padStart(2, "0")] = { USD: 1.07 + (i % 5) * 0.004 }; return new Response(JSON.stringify({ rates }), { status: 200, headers: { "content-type": "application/json" } }); }
   return realFetch(u, opts);
 };
@@ -371,6 +372,7 @@ const server = http.createServer((req, res) => {
       if (u.pathname === "/__session" ) { const usr = await userByEmail(u.searchParams.get("email")); res.writeHead(200, { "content-type": "application/json" }); return res.end(JSON.stringify(session(usr))); }
       if (u.pathname === "/__next_read") { NEXT_READ = JSON.parse(buf.toString()); res.writeHead(200); return res.end("ok"); }
       if (u.pathname === "/__mock" && req.method === "POST") { const b = JSON.parse(buf.toString() || "{}"); if (b.sheets) MOCK.sheets = b.sheets; if (b.flights) MOCK.flights = b.flights; res.writeHead(200); return res.end("ok"); }
+      if (u.pathname === "/__mail") { res.writeHead(200, { "content-type": "application/json" }); return res.end(JSON.stringify(mailLog)); }
       if (u.pathname === "/__reload") { meta.fk = null; res.writeHead(200); return res.end("ok"); }
       return serveStatic(req, res, u);
     } catch (e) { console.log("ERR", u.pathname, e); if (!res.headersSent) res.writeHead(500); res.end(String(e.message)); }

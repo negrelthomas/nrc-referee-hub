@@ -92,6 +92,18 @@
         <div><label>Rental car booked by</label><select name="car_booked_by"><option value="organizer">We book</option><option value="nrc">The NRC books, we reimburse</option><option value="referee">Each referee books, we reimburse</option><option value="none">No rental car needed</option></select></div>
         <div><div class="help" style="margin-top:28px">In every case, the designated referees and their bookings show on your organizer page.</div></div>
       </div>
+      <div id="hotel-rate-box" class="hidden">
+        <div class="row"><div><label>Hotel cost per night, all taxes and fees included (USD)</label><input name="hotel_rate_per_night" type="number" min="1" step="0.01" placeholder="189.00"></div><div><div class="help" style="margin-top:28px">Referees are reimbursed up to this amount per night on their hotel receipt.</div></div></div>
+        <p class="small" style="margin:6px 0 0" id="hotel-rate-help"></p>
+        <p class="small" style="margin:6px 0 0" id="hotel-rate-check"></p>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin-top:8px"><input type="checkbox" name="hotel_rate_confirmed" value="true" style="width:auto;margin-top:3px"> I confirm this is the fully loaded nightly cost, taxes and fees included.</label>
+      </div>
+      <h3 style="margin-top:22px">Payment of expenses</h3>
+      <div class="row">
+        <div><label>Email for payment requests (optional)</label><input name="payment_email" type="email" placeholder="treasurer@yourclub.org"></div>
+        <div><label>Send payment requests</label><select name="payment_requests_auto"><option value="true">As soon as I approve a claim</option><option value="false">When I click Send on the hub</option></select></div>
+      </div>
+      <p class="small muted" style="margin:4px 0 0">When you approve a referee's expense claim, the hub emails this address the amount to pay and the referee's Venmo, PayPal or Zelle, with a copy to the referee and a link to record the payment. Left empty, requests go to your own email.</p>
 
       <h3 style="margin-top:22px">Contact</h3>
       <div class="row">
@@ -138,6 +150,14 @@ function pairsSummary() {
   NRC.$("#pairs-calc").querySelector("span").textContent = usath < 0 ? "The pairs you source exceed the total. Pairs USATH provides:" : `Pairs USATH provides (calculated): ${total} total less ${own} you source =`;
 }
 ["pairs_total", "pairs_organizer"].forEach(n => document.querySelector(`#req-form [name=${n}]`).addEventListener("input", pairsSummary));
+function hotelBox() {
+  const f = document.getElementById("req-form"), on = ["nrc", "referee"].includes(f.hotel_booked_by.value) && (parseInt(f.hotel_nights_covered.value, 10) || 0) > 0;
+  NRC.$("#hotel-rate-box").classList.toggle("hidden", !on); f.hotel_rate_per_night.required = on;
+  NRC.$("#hotel-rate-help").textContent = NRC.HOTEL_RATE_HELP;
+  if (on) NRC.hotelCheck(NRC.$("#hotel-rate-check"), { rate: f.hotel_rate_per_night.value, city: f.venue_city.value.trim(), state: f.venue_state.value.trim(), date: f.start_date.value });
+}
+["hotel_booked_by", "hotel_nights_covered", "hotel_rate_per_night", "venue_city", "venue_state", "start_date"].forEach(n => document.querySelector(`#req-form [name=${n}]`).addEventListener("change", hotelBox));
+document.addEventListener("DOMContentLoaded", hotelBox);
 document.addEventListener("DOMContentLoaded", pairsSummary);
 document.getElementById("req-form").addEventListener("submit", async (e) => {
   e.preventDefault();
@@ -145,11 +165,16 @@ document.getElementById("req-form").addEventListener("submit", async (e) => {
   { const f = e.target, own = parseInt(f.pairs_organizer.value, 10) || 0, total = parseInt(f.pairs_total.value, 10) || 0;
     if (total < 1) { NRC.notice(msg, "Enter the total number of referee pairs the tournament requires.", "error"); f.pairs_total.focus(); return; }
     if (own > total) { NRC.notice(msg, `The pairs you source outside USATH (${own}) exceed the total pairs the tournament requires (${total}).`, "error"); f.pairs_organizer.focus(); return; }
+    if (!NRC.$("#hotel-rate-box").classList.contains("hidden")) {
+      if (!(parseFloat(f.hotel_rate_per_night.value) > 0)) { NRC.notice(msg, "Enter the hotel cost per night, all taxes and fees included.", "error"); f.hotel_rate_per_night.focus(); return; }
+      if (!f.hotel_rate_confirmed.checked) { NRC.notice(msg, "Confirm that the hotel cost per night includes all taxes and fees.", "error"); f.hotel_rate_confirmed.focus(); return; } }
     if (own && !NRC.$("#org-pairs-ok").checked) { NRC.notice(msg, "Pairs you source yourself must come from outside USA Team Handball, for example Canada or Europe. Tick the confirmation, or count them in the pairs USATH provides.", "error"); NRC.$("#org-pairs-ok").focus(); return; } }
   if (!NRC.sb) { NRC.notice(msg, "The database is not configured yet. Email your request to referee@handballusa.org.", "error"); return; }
   const f = new FormData(e.target); const row = {};
   for (const [k, v] of f.entries()) row[k] = v === "" ? null : v;
-  ["flights_covered", "airport_transfers_covered", "supervisor_needed"].forEach(k => row[k] = row[k] === "true");
+  ["flights_covered", "airport_transfers_covered", "supervisor_needed", "payment_requests_auto"].forEach(k => row[k] = row[k] === "true");
+  row.hotel_rate_confirmed = !!(e.target.hotel_rate_confirmed && e.target.hotel_rate_confirmed.checked && !NRC.$("#hotel-rate-box").classList.contains("hidden"));
+  if (NRC.$("#hotel-rate-box").classList.contains("hidden")) delete row.hotel_rate_per_night; else row.hotel_rate_per_night = parseFloat(row.hotel_rate_per_night);
   ["pairs_total", "pairs_organizer", "games_expected", "hotel_nights_covered"].forEach(k => row[k] = row[k] == null ? null : parseInt(row[k], 10));
   if (row.food_stipend_per_day != null) row.food_stipend_per_day = parseFloat(row.food_stipend_per_day);
   if (row.nearest_airport_iata) row.nearest_airport_iata = row.nearest_airport_iata.toUpperCase();

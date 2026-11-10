@@ -438,10 +438,13 @@
         <div><label>Flights</label><select name="flights_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div>
         <div><label>Hotel nights per official</label><input name="hotel_nights_covered" type="number" min="0" max="30"></div>
         <div><label>Food stipend per day (USD)</label><input name="food_stipend_per_day" type="number" min="0" step="1"></div>
+        <div><label>Hotel per night, all taxes and fees (USD)</label><input name="hotel_rate_per_night" type="number" min="0" step="0.01"><div class="small" id="tour-hotel-check" style="margin-top:4px"></div></div>
         <div><label>Airport transfers</label><select name="airport_transfers_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div>
         <div style="grid-column:span 2"><label>How airport transfers work</label><input name="airport_transfer_how" placeholder="Organizer pickup, reimbursed rideshare..."></div>
         <div style="grid-column:span 2"><label>Hotel to venue</label><input name="hotel_to_venue_transport" placeholder="Shuttle, rental car, walking distance..."></div>
         <div style="grid-column:1/-1"><label>Meals on site</label><input name="meals_provided" placeholder="Lunch at the venue each day..."></div>
+        <div style="grid-column:span 2"><label>Email for payment requests</label><input name="payment_email" type="email" placeholder="Organizer email when empty"></div>
+        <div style="grid-column:span 2"><label>Send payment requests</label><select name="payment_requests_auto"><option value="true">On approval</option><option value="false">When the organizer sends them</option></select></div>
       </div>
     </div>
   </details>

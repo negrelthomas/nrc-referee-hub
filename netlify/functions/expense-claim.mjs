@@ -5,12 +5,16 @@
 //                                     Nothing is saved; the referee checks the fields before submitting.
 //   action "fx"     { currency, date }  USD per unit: average of the ECB daily reference rates over the 30 calendar
 //                                     days ending on the purchase date (Frankfurter). Preview for the form.
+//   action "payout" { venmo, paypal, zelle, preferred }  Saves the person's own payout handles (no bank or card
+//                                     numbers) and emails them that their payment details changed. Handles are saved
+//                                     only here, so the alert cannot be skipped.
 //   action "submit" { claim }         Validates, converts with the same rule, and inserts the claim (waiting for the
 //                                     organizer). The rate, window and source are frozen on the claim.
 // Settings: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, GEMINI_API_KEY, GEMINI_MODEL (default gemini-flash-latest).
 // Netlify stops a function after 10 seconds, so the reader gives up after 9 and the form falls back to typing.
 // Gemini free tier: Google may use submitted receipts to improve its products. Switch the key to a paid project to stop that.
 import { createClient } from "@supabase/supabase-js";
+import { sendMail } from "./mailer.mjs";
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const KINDS_CLAIMANT = ["flight", "hotel", "transport", "car"];
@@ -125,6 +129,32 @@ export default async (req) => {
     return json(200, out);
   }
 
+  if (input.action === "payout") {
+    const clean = (v, n) => { const x = String(v == null ? "" : v).trim().slice(0, n); return x || null; };
+    const digits = x => (x || "").replace(/[\s()+.-]/g, "");
+    const account = x => x && !x.includes("@") && /^\d+$/.test(digits(x)) && digits(x).length > 11;
+    const row = { user_id: uid, venmo: clean(input.venmo, 60), paypal: clean(input.paypal, 120), zelle: clean(input.zelle, 120), preferred: ["venmo", "paypal", "zelle"].includes(input.preferred) ? input.preferred : null, updated_at: new Date().toISOString() };
+    if (/\d{8,}/.test(row.venmo || "") || account(row.paypal) || account(row.zelle)) return json(400, { error: "That looks like an account number. Enter a username, an email or a phone number only." });
+    if (row.preferred && !row[row.preferred]) return json(400, { error: "Enter the handle for the method you prefer." });
+    const { data: before } = await sb.from("payout_methods").select("venmo,paypal,zelle,preferred").eq("user_id", uid).maybeSingle();
+    const after = { venmo: row.venmo, paypal: row.paypal, zelle: row.zelle, preferred: row.preferred };
+    const same = before && ["venmo", "paypal", "zelle", "preferred"].every(k => (before[k] || null) === (after[k] || null));
+    if (same) return json(200, { saved: true, unchanged: true });
+    const { error } = await sb.from("payout_methods").upsert(row, { onConflict: "user_id" });
+    if (error) return json(500, { error: error.message });
+    const show = o => !o ? "nothing on file" : [o.venmo ? "Venmo " + o.venmo : null, o.paypal ? "PayPal " + o.paypal : null, o.zelle ? "Zelle " + o.zelle : null].filter(Boolean).join(", ") || "nothing on file";
+    const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+    const to = who.user.email, contact = process.env.CONTACT_EMAIL || "referee@handballusa.org";
+    let res = { sent: false, error: "no email" };
+    if (to && !/@demo\.nrc$/i.test(to)) {
+      const when = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "long", timeStyle: "short" });
+      res = await sendMail({ to, subject: "Your payment details on the NRC Referee Hub were changed", html: `<p>Hello,</p><p>The payment details on your NRC Referee Hub profile were changed on ${esc(when)} (Pacific time).</p><p>Before: ${esc(show(before))}<br>Now: ${esc(show(after))}</p><p>Organizers use these details to reimburse your expenses. Payments already requested keep the details on file when the claim was approved. If you did not make this change, sign in, correct the details and tell the NRC at ${esc(contact)} straight away.</p><p>National Referee Committee</p>` });
+      await sb.from("email_log").insert({ to_email: to, subject: "Your payment details on the NRC Referee Hub were changed", kind: "payout_changed", sent: res.sent, error: res.error });
+    }
+    await sb.from("payout_changes").insert({ user_id: uid, before: before || null, after, alert_sent_to: to || null, alert_sent: !!res.sent });
+    return json(200, { saved: true, alert_sent: !!res.sent });
+  }
+
   if (input.action === "submit") {
     const c = input.claim || {};
     const { data: asg } = await sb.from("assignments").select("id,tournament_id,referee_id,guest_official_id, referees(user_id), guest_officials(user_id), tournaments(name,start_date,end_date)").eq("id", c.assignment_id).maybeSingle();
@@ -154,7 +184,23 @@ export default async (req) => {
       usd = manual; fx = { rate: Math.round(manual / amountOriginal * 1e8) / 1e8, start: null, end: null, source: "USD amount from the card statement, entered by the claimant (no published rate for " + currency + ")" };
     }
 
+    // shared expense: the officials it also covers, on the same event; not for airfare or per diem
+    let shared = null;
+    if (Array.isArray(c.shared_with) && c.shared_with.length && ["hotel", "car", "transport"].includes(c.kind)) {
+      const { data: same } = await sb.from("assignments").select("id").eq("tournament_id", asg.tournament_id).in("id", c.shared_with.map(String).slice(0, 10));
+      shared = (same || []).map(x => x.id).filter(x => x !== asg.id);
+      if (!shared.length) shared = null;
+    }
+
     // duplicates
+    if (!c.confirm_duplicate) {
+      const { data: others } = await sb.from("assignments").select("id").eq("tournament_id", asg.tournament_id).neq("id", asg.id);
+      const ids = (others || []).map(x => x.id);
+      if (ids.length) {
+        const { data: dup2 } = await sb.from("expense_claims").select("id").in("assignment_id", ids).eq("kind", c.kind).eq("purchase_date", c.purchase_date).eq("amount_original", amountOriginal).neq("status", "rejected").limit(1);
+        if (dup2 && dup2.length) return json(409, { error: "Another official at this event has already claimed an expense with the same category, date and amount. A shared expense is claimed once, by whoever paid it. Submit anyway only if it is a different expense.", duplicate: true });
+      }
+    }
     if (!c.confirm_duplicate) {
       const { data: dup } = await sb.from("expense_claims").select("id").eq("assignment_id", asg.id).eq("kind", c.kind).eq("purchase_date", c.purchase_date).eq("amount_original", amountOriginal).neq("status", "rejected").limit(1);
       if (dup && dup.length) return json(409, { error: "A claim with the same category, date and amount is already on file for this event. Submit anyway only if it is a different expense.", duplicate: true });
@@ -170,7 +216,8 @@ export default async (req) => {
       assignment_id: asg.id, kind: c.kind, amount: usd, amount_original: amountOriginal, currency, purchase_date: c.purchase_date,
       merchant: c.merchant ? String(c.merchant).slice(0, 120) : null, description: c.description ? String(c.description).slice(0, 300) : null,
       nights, receipt_url: receipt, status: "submitted", reimbursed_by: "organizer", submitted_by: uid,
-      fx_rate: fx.rate, fx_window_start: fx.start, fx_window_end: fx.end, fx_source: fx.source, ai_read: read, ai_fields: kept, claimant_notified_status: "submitted"
+      fx_rate: fx.rate, fx_window_start: fx.start, fx_window_end: fx.end, fx_source: fx.source, ai_read: read, ai_fields: kept, claimant_notified_status: "submitted",
+      shared_with: shared
     };
     const { data: saved, error } = await sb.from("expense_claims").insert(row).select("id,amount,coverage,coverage_note").single();
     if (error) return json(500, { error: error.message });

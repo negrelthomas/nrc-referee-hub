@@ -84,6 +84,10 @@
     <div class="row"><div><label>Supervisor needed</label><select name="supervisor_needed"><option value="false">No</option><option value="true">Yes</option></select></div><div><label>Flights booked by</label><select name="travel_managed_by"><option value="organizer">We book</option><option value="nrc">The NRC books, we reimburse</option><option value="referee">Each referee books, we reimburse</option></select></div></div>
     <div class="row"><div><label>Hotel booked by</label><select name="hotel_booked_by"><option value="organizer">We book</option><option value="nrc">The NRC books, we reimburse</option><option value="referee">Each referee books, we reimburse</option><option value="none">No hotel needed</option></select></div><div><label>Rental car booked by</label><select name="car_booked_by"><option value="organizer">We book</option><option value="nrc">The NRC books, we reimburse</option><option value="referee">Each referee books, we reimburse</option><option value="none">No rental car needed</option></select></div></div>
     <div class="row"><div><label>Hotel nights covered</label><input name="hotel_nights_covered" type="number" min="0"></div><div><label>Food stipend per day (USD)</label><input name="food_stipend_per_day" type="number" min="0" step="1"></div></div>
+    <div id="edit-hotel-rate" class="hidden"><label>Hotel cost per night, all taxes and fees included (USD)</label><input name="hotel_rate_per_night" type="number" min="1" step="0.01">
+      <p class="small" style="margin:6px 0 0" id="edit-hotel-help"></p><p class="small" style="margin:6px 0 0" id="edit-hotel-check"></p>
+      <label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin-top:8px"><input type="checkbox" name="hotel_rate_confirmed" style="width:auto;margin-top:3px"> I confirm this is the fully loaded nightly cost, taxes and fees included.</label></div>
+    <div class="row"><div><label>Email for payment requests</label><input name="payment_email" type="email" placeholder="treasurer@yourclub.org"></div><div><label>Send payment requests</label><select name="payment_requests_auto"><option value="true">As soon as I approve a claim</option><option value="false">When I click Send on the hub</option></select></div></div>
     <div class="row"><div><label>Flights</label><select name="flights_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div><div><label>Airport transfers</label><select name="airport_transfers_covered"><option value="true">Covered</option><option value="false">Not covered</option></select></div></div>
     <div class="row"><div><label>Transport hotel to venue</label><input name="hotel_to_venue_transport"></div><div><label>Earliest departure on the last day</label><input name="earliest_return_last_day" type="time"></div></div>
     <label>Notes for the NRC</label><textarea name="notes"></textarea>
@@ -131,7 +135,7 @@ async function load() {
       <h3 style="margin-top:16px">Designated officials</h3>
       ${t.pairs_organizer ? (() => { const named = pairKeys(t.id).length; return `<p class="small" style="margin:0 0 8px">Your pairs from outside USATH: <strong>${named}/${t.pairs_organizer} named</strong>${!cancelled && t.end_date >= today && named < t.pairs_organizer ? ` <button class="btn sm secondary" type="button" onclick="openGuestPair('${t.id}')">Name a pair</button>` : ""}<br><span class="muted">Record their names so the team, bookings and expenses are complete. To bring one more pair, edit the request first.</span></p>`; })() : ""}
       ${d.length ? '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Role</th><th>Club or federation</th><th>From</th><th>Contact</th><th>Travel</th></tr></thead><tbody>' + d.map(r => { const bk = B.filter(b => b.assignment_id === r.assignment_id); return `<tr><td><strong>${NRC.esc(r.first_name + " " + r.last_name)}</strong>${r.is_guest ? ` <span class="pill">your pair</span>${!cancelled ? `<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openGuestPair('${t.id}','${keyOf(r.guest_official_id)}')">Edit pair</button> <button class="btn sm ghost" type="button" onclick="removeGuestPair('${t.id}','${keyOf(r.guest_official_id)}')">Remove pair</button></div>` : ""}` : ""}</td><td>${NRC.esc(r.role)}</td><td>${NRC.esc(r.club_name || "")}</td><td>${NRC.esc([r.home_city, r.home_state].filter(Boolean).join(", "))}${r.home_airport_iata ? " (" + NRC.esc(r.departure_airport_iata || r.home_airport_iata) + ")" : ""}</td><td class="small">${r.email ? `<a href="mailto:${NRC.esc(r.email)}">${NRC.esc(r.email)}</a>` : ""}${r.phone ? "<br>" + NRC.esc(r.phone) : ""}</td><td class="small">${bk.length ? bk.map(b => `${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""} <span class="pill ${b.status === "booked" ? "green" : "amber"}">${b.status}</span> <span class="muted">(${b.entered_by || "nrc"})</span>`).join("<br>") : '<span class="muted">' + (t.travel_managed_by === "nrc" ? "NRC booking in progress" : "Nothing recorded yet") + "</span>"}${r.travel_notes ? "<br>" + NRC.esc(r.travel_notes) : ""}${!cancelled ? `<br><button class="btn sm ghost" type="button" style="margin-top:4px" onclick="openObook('${r.assignment_id}','${NRC.esc(r.first_name + " " + r.last_name)}')">Add a booking we made</button>` : ""}</td></tr>`; }).join("") + "</tbody></table></div>" : '<p class="muted">Nobody confirmed yet. The NRC is working on it; names appear here as they are confirmed.</p>'}
-      ${d.length && !cancelled ? `<h3 style="margin-top:16px">Reimbursements</h3><p class="small muted" style="margin:0 0 8px">Officials submit one claim per receipt; you approve or decline each one and mark it paid.${F[t.id] && (Number(F[t.id].claims_submitted) || Number(F[t.id].claims_approved)) ? ` <strong>To decide: $${Number(F[t.id].claims_submitted).toFixed(2)}. Approved, to pay: $${Number(F[t.id].claims_approved).toFixed(2)}.</strong>` : ""}</p><div id="ox-${t.id}"><button class="btn sm" type="button" onclick="openMoney('${t.id}')" title="Claims with their receipts, totals by category, approval and payment">Open reimbursements</button></div>` : ""}
+      ${d.length && !cancelled ? `<h3 style="margin-top:16px">Reimbursements</h3><p class="small muted" style="margin:0 0 8px">Officials submit one claim per receipt; you approve, approve a lower amount or decline each one, and the hub sends the payment request to your payment contact.${F[t.id] && (Number(F[t.id].claims_submitted) || Number(F[t.id].claims_approved)) ? ` <strong>To decide: $${Number(F[t.id].claims_submitted).toFixed(2)}. Approved, to pay: $${Number(F[t.id].claims_approved).toFixed(2)}.</strong>` : ""}</p><div id="ox-${t.id}"><button class="btn sm" type="button" onclick="openMoney('${t.id}')" title="Claims with their receipts, totals by category, approval and payment">Open reimbursements</button></div>` : ""}
       ${!cancelled && d.some(x => x.role === "referee") ? `<h3 style="margin-top:16px">Games</h3><p class="small muted" style="margin:0 0 8px">Record every game: number, teams, the pair that referees it and, once played, the score and the video link if there is one. You can enter the schedule before the event. After the event, upload all the score sheets at once to check the scores.</p><div id="og-${t.id}"><button class="btn sm" type="button" onclick="openGames('${t.id}')">Open the games</button></div>` : ""}
       <p class="small muted" style="margin:12px 0 0">You committed to: ${covers.map(NRC.esc).join(", ")}.${t.supervisor_needed ? " Supervisor requested." : ""}</p>
     </div>`;
@@ -150,7 +154,13 @@ window.openGames = async function (id) {
   const t = TOURS.find(x => x.id === id);
   NRC.Games.mount(document.getElementById("og-" + id), { tournament: t, mode: "organizer", user: ME, evaluatorName: (ME && ME.full_name) || t.organizer_name || (ME && ME.email) || "" });
 };
-const FIELDS = ["name", "start_date", "end_date", "pairs_total", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "nearest_airport_iata", "venue_address", "venue_city", "venue_state", "supervisor_needed", "travel_managed_by", "hotel_booked_by", "car_booked_by", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "hotel_to_venue_transport", "earliest_return_last_day", "notes"];
+const FIELDS = ["name", "start_date", "end_date", "pairs_total", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "nearest_airport_iata", "venue_address", "venue_city", "venue_state", "supervisor_needed", "travel_managed_by", "hotel_booked_by", "car_booked_by", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "hotel_to_venue_transport", "earliest_return_last_day", "notes", "hotel_rate_per_night", "payment_email", "payment_requests_auto"];
+function editHotel() {
+  const f = $("#form-edit"), on = ["nrc", "referee"].includes(f.hotel_booked_by.value) && (parseInt(f.hotel_nights_covered.value, 10) || 0) > 0;
+  $("#edit-hotel-rate").classList.toggle("hidden", !on); $("#edit-hotel-help").textContent = NRC.HOTEL_RATE_HELP;
+  if (on) NRC.hotelCheck($("#edit-hotel-check"), { rate: f.hotel_rate_per_night.value, city: f.venue_city.value.trim(), state: f.venue_state.value.trim(), date: f.start_date.value });
+}
+["hotel_booked_by", "hotel_nights_covered", "hotel_rate_per_night", "venue_city", "venue_state", "start_date"].forEach(n => $("#form-edit")[n].addEventListener("change", editHotel));
 function editPairs() {
   const f = $("#form-edit"), total = parseInt(f.pairs_total.value, 10) || 0, own = parseInt(f.pairs_organizer.value, 10) || 0, usath = total - own;
   $("#edit-pairs-usath").textContent = usath < 0 ? "check" : usath;
@@ -161,8 +171,9 @@ function editPairs() {
 window.editTour = function (id) {
   const t = TOURS.find(x => x.id === id); if (!t) return; const f = $("#form-edit"); f.reset(); f.id.value = id;
   FIELDS.forEach(k => { if (f[k]) f[k].value = t[k] == null ? "" : String(t[k]); });
+  f.payment_requests_auto.value = t.payment_requests_auto === false ? "false" : "true"; f.hotel_rate_confirmed.checked = !!t.hotel_rate_confirmed_at;
   $("#edit-div").innerHTML = NRC.divisionPicker("divisions", t.divisions);
-  editPairs();
+  editPairs(); editHotel();
   $("#dlg-edit").showModal();
 };
 async function notify(id, kind) {
@@ -172,8 +183,16 @@ async function notify(id, kind) {
 }
 $("#form-edit").addEventListener("submit", async (e) => {
   e.preventDefault(); const f = e.target; const row = {};
-  FIELDS.forEach(k => { if (!f[k]) return; let v = f[k].value.trim(); if (v === "") { row[k] = null; return; } if (["supervisor_needed", "flights_covered", "airport_transfers_covered"].includes(k)) v = v === "true"; else if (["pairs_total", "pairs_organizer", "games_expected", "hotel_nights_covered"].includes(k)) v = parseInt(v, 10); else if (k === "food_stipend_per_day") v = parseFloat(v); else if (["nearest_airport_iata", "venue_state"].includes(k)) v = v.toUpperCase(); row[k] = v; });
+  FIELDS.forEach(k => { if (!f[k]) return; let v = f[k].value.trim(); if (v === "") { row[k] = null; return; } if (["supervisor_needed", "flights_covered", "airport_transfers_covered", "payment_requests_auto"].includes(k)) v = v === "true"; else if (["pairs_total", "pairs_organizer", "games_expected", "hotel_nights_covered"].includes(k)) v = parseInt(v, 10); else if (k === "food_stipend_per_day" || k === "hotel_rate_per_night") v = parseFloat(v); else if (k === "payment_email") v = v.toLowerCase(); else if (["nearest_airport_iata", "venue_state"].includes(k)) v = v.toUpperCase(); row[k] = v; });
   row.divisions = NRC.divisionsFrom(f, "divisions");
+  if (!$("#edit-hotel-rate").classList.contains("hidden")) {
+    const was = TOURS.find(x => x.id === f.id.value) || {};
+    if (!(row.hotel_rate_per_night > 0)) { NRC.notice($("#msg"), "Enter the hotel cost per night, all taxes and fees included.", "error"); $("#dlg-edit").close(); return; }
+    if (!f.hotel_rate_confirmed.checked) { NRC.notice($("#msg"), "Confirm that the hotel cost per night includes all taxes and fees.", "error"); $("#dlg-edit").close(); return; }
+    if (Number(was.hotel_rate_per_night) !== row.hotel_rate_per_night || !was.hotel_rate_confirmed_at) row.hotel_rate_confirmed_at = new Date().toISOString();
+  }
+  if (row.payment_email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(row.payment_email)) { NRC.notice($("#msg"), "The email for payment requests looks wrong.", "error"); $("#dlg-edit").close(); return; }
+  if (row.payment_requests_auto == null) row.payment_requests_auto = true;
   if (!row.pairs_total || row.pairs_total < 1) { NRC.notice($("#msg"), "Enter the total number of referee pairs the tournament requires.", "error"); return; }
   if (!row.pairs_organizer) { row.pairs_organizer = 0; row.organizer_pairs_note = null; }
   else if (row.pairs_organizer > row.pairs_total) { NRC.notice($("#msg"), `The pairs you source outside USATH (${row.pairs_organizer}) exceed the total pairs required (${row.pairs_total}).`, "error"); return; }
@@ -217,7 +236,7 @@ $("#form-report").addEventListener("submit", async (e) => {
   for (const inp of NRC.$$("#report-officials input[data-asg]")) { if (inp.value !== "") await NRC.sb.from("assignments").update({ games_officiated: parseInt(inp.value, 10) }).eq("id", inp.dataset.asg); }
   $("#dlg-report").close(); NRC.notice($("#msg"), "Report sent. Thank you.", "ok"); load();
 });
-window.duplicateTour = (id) => { const t = TOURS.find(x => x.id === id); if (!t) return; const copy = {}; ["name", "sanction", "region", "pairs_total", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport", "meals_provided", "earliest_return_last_day", "supervisor_needed", "supervisor_notes", "travel_managed_by", "hotel_booked_by", "car_booked_by", "organizer_name", "organizer_email", "organizer_phone", "budget_owner", "notes"].forEach(k => { if (t[k] != null) copy[k] = t[k]; }); try { sessionStorage.setItem("nrc_prefill_request", JSON.stringify(copy)); } catch (e) { } location.href = "request-referees.html?prefill=1"; };
+window.duplicateTour = (id) => { const t = TOURS.find(x => x.id === id); if (!t) return; const copy = {}; ["name", "sanction", "region", "pairs_total", "pairs_organizer", "organizer_pairs_note", "games_expected", "venue_name", "venue_address", "venue_city", "venue_state", "nearest_airport_iata", "hotel_nights_covered", "food_stipend_per_day", "flights_covered", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport", "meals_provided", "earliest_return_last_day", "supervisor_needed", "supervisor_notes", "travel_managed_by", "hotel_booked_by", "car_booked_by", "organizer_name", "organizer_email", "organizer_phone", "budget_owner", "notes", "payment_email", "payment_requests_auto"].forEach(k => { if (t[k] != null) copy[k] = t[k]; }); try { sessionStorage.setItem("nrc_prefill_request", JSON.stringify(copy)); } catch (e) { } location.href = "request-referees.html?prefill=1"; };
 // Pairs from outside USATH are the organizer's: named here or by the NRC, within the number declared in the request
 let GUESTS = [], guestTour = null, guestPair = [];
 const keyOf = gid => { const g = GUESTS.find(x => x.id === gid); return g ? g.pair_key || g.id : gid; };
@@ -260,7 +279,13 @@ window.removeGuestPair = async (tid, key) => {
   if (error) { alert(error.message); return; }
   NRC.notice($("#msg"), "Pair removed.", "ok"); load();
 };
-document.addEventListener("DOMContentLoaded", load);
+// ?money=<event id> (from the reminder and payment emails) opens that event's reimbursements
+document.addEventListener("DOMContentLoaded", async () => {
+  await load();
+  const id = new URLSearchParams(location.search).get("money");
+  const box = id && document.getElementById("ox-" + id);
+  if (box) { openMoney(id); box.scrollIntoView({ behavior: "smooth", block: "start" }); }
+});
 </script>
 </body>
 </html>

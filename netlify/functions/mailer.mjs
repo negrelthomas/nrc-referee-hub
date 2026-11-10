@@ -3,17 +3,17 @@
 // Resend as an alternative: RESEND_API_KEY, MAIL_FROM. Without either, nothing is sent and the log records why.
 import nodemailer from "nodemailer";
 
-export async function sendMail({ to, subject, html, replyTo }) {
+export async function sendMail({ to, cc, subject, html, replyTo }) {
   const { GMAIL_USER, GMAIL_APP_PASSWORD, RESEND_API_KEY, MAIL_FROM } = process.env;
   const from = MAIL_FROM || (GMAIL_USER ? `NRC Referee Hub <${GMAIL_USER}>` : "NRC Referee Hub <onboarding@resend.dev>");
   try {
     if (GMAIL_USER && GMAIL_APP_PASSWORD) {
       const t = nodemailer.createTransport({ host: "smtp.gmail.com", port: 587, secure: false, auth: { user: GMAIL_USER, pass: GMAIL_APP_PASSWORD } });
-      await t.sendMail({ from, to, subject, html, replyTo: replyTo || process.env.CONTACT_EMAIL || "referee@handballusa.org" });
+      await t.sendMail({ from, to, cc: cc || undefined, subject, html, replyTo: replyTo || process.env.CONTACT_EMAIL || "referee@handballusa.org" });
       return { sent: true, error: null };
     }
     if (RESEND_API_KEY) {
-      const res = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify({ from, to: [to], subject, html, reply_to: replyTo }) });
+      const res = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${RESEND_API_KEY}`, "content-type": "application/json" }, body: JSON.stringify(Object.assign({ from, to: [to], subject, html, reply_to: replyTo }, cc ? { cc: [].concat(cc) } : {})) });
       return { sent: res.ok, error: res.ok ? null : await res.text() };
     }
     return { sent: false, error: "No email transport configured (GMAIL_USER and GMAIL_APP_PASSWORD, or RESEND_API_KEY)" };

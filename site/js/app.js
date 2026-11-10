@@ -15,6 +15,22 @@
   NRC.esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   // calendar date in the viewer's time zone (toISOString would give the UTC date, a day ahead in the evening in the US)
   NRC.byLastName = (a, b) => String(a.last_name || "").localeCompare(String(b.last_name || ""), "en", { sensitivity: "base" }) || String(a.first_name || "").localeCompare(String(b.first_name || ""), "en", { sensitivity: "base" });
+  // Hotel cost per night (all taxes and fees): message for the request forms, compared with the federal (GSA)
+  // lodging rate for the city and month plus about 15% for hotel taxes and fees. A prompt, never a block.
+  NRC.HOTEL_RATE_HELP = "Enter the total cost per night as it will appear on the final hotel bill, including sales and occupancy taxes, resort or facility fees, city and tourism assessments, and parking if referees will need it. Please check the current rate on the hotel's website or a booking site for your dates. Referees are reimbursed up to this amount, so a figure that leaves out taxes leaves them paying the difference.";
+  NRC.hotelCheck = async (el, o) => {
+    if (!el) return; const rate = parseFloat(o.rate);
+    if (!(rate > 0) || !o.city || !/^[A-Za-z]{2}$/.test(o.state || "") || !o.date) { el.innerHTML = ""; return; }
+    const key = [o.city, o.state, o.date.slice(0, 7)].join("|").toLowerCase();
+    NRC._gsa = NRC._gsa || {};
+    if (!NRC._gsa[key]) NRC._gsa[key] = fetch(`/api/gsa-lodging?city=${encodeURIComponent(o.city)}&state=${encodeURIComponent(o.state.toUpperCase())}&date=${o.date}`).then(r => r.ok ? r.json() : null).catch(() => null);
+    const d = await NRC._gsa[key];
+    if (!d || !d.lodging) { el.innerHTML = ""; return; }
+    const month = new Date(o.date + "T12:00:00").toLocaleDateString("en-US", { month: "long" });
+    el.innerHTML = rate < d.benchmark
+      ? `<span class="pill amber">Check</span> This looks low for ${NRC.esc(d.area)} in ${month}: the federal lodging rate is $${d.lodging} per night before taxes, about $${d.benchmark} with typical taxes and fees. Please check that your figure includes all taxes and fees. A group rate can be lower; if so, keep your figure.`
+      : `<span class="pill green">In line</span> The federal lodging rate for ${NRC.esc(d.area)} in ${month} is $${d.lodging} per night before taxes, about $${d.benchmark} with typical taxes and fees.`;
+  };
   NRC.localDate = (d) => { d = d || new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
   NRC.fmtDate = (d) => (d ? new Date(d + (String(d).length === 10 ? "T00:00:00" : "")).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "");
   NRC.levelLabel = (l) => ({ candidate: "Candidate", level_1: "Level 1", level_2: "Level 2", level_3: "Level 3 (National)", nachc: "NACHC Continental", ihf: "IHF International" }[l] || l || "");

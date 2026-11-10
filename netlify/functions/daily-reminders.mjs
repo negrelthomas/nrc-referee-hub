@@ -138,28 +138,30 @@ export default async () => {
   {
     const usd = n => "$" + Number(n || 0).toFixed(2);
     const LBL = { flight: "Airfare", hotel: "Hotel", transport: "Rideshare and taxis", car: "Car rental and related", per_diem: "Food per diem", mileage: "Mileage", other: "Other" };
-    const { data: open } = await admin.from("expense_claims").select("id,status,amount,reimbursed_by,assignments(tournament_id,tournaments(id,name,organizer_name,organizer_email,status))").in("status", ["submitted", "approved"]).eq("reimbursed_by", "organizer");
+    const { data: open } = await admin.from("expense_claims").select("id,status,amount,approved_amount,reimbursed_by,assignments(tournament_id,tournaments(id,name,organizer_name,organizer_email,status))").in("status", ["submitted", "approved"]).eq("reimbursed_by", "organizer");
     const byTour = {};
-    for (const c of open || []) { const t = c.assignments?.tournaments; if (!t || t.status === "cancelled" || !t.organizer_email) continue; (byTour[t.id] = byTour[t.id] || { t, wait: 0, waitN: 0, due: 0, dueN: 0 }); if (c.status === "submitted") { byTour[t.id].wait += Number(c.amount); byTour[t.id].waitN++; } else { byTour[t.id].due += Number(c.amount); byTour[t.id].dueN++; } }
+    for (const c of open || []) { const t = c.assignments?.tournaments; if (!t || t.status === "cancelled" || !t.organizer_email) continue; (byTour[t.id] = byTour[t.id] || { t, wait: 0, waitN: 0, due: 0, dueN: 0 }); if (c.status === "submitted") { byTour[t.id].wait += Number(c.amount); byTour[t.id].waitN++; } else { byTour[t.id].due += Number(c.approved_amount ?? c.amount); byTour[t.id].dueN++; } }
     for (const { t, wait, waitN, due, dueN } of Object.values(byTour)) {
       if (!waitN && !dueN) continue;
       const { data: last } = await admin.from("reminder_log").select("created_at").eq("kind", "expenses_organizer").eq("target_id", t.id).order("created_at", { ascending: false }).limit(1);
       if (last && last.length && Date.now() - new Date(last[0].created_at).getTime() < 20 * 3600e3) continue;
       if (!waitN && last && last.length && Date.now() - new Date(last[0].created_at).getTime() < 6.5 * 864e5) continue;   // approved but unpaid: weekly
-      const subject = waitN ? `${t.name}: ${waitN} expense claim(s) waiting for your approval` : `${t.name}: ${usd(due)} approved and not yet paid`;
-      const html = `<p>Hi ${esc(t.organizer_name || "")},</p><p>${waitN ? `${waitN} claim(s) from your officials at <strong>${esc(t.name)}</strong>, ${usd(wait)} in total, wait for your decision. You approve or decline each one.` : ""}${dueN ? ` ${dueN} approved claim(s), ${usd(due)}, are not yet marked paid.` : ""}</p><p>Each claim shows its receipt, the amount in USD and whether it falls within what you agreed on the request: <a href="${base}/login.html?next=organizer.html">open my tournaments</a>, then Reimbursements.</p><p>National Referee Committee</p>`;
+      const pl = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+      const subject = waitN ? `${t.name}: ${pl(waitN, "expense claim", "expense claims")} waiting for your approval` : `${t.name}: ${usd(due)} approved and not yet paid`;
+      const link = `${base}/login.html?next=${encodeURIComponent("organizer.html?money=" + t.id)}`;
+      const html = `<p>Hi ${esc(t.organizer_name || "")},</p><p>${waitN ? `${waitN === 1 ? "One claim" : waitN + " claims"} from your officials at <strong>${esc(t.name)}</strong>, ${usd(wait)} in total, ${waitN === 1 ? "waits" : "wait"} for your decision. You approve, approve a lower amount or decline each one.` : ""}${dueN ? ` ${pl(dueN, "approved claim", "approved claims")}, ${usd(due)}, ${dueN === 1 ? "is" : "are"} not yet marked paid.` : ""}</p><p>Each claim shows its receipt, the amount in USD and whether it falls within what you agreed on the request. When you approve, the hub sends the payment request to your payment contact with a copy to the official.</p><p><a href="${link}" style="display:inline-block;background:#04234F;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Open the reimbursements</a></p><p>National Referee Committee</p>`;
       const res = await sendMail({ to: t.organizer_email, subject, html });
       await admin.from("email_log").insert({ to_email: t.organizer_email, subject, kind: "expenses_organizer", sent: res.sent, error: res.error });
       if (res.sent) await log("expenses_organizer", t.id, t.organizer_email);
     }
-    const { data: moved } = await admin.from("expense_claims").select("id,kind,status,amount,review_note,claimant_notified_status,paid_method,assignments(tournaments(name),referees(first_name,email),guest_officials(first_name,email))").in("status", ["approved", "rejected", "reimbursed"]);
+    const { data: moved } = await admin.from("expense_claims").select("id,kind,status,amount,approved_amount,review_note,claimant_notified_status,paid_method,assignments(tournaments(name),referees(first_name,email),guest_officials(first_name,email))").in("status", ["approved", "rejected", "reimbursed"]);
     const toTell = (moved || []).filter(c => c.status !== c.claimant_notified_status);
     const byPerson = {};
     for (const c of toTell) { const p = c.assignments?.referees || c.assignments?.guest_officials; if (!p?.email || /@demo\.nrc$/i.test(p.email)) continue; (byPerson[p.email] = byPerson[p.email] || { p, rows: [] }).rows.push(c); }
     const WORD = { approved: "approved", rejected: "declined", reimbursed: "paid" };
     for (const { p, rows } of Object.values(byPerson)) {
-      const list = rows.map(c => `<li>${esc(c.assignments.tournaments.name)}: ${esc(LBL[c.kind] || c.kind)}, ${usd(c.amount)}, <strong>${WORD[c.status]}</strong>${c.status === "reimbursed" && c.paid_method ? " (" + esc(c.paid_method) + ")" : ""}${c.review_note ? ". Note: " + esc(c.review_note) : ""}</li>`).join("");
-      const subject = `Your expense claims: ${rows.length} update(s)`;
+      const list = rows.map(c => `<li>${esc(c.assignments.tournaments.name)}: ${esc(LBL[c.kind] || c.kind)}, ${usd(c.amount)}, <strong>${WORD[c.status]}</strong>${c.approved_amount != null && c.status !== "rejected" ? " at " + usd(c.approved_amount) : ""}${c.status === "reimbursed" && c.paid_method ? " (" + esc(c.paid_method) + ")" : ""}${c.review_note ? ". Note: " + esc(c.review_note) : ""}</li>`).join("");
+      const subject = rows.length === 1 ? "Your expense claim: 1 update" : `Your expense claims: ${rows.length} updates`;
       const res = await sendMail({ to: p.email, subject, html: `<p>Hi ${esc(p.first_name || "")},</p><p>The organizer has decided on the following claims:</p><ul>${list}</ul><p>Details on your page: <a href="${base}/profile.html">${base}/profile.html</a>. Questions about a decision go to the organizer.</p><p>National Referee Committee</p>` });
       await admin.from("email_log").insert({ to_email: p.email, subject, kind: "expenses_claimant", sent: res.sent, error: res.error });
       if (res.sent) for (const c of rows) await admin.from("expense_claims").update({ claimant_notified_status: c.status }).eq("id", c.id);
