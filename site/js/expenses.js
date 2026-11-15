@@ -1,6 +1,6 @@
 // Expenses: claims with receipts, USD conversion, organizer approval and payment.
 // Used by the referee and guest pages (claim form, list, payout handles), the organizer page and the admin Expenses tab.
-// The organizer of the event approves or declines every claim and pays it. The NRC can record a decision for the organizer.
+// The organizer of the event approves or declines every claim and pays it. The NRC admin sees the same panel, read only.
 (function () {
   const NRC = window.NRC; if (!NRC) return;
   const esc = NRC.esc;
@@ -230,15 +230,16 @@
   async function mountPanel(el, opts) {
     const t = opts.tournament, admin = opts.mode === "nrc";
     el.innerHTML = '<p class="muted small">Loading reimbursements.</p>';
-    const [{ data: des }, { data: pay }, { data: fin }] = await Promise.all([
+    const [{ data: des }, { data: pay }, { data: fin }, { data: stl }] = await Promise.all([
       NRC.sb.from("organizer_designations").select("*").eq("tournament_id", t.id),
       NRC.sb.rpc("event_payees", { p_tournament: t.id }),
-      NRC.sb.from("tournament_finance").select("*").eq("tournament_id", t.id).maybeSingle()]);
+      NRC.sb.from("tournament_finance").select("*").eq("tournament_id", t.id).maybeSingle(),
+      NRC.sb.from("expense_settlements").select("assignment_id,official_name,cure_until").eq("tournament_id", t.id).eq("status", "notice")]);
     const D = des || []; const ids = D.map(d => d.assignment_id);
     const { data: cl } = ids.length ? await NRC.sb.from("expense_claims").select("*").in("assignment_id", ids).order("purchase_date") : { data: [] };
     const C = cl || [], P = {}; (pay || []).forEach(p => P[p.assignment_id] = p);
     const name = aid => { const d = D.find(x => x.assignment_id === aid); return d ? d.last_name + ", " + d.first_name : "Official"; };
-    const S = { el, opts, t, admin, D, C, P, fin: fin || {}, name, filter: (el._xfilter || "all") };
+    const S = { el, opts, t, admin, D, C, P, fin: fin || {}, name, filter: (el._xfilter || "all"), settle: stl || [] };
     el._x = S; renderPanel(S);
   }
   function renderPanel(S) {
@@ -260,9 +261,10 @@
     const handle = aid => { const p = P[aid]; if (!p) return '<span class="muted">no handle on file</span>'; const h = payee(p); return (h ? esc(h) + (p.preferred ? ` <span class="muted">(prefers ${esc(p.preferred)})</span>` : "") : "") + (p.payment_notes ? (h ? "<br>" : "") + esc(p.payment_notes) : "") || '<span class="muted">no handle on file</span>'; };
     const T = (s) => tip(s, admin);
     const payTo = t.payment_email || t.organizer_email || "";
-    S.el.innerHTML = `
-      <div class="notice" style="margin:0 0 10px">${admin ? "The organizer approves, declines and pays each claim. A decision recorded here is marked as made by the NRC for the organizer." : "You approve, approve a lower amount or decline each claim, then record the payment. The NRC does not approve expenses for your event."}</div>
-      <p class="small" style="margin:0 0 10px">Payment requests go to <strong>${esc(payTo || "nobody yet")}</strong>, ${t.payment_requests_auto === false ? "when you click Send payment requests" : "automatically when a claim is approved"}, with a copy to the official. <a href="#" onclick="NRC.Exp._settings();return false" ${T("Change the email that receives payment requests (your treasurer, for example) and whether they go out on approval or when you send them.")}>Change</a></p>
+    const settleBox = S.settle.length ? `<div class="notice" style="margin:0 0 10px;background:#FFF4D6"><strong>To settle before the NRC removes ${S.settle.length === 1 ? "an official" : "officials"} from the event:</strong> ${S.settle.map(x => `${esc(x.official_name || name(x.assignment_id))}, by ${NRC.fmtDate(x.cure_until)}`).join("; ")}. ${admin ? "Notice sent to the organizer." : "Decide and pay these claims on the hub before the date. After it, anything still open is handed over to you to settle directly with the official, off the hub."}</div>` : "";
+    S.el.innerHTML = settleBox + `
+      <div class="notice" style="margin:0 0 10px">${admin ? "View only. The organizer of the event approves, declines and pays every claim; the NRC cannot change a claim." : "You approve, approve a lower amount or decline each claim, then record the payment. The NRC does not approve expenses for your event."}</div>
+      <p class="small" style="margin:0 0 10px">Payment requests go to <strong>${esc(payTo || "nobody yet")}</strong>, ${t.payment_requests_auto === false ? (admin ? "when the organizer clicks Send payment requests" : "when you click Send payment requests") : "automatically when a claim is approved"}, with a copy to the official.${admin ? "" : ` <a href="#" onclick="NRC.Exp._settings();return false" ${T("Change the email that receives payment requests (your treasurer, for example) and whether they go out on approval or when you send them.")}>Change</a>`}</p>
       <div class="grid c4">
         <div class="stat ${wait.length ? "" : "good"}"><div class="n" style="font-size:26px">${usd(sum(wait, c => c.amount))}</div><div class="l">To decide (${wait.length})</div></div>
         <div class="stat"><div class="n" style="font-size:26px">${usd(sum(due_, due))}</div><div class="l">Approved, to pay (${due_.length})</div></div>
@@ -273,20 +275,20 @@
       <div class="table-wrap"><table><thead><tr><th>Category</th><th>To decide</th><th>To pay</th><th>Paid</th><th>Total approved</th></tr></thead><tbody>${kinds.map(row).join("")}
         <tr><td><strong>Total</strong></td><td>${usd(sum(wait, c => c.amount))}</td><td><strong>${usd(sum(due_, due))}</strong></td><td>${usd(sum(paid, due))}</td><td><strong>${usd(sum(due_.concat(paid), due))}</strong></td></tr></tbody></table></div>
       <p class="small muted" style="margin:6px 0 0">Not included above: bookings ${admin ? "the organizer" : "you"} paid directly ${usd(fin.organizer_paid_bookings)}${Number(fin.nrc_paid_bookings) ? `; bookings the NRC paid, to reimburse to the NRC ${usd(fin.nrc_paid_bookings)}` : ""}${!admin && C.some(c => c.reimbursed_by === "nrc") ? `; claims the NRC reimburses itself ${usd(sum(C.filter(c => c.reimbursed_by === "nrc" && c.status !== "rejected"), due))}` : ""}. Foreign currency at the 30 day average ECB rate to the date of purchase.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+      ${admin ? "" : `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
         ${wait.some(c => c.coverage === "covered") ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._bulkApprove(this)" ${T("Approves every waiting claim that falls within what was agreed on the request. Claims outside the agreement stay to decide one by one.")}>Approve all within the agreement (${wait.filter(c => c.coverage === "covered").length})</button>` : ""}
         ${unsent.length ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._sendRequests(this)" ${T("Emails " + (payTo || "the payment contact") + " the amount to pay each official and how to pay them, with a copy to the official and a link to record the payment.")}>Send payment requests (${new Set(unsent.map(c => c.assignment_id)).size})</button>` : ""}
         ${perDiemMissing ? `<button class="btn sm secondary" type="button" onclick="NRC.Exp._perDiems(this)" ${T("Adds the agreed food per diem for each designated official ($" + t.food_stipend_per_day + " per day x event days), to approve like any other claim.")}>Add the food per diems</button>` : ""}
-      </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px">
-        ${due_.length ? `<button class="btn sm secondary" type="button" onclick="NRC.Exp._payCsv('due')" ${T("One row per official with everything approved and not yet paid, ready to import in your accounting or payment tool. The claims exported get a batch number so you can mark the whole batch paid in one step.")}>Payments to make (CSV)</button>` : ""}
-        ${batches.length ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._batchPay()" ${T("Records the payment of every claim in an exported batch at once.")}>Mark a batch paid</button>` : ""}
+      </div>`}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:${admin ? "12px" : "0"} 0 12px">
+        ${due_.length && !admin ? `<button class="btn sm secondary" type="button" onclick="NRC.Exp._payCsv('due')" ${T("One row per official with everything approved and not yet paid, ready to import in your accounting or payment tool. The claims exported get a batch number so you can mark the whole batch paid in one step.")}>Payments to make (CSV)</button>` : ""}
+        ${batches.length && !admin ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._batchPay()" ${T("Records the payment of every claim in an exported batch at once.")}>Mark a batch paid</button>` : ""}
         ${paid.length ? `<button class="btn sm ghost" type="button" onclick="NRC.Exp._payCsv('paid')" ${T("One row per official and payment recorded, for your bookkeeping.")}>Payments made (CSV)</button>` : ""}
         <button class="btn sm ghost" type="button" onclick="NRC.Exp._zip(this)" ${T("Downloads the receipts of the claims listed below in one zip, with a CSV of the claims. Change the filter to choose which ones.")}>Receipts (${shown.filter(c => c.receipt_url).length})</button>
         <button class="btn sm ghost" type="button" onclick="NRC.Exp._csv(this)" ${T("Downloads the claims listed below, one row per receipt (CSV).")}>Claims detail (CSV)</button>
       </div>
       <h4 style="margin:6px 0 6px">By official</h4>
-      ${officials.length ? `<div class="table-wrap"><table><thead><tr><th>Official</th><th>How to pay</th><th>To decide</th><th>To pay</th><th>Paid</th><th></th></tr></thead><tbody>${officials.map(aid => { const x = live.filter(c => c.assignment_id === aid), toPay = sum(x.filter(c => c.status === "approved"), due), req = x.filter(c => c.status === "approved" && c.payment_request_sent_at); return `<tr><td><strong>${esc(name(aid))}</strong></td><td class="small">${handle(aid)}</td><td>${usd(sum(x.filter(c => c.status === "submitted"), c => c.amount))}</td><td><strong>${usd(toPay)}</strong>${req.length ? `<div class="small muted">requested ${NRC.fmtDate(String(req[0].payment_request_sent_at).slice(0, 10))}</div>` : ""}</td><td>${usd(sum(x.filter(c => c.status === "reimbursed"), due))}</td><td>${toPay ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._pay('${aid}')" ${T("Records that you paid this official every approved claim, with the method and reference.")}>Mark paid</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : '<p class="small muted">No claim yet. Officials submit them from their page, one per receipt.</p>'}
+      ${officials.length ? `<div class="table-wrap"><table><thead><tr><th>Official</th><th>How to pay</th><th>To decide</th><th>To pay</th><th>Paid</th><th></th></tr></thead><tbody>${officials.map(aid => { const x = live.filter(c => c.assignment_id === aid), toPay = sum(x.filter(c => c.status === "approved"), due), req = x.filter(c => c.status === "approved" && c.payment_request_sent_at); return `<tr><td><strong>${esc(name(aid))}</strong></td><td class="small">${handle(aid)}</td><td>${usd(sum(x.filter(c => c.status === "submitted"), c => c.amount))}</td><td><strong>${usd(toPay)}</strong>${req.length ? `<div class="small muted">requested ${NRC.fmtDate(String(req[0].payment_request_sent_at).slice(0, 10))}</div>` : ""}</td><td>${usd(sum(x.filter(c => c.status === "reimbursed"), due))}</td><td>${toPay && !S.admin ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._pay('${aid}')" ${T("Records that you paid this official every approved claim, with the method and reference.")}>Mark paid</button>` : ""}</td></tr>`; }).join("")}</tbody></table></div>` : '<p class="small muted">No claim yet. Officials submit them from their page, one per receipt.</p>'}
       <h4 style="margin:16px 0 6px">Claims</h4>
       <div class="chips" style="margin-bottom:8px">${FILTERS.map(([k, l, n]) => `<button type="button" class="chip ${S.filter === k ? "on" : ""}" onclick="NRC.Exp._filter('${k}',this)">${l} (${n})</button>`).join("")}</div>
       ${shown.length ? shown.map(c => claimCard(c, S)).join("") : '<p class="small muted">Nothing here.</p>'}`;
@@ -294,7 +296,7 @@
   }
   function claimCard(c, S) {
     const st = ST_ORG[c.status] || [c.status, ""], T = s => tip(s, S.admin);
-    const acts = c.status === "submitted"
+    const acts = S.admin ? "" : c.status === "submitted"
       ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._approve('${c.id}')" ${T("Approves this claim in full or for a lower amount.")}>Approve</button><button class="btn sm neg" type="button" onclick="NRC.Exp._set('${c.id}','rejected')" ${T("Declines this claim. You give the reason; the official sees it.")}>Decline</button>`
       : c.status === "approved" ? `<button class="btn sm pos" type="button" onclick="NRC.Exp._pay('${c.assignment_id}','${c.id}')" ${T("Records that this claim is paid.")}>Mark paid</button><button class="btn sm ghost" type="button" onclick="NRC.Exp._set('${c.id}','submitted')" ${T("Puts the claim back to decide." + (c.payment_request_sent_at ? " The payment request already sent is not withdrawn: tell your payment contact." : ""))}>Undo</button>`
       : c.status === "rejected" ? `<button class="btn sm ghost" type="button" onclick="NRC.Exp._set('${c.id}','submitted')" ${T("Puts the claim back to decide.")}>Undo</button>`
@@ -319,7 +321,6 @@
     const S = S0(), c = S.C.find(x => x.id === id); if (!c) return;
     const patch = { status };
     if (status === "rejected") { const why = prompt("Reason for declining (the official sees it):", c.review_note || ""); if (why === null) return; if (!why.trim()) { alert("Give a reason so the official understands the decision."); return; } patch.review_note = why.trim(); }
-    if (S.admin && status === "rejected" && c.status === "submitted" && !confirm("The organizer approves expenses. Record this decision for the organizer?")) return;
     if (status === "submitted" && c.status === "approved" && c.payment_request_sent_at && !confirm(`A payment request for this claim went to ${c.payment_request_to || "the payment contact"} on ${NRC.fmtDate(String(c.payment_request_sent_at).slice(0, 10))}. Undoing the approval does not withdraw that email: tell them not to pay it. Continue?`)) return;
     if (c.status === "reimbursed") { patch.paid_at = null; patch.paid_method = null; patch.paid_reference = null; }
     const { error } = await NRC.sb.from("expense_claims").update(patch).eq("id", id);
@@ -350,7 +351,6 @@
         if (!(amt > 0) || amt > max + 0.004) { NRC.notice($("#xa-msg"), "Enter an amount between $0.01 and the " + usd(max) + " claimed. To refuse the claim, decline it.", "error"); return; }
         const lower = amt < max - 0.004;
         if (lower && !f.why.value.trim()) { NRC.notice($("#xa-msg"), "Give the reason for the lower amount.", "error"); return; }
-        if (S.admin && !confirm("The organizer approves expenses. Record this decision for the organizer?")) return;
         const patch = { status: "approved", approved_amount: lower ? amt : null };
         if (lower) patch.review_note = f.why.value.trim();
         const btn = f.querySelector("button[type=submit]"); btn.disabled = true;
@@ -368,7 +368,7 @@
   }
   async function bulkApprove(btn) {
     const S = S0(), ids = S.C.filter(c => c.status === "submitted" && c.coverage === "covered" && c.reimbursed_by !== "nrc").map(c => c.id);
-    if (!ids.length || !confirm(`Approve ${ids.length === 1 ? "1 claim" : ids.length + " claims"} within the agreement, ${usd(sum(S.C.filter(c => ids.includes(c.id)), c => c.amount))} in total?${S.admin ? " The decision is recorded as made by the NRC for the organizer." : ""}${S.t.payment_requests_auto === false ? "" : " Payment requests go out straight away."}`)) return;
+    if (!ids.length || !confirm(`Approve ${ids.length === 1 ? "1 claim" : ids.length + " claims"} within the agreement, ${usd(sum(S.C.filter(c => ids.includes(c.id)), c => c.amount))} in total?${S.t.payment_requests_auto === false ? "" : " Payment requests go out straight away."}`)) return;
     btn.disabled = true;
     const { error } = await NRC.sb.from("expense_claims").update({ status: "approved" }).in("id", ids);
     btn.disabled = false; if (error) { alert(error.message); return; } afterApprove(S);

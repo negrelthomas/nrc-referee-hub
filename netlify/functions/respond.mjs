@@ -16,10 +16,17 @@ export default async (req) => {
     if (r.status !== "confirmed") return json(200, { already: true, status: r.status === "declined" ? "declined" : "not designated", tournament: r.tournaments, name: r.referees?.first_name });
     const now = new Date().toISOString();
     await admin.from("assignment_requests").update({ status: "declined", responded_at: now, response_note: "Declined after designation" + (note ? ": " + note : "") }).eq("id", r.id);
-    await admin.from("assignments").delete().eq("tournament_id", r.tournament_id).eq("referee_id", r.referee_id);
+    // open expense claims keep the designation until the NRC settles them (see settlement.mjs); otherwise released at once
+    const { data: asg } = await admin.from("assignments").select("id").eq("tournament_id", r.tournament_id).eq("referee_id", r.referee_id).maybeSingle();
+    const { data: openClaims } = asg ? await admin.from("expense_claims").select("amount,approved_amount,status").eq("assignment_id", asg.id).in("status", ["submitted", "approved"]) : { data: [] };
+    const held = (openClaims || []).length > 0, heldTotal = (openClaims || []).reduce((n, c) => n + Number(c.status === "approved" && c.approved_amount != null ? c.approved_amount : c.amount), 0);
+    if (asg && !held) await admin.from("assignments").delete().eq("id", asg.id);
     const t = r.tournaments || {}, who = [r.referees?.first_name, r.referees?.last_name].filter(Boolean).join(" ");
     const subject = `${who} declined after designation: ${t.name}, ${fmtDate(t.start_date)}`;
-    const html = `<p>${who} (${r.referees?.email || ""}) declined <strong>${t.name}</strong>, ${fmtDate(t.start_date)} to ${fmtDate(t.end_date)}, from the designation email.</p>${note ? "<p>Note: " + String(note).replace(/[<>&]/g, "") + "</p>" : ""}<p>The referee is off the team and their weekend is free again on their calendar. Pick a replacement from Find referees: ${(SITE_URL || "https://nrc-referee-hub.netlify.app")}/admin/</p>`;
+    const admUrl = (SITE_URL || "https://nrc-referee-hub.netlify.app") + "/admin/";
+    const html = `<p>${who} (${r.referees?.email || ""}) declined <strong>${t.name}</strong>, ${fmtDate(t.start_date)} to ${fmtDate(t.end_date)}, from the designation email.</p>${note ? "<p>Note: " + String(note).replace(/[<>&]/g, "") + "</p>" : ""}` +
+      (held ? `<p>${who} has ${openClaims.length} open expense claim${openClaims.length > 1 ? "s" : ""} on this event ($${heldTotal.toFixed(2)}), so the designation stays on the hub until they are settled. Use Remove on Designated and travel to send the organizer a settlement notice (15 days), then remove the referee. Pick a replacement from Find referees in the meantime: ${admUrl}</p>`
+            : `<p>The referee is off the team and their weekend is free again on their calendar. Pick a replacement from Find referees: ${admUrl}</p>`);
     const m = await sendMail({ to: CONTACT_EMAIL || "referee@handballusa.org", subject, html });
     await admin.from("email_log").insert({ to_email: CONTACT_EMAIL || "referee@handballusa.org", subject, kind: "withdraw", sent: m.sent, error: m.error });
     return json(200, { status: "withdrawn", tournament: t, name: r.referees?.first_name });

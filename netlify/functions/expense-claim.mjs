@@ -18,7 +18,6 @@ import { sendMail } from "./mailer.mjs";
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const KINDS_CLAIMANT = ["flight", "hotel", "transport", "car"];
-const KINDS_ALL = ["flight", "hotel", "transport", "car", "per_diem", "mileage", "other"];
 const CAT_TO_KIND = { airfare: "flight", hotel: "hotel", rideshare_taxi: "transport", car_rental: "car" };
 const isoDate = s => /^\d{4}-\d{2}-\d{2}$/.test(String(s || "")) && !isNaN(new Date(s + "T12:00:00"));
 const addDays = (d, n) => { const x = new Date(d + "T12:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
@@ -160,8 +159,9 @@ export default async (req) => {
     const { data: asg } = await sb.from("assignments").select("id,tournament_id,referee_id,guest_official_id, referees(user_id), guest_officials(user_id), tournaments(name,start_date,end_date)").eq("id", c.assignment_id).maybeSingle();
     if (!asg) return json(404, { error: "Assignment not found" });
     const own = (asg.referees && asg.referees.user_id === uid) || (asg.guest_officials && asg.guest_officials.user_id === uid);
-    if (!own && !isAdmin) return json(403, { error: "You can claim expenses only for events you are designated for" });
-    const kinds = isAdmin ? KINDS_ALL : KINDS_CLAIMANT;
+    // only the official claims; the NRC can view claims but not create them (organizer owns the expenses of the event)
+    if (!own) return json(403, { error: "You can claim expenses only for events you are designated for" });
+    const kinds = KINDS_CLAIMANT;
     if (!kinds.includes(c.kind)) return json(400, { error: "Choose a category: Airfare, Hotel, Rideshare and taxis, or Car rental and related." });
     const amountOriginal = Math.round(Number(c.amount_original) * 100) / 100;
     if (!(amountOriginal > 0) || amountOriginal > 50000) return json(400, { error: "Enter the total paid, as printed on the receipt." });
@@ -171,7 +171,7 @@ export default async (req) => {
     if (c.purchase_date > addDays(today(), 1) || c.purchase_date < addDays(today(), -730)) return json(400, { error: "The date of purchase looks wrong." });
     const receipt = c.receipt_url ? String(c.receipt_url) : null;
     if (c.kind !== "per_diem" && c.kind !== "mileage" && !receipt) return json(400, { error: "Attach the receipt. Every claim except the food per diem needs one." });
-    if (receipt && !isAdmin && !receipt.startsWith(uid + "/")) return json(403, { error: "Receipt not yours" });
+    if (receipt && !receipt.startsWith(uid + "/")) return json(403, { error: "Receipt not yours" });
     const nights = c.kind === "hotel" && c.nights != null && c.nights !== "" ? parseInt(c.nights, 10) : null;
     if (nights != null && (isNaN(nights) || nights < 0 || nights > 60)) return json(400, { error: "Number of nights looks wrong." });
 

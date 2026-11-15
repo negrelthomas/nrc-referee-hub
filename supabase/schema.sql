@@ -1033,7 +1033,7 @@ create table if not exists public.expense_claims (
 );
 alter table public.expense_claims enable row level security;
 drop policy if exists exp_admin on public.expense_claims;
-create policy exp_admin on public.expense_claims for all using (public.is_admin()) with check (public.is_admin());
+create policy exp_admin on public.expense_claims for select using (public.is_admin());   -- read only since expenses_v4
 drop policy if exists exp_referee on public.expense_claims;
 create policy exp_referee on public.expense_claims for all
   using (assignment_id in (select a.id from public.assignments a join public.referees r on r.id = a.referee_id where r.user_id = auth.uid()))
@@ -1047,6 +1047,7 @@ grant select, insert, update, delete on public.expense_claims to authenticated;
 -- Receipts bucket (private; signed URLs)
 insert into storage.buckets (id, name, public) values ('receipts', 'receipts', false) on conflict (id) do nothing;
 drop policy if exists receipts_own on storage.objects;
+-- superseded by expenses_v4_organizer_only.sql: admins read receipts only
 create policy receipts_own on storage.objects for all
   using (bucket_id = 'receipts' and (public.is_admin() or (storage.foldername(name))[1] = auth.uid()::text))
   with check (bucket_id = 'receipts' and (public.is_admin() or (storage.foldername(name))[1] = auth.uid()::text));

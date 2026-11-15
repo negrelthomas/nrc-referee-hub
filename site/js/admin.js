@@ -629,7 +629,7 @@
   }
 
   // ---------- designated and travel ----------
-  let desRows = [], travelRows = [], noInvite = [];
+  let desRows = [], travelRows = [], noInvite = [], settleRows = [];
   // Designated before the hub tracked invitations (acceptance given by email or in person): the admin records it
   window.openRecordAccept = function (ids) {
     ids = (ids || noInvite).filter(Boolean); if (!ids.length) return;
@@ -708,6 +708,8 @@
     const ids = desRows.map(a => a.id);
     const { data: tb } = ids.length ? await sb().from("travel_bookings").select("*").in("assignment_id", ids).order("start_at") : { data: [] };
     travelRows = tb || [];
+    const { data: st } = ids.length ? await sb().from("expense_settlements").select("assignment_id,cure_until,notice_sent_at").in("assignment_id", ids).eq("status", "notice") : { data: [] };
+    settleRows = st || [];
     const need = currentTour.pairs_needed * 2; const refsConfirmed = usath.filter(a => a.role === "referee").length;
     const openList = (acc || []).filter(a => !desRows.find(d => d.referee_id === a.referee_id));
     $("#des-summary").innerHTML = `<span class="chip ${refsConfirmed >= need ? "on" : ""}">${refsConfirmed}/${need} USATH referees designated</span>${currentTour.pairs_organizer ? `<span class="chip ${new Set(guests.map(a => a.guest_officials.pair_key || a.guest_official_id)).size >= currentTour.pairs_organizer ? "on" : ""}">${new Set(guests.map(a => a.guest_officials.pair_key || a.guest_official_id)).size}/${currentTour.pairs_organizer} organizer pair${currentTour.pairs_organizer > 1 ? "s" : ""} named</span>` : ""}<span class="chip">${usath.filter(a => a.role !== "referee").length} supervisor or observer${currentTour.supervisor_needed ? " (requested)" : ""}</span><span class="chip">${NRC.bookingShort(currentTour)}</span>` + (openList.length ? `<span class="chip">Open to officiate, not designated: ${openList.map(a => NRC.esc(refName(a.referee_id)) + (a.status === "tentative" ? " (tentative)" : "")).join("; ")}</span>` : "");
@@ -721,7 +723,7 @@
     usPairCount = pn;
     const desRow = (a, cls, tag) => { const r = refs.find(x => x.id === a.referee_id) || {};
       const blk = unavailable(a.referee_id); const st = overrideOf(a.referee_id) ? "available" : blk && a.confirmed_at && new Date(blk.created_at) > new Date(a.confirmed_at) ? "blocked" : weekendStatus(a.referee_id) === "booked" ? "unavailable" : "available";
-      return `<tr class="${cls || ""}"><td><strong>${refLink(a.referee_id)}</strong>${tag || ""}${noInvite.includes(a.referee_id) ? ` <span class="pill amber" title="Designated without an invitation on the hub">no acceptance on file</span> <button class="btn sm pos-line" type="button" onclick="openRecordAccept(['${a.referee_id}'])" data-tip="Records that this referee accepted outside the hub, with how and when.">Record acceptance</button>` : ""}${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared by the referee after the designation">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(NRC.roleLabel(a.role))}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join("; "))}${NRC.airports(r).length ? " (" + NRC.esc(NRC.airportsText(r)) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td><button class="btn sm neg" type="button" onclick="removeDesignated('${a.id}')" data-tip="Takes the referee off the team, frees their weekend and reopens their invitation as declined so you can pick a replacement.">Remove</button></td></tr>`; };
+      return `<tr class="${cls || ""}"><td><strong>${refLink(a.referee_id)}</strong>${tag || ""}${noInvite.includes(a.referee_id) ? ` <span class="pill amber" title="Designated without an invitation on the hub">no acceptance on file</span> <button class="btn sm pos-line" type="button" onclick="openRecordAccept(['${a.referee_id}'])" data-tip="Records that this referee accepted outside the hub, with how and when.">Record acceptance</button>` : ""}${st === "blocked" || st === "unavailable" ? ` <span class="pill red" title="Declared by the referee after the designation">conflict: ${NRC.esc(availWord(a.referee_id))}</span>${ovBtn(a.referee_id)}` : ""} ${ovPill(a.referee_id)}<br><span class="small muted">${NRC.esc(r.email || "")}${r.phone ? ", " + NRC.esc(r.phone) : ""}</span></td><td>${NRC.esc(NRC.roleLabel(a.role))}</td><td class="small">${NRC.esc([r.home_city, r.home_state].filter(Boolean).join("; "))}${NRC.airports(r).length ? " (" + NRC.esc(NRC.airportsText(r)) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td><button class="btn sm neg" type="button" onclick="removeDesignated('${a.id}')" data-tip="Takes the referee off the team, frees their weekend and reopens their invitation as declined so you can pick a replacement. With open expense claims, sends the organizer a settlement notice first.">Remove</button></td></tr>`; };
     $("#des tbody").innerHTML = ordered.map(o => desRow(o.a, "pt pt" + ((o.n - 1) % 4), ` <span class="pill pair-n">pair ${o.n}</span>${o.solo ? ' <span class="pill amber" title="No partner on file among the designated referees">no partner</span>' : ""}`)).join("") || '<tr><td colspan="5">No USATH referee designated yet. Designate accepted referees on the Answers tab.</td></tr>';
     $("#des-off tbody").innerHTML = usOff.map(a => desRow(a, "", "")).join("") || `<tr><td colspan="5" class="muted">${currentTour.supervisor_needed ? "Supervisor requested, none designated yet." : "None designated. The organizer did not request a supervisor."}</td></tr>`;
     // guest pairs: grouped by pair, numbered in the order they were added
@@ -732,13 +734,13 @@
     $("#btn-guest-add").disabled = keys.length >= declared;
     $("#guests tbody").innerHTML = guests.map(a => { const g = a.guest_officials, k = g.pair_key || a.guest_official_id;
       return `<tr class="pt pt${(usPairCount + keys.indexOf(k)) % 4}"><td><strong>${NRC.esc(asgName(a))}</strong> <span class="pill pair-n">pair ${usPairCount + keys.indexOf(k) + 1}</span> <span class="pill">organizer</span> ${guestAccount(g)} <span class="pill ${guestDone(g) === 100 ? "green" : "amber"}" title="Profile completed by the referee or the NRC: photo, phone, home, airport, level, reimbursement">profile ${guestDone(g)}%</span><br><span class="small muted">${NRC.esc(g.email || "no email")}${g.phone ? ", " + NRC.esc(g.phone) : ""}</span>
-        <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${g.email && !g.user_id ? `<button class="btn sm secondary" type="button" onclick="sendGuestLinks(['${g.id}'])" data-tip="Emails this referee a sign in link to their page on the hub: the event, the team, travel, expenses and optional training.">${g.invited_at ? "Resend sign in link" : "Send sign in link"}</button>` : ""}<a class="btn sm ghost" href="../profile.html?guest=${g.id}" target="_blank" rel="noopener" data-tip="Opens this referee's page as they see it, read only.">View as the referee</a><button class="btn sm ghost" type="button" onclick="openTest('physical','${g.id}')" data-tip="Records a physical test this referee took, if they chose to. Optional for referees from outside USATH.">Record physical test</button></div></td><td class="small">${NRC.esc(g.federation)}</td><td class="small">${NRC.esc(g.home_city || "")}${g.home_airport_iata ? " (" + NRC.esc(g.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td style="white-space:nowrap"><button class="btn sm ghost" type="button" onclick="openGuestPair('${k}')" data-tip="Edits the names, contact details and federation of this pair.">Edit</button> <button class="btn sm neg" type="button" onclick="removeDesignated('${a.id}')" data-tip="Removes both referees of this organizer pair from the event, with their bookings and expense claims on it.">Remove pair</button></td></tr>`; }).join("") || `<tr><td colspan="5" class="muted">${currentTour.pairs_organizer ? "No organizer pair named yet." : "The organizer declared no pair from outside USATH."}</td></tr>`;
+        <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap">${g.email && !g.user_id ? `<button class="btn sm secondary" type="button" onclick="sendGuestLinks(['${g.id}'])" data-tip="Emails this referee a sign in link to their page on the hub: the event, the team, travel, expenses and optional training.">${g.invited_at ? "Resend sign in link" : "Send sign in link"}</button>` : ""}<a class="btn sm ghost" href="../profile.html?guest=${g.id}" target="_blank" rel="noopener" data-tip="Opens this referee's page as they see it, read only.">View as the referee</a><button class="btn sm ghost" type="button" onclick="openTest('physical','${g.id}')" data-tip="Records a physical test this referee took, if they chose to. Optional for referees from outside USATH.">Record physical test</button></div></td><td class="small">${NRC.esc(g.federation)}</td><td class="small">${NRC.esc(g.home_city || "")}${g.home_airport_iata ? " (" + NRC.esc(g.home_airport_iata) + ")" : ""}</td><td class="small">${bookingsCell(a)}</td><td style="white-space:nowrap"><button class="btn sm ghost" type="button" onclick="openGuestPair('${k}')" data-tip="Edits the names, contact details and federation of this pair.">Edit</button> <button class="btn sm neg" type="button" onclick="removeDesignated('${a.id}')" data-tip="Removes both referees of this organizer pair from the event, with their bookings on it. With open expense claims, sends the organizer a settlement notice first.">Remove pair</button></td></tr>`; }).join("") || `<tr><td colspan="5" class="muted">${currentTour.pairs_organizer ? "No organizer pair named yet." : "The organizer declared no pair from outside USATH."}</td></tr>`;
     $("#des-ref").innerHTML = refs.filter(r => r.active && !desRows.find(d => d.referee_id === r.id)).map(r => `<option value="${r.id}">${NRC.esc(r.last_name + ", " + r.first_name)} (${NRC.levelLabel(r.cert_level).replace(" (National)", "")})</option>`).join("");
     renderSnap();
   }
   function bookingsCell(a) {
-    const bk = travelRows.filter(b => b.assignment_id === a.id);
-    return (bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>') + `<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)" data-tip="Records a flight, hotel or car booking for this official so they see it on their trip.">Add booking</button></div>`;
+    const bk = travelRows.filter(b => b.assignment_id === a.id), st = settleRows.find(x => x.assignment_id === a.id);
+    return (st ? `<div><span class="pill amber" title="Settlement notice sent to the organizer on ${NRC.fmtDate(String(st.notice_sent_at).slice(0, 10))}. Removal possible after the deadline.">Claims to settle by ${NRC.fmtDate(st.cure_until)}</span></div>` : "") + (bk.map(b => `<div>${KIND[b.kind]}: ${NRC.esc(b.provider || "")} ${NRC.esc(b.reference || "")} ${fmtDT(b.start_at)}${b.end_at ? " to " + fmtDT(b.end_at) : ""}${b.cost ? " $" + b.cost : ""} <span class="pill ${b.status === "booked" ? "green" : b.status === "cancelled" ? "red" : "amber"}">${b.status}</span> <a href="#" onclick="openTravel('${a.id}','${b.id}');return false">edit</a></div>`).join("") || '<span class="muted">none</span>') + `<div style="margin-top:4px"><button class="btn sm ghost" type="button" onclick="openTravel('${a.id}',null)" data-tip="Records a flight, hotel or car booking for this official so they see it on their trip.">Add booking</button></div>`;
   }
   // ---------- organizer pairs from outside USATH (guests) ----------
   // Rule: always the organizer's pairs; the NRC or the organizer names them, within pairs_organizer. Enforced in save_guest_pair.
@@ -805,16 +807,58 @@
     if (error) { alert(error.message); return; }
     renderDesignated(); renderTourAsg();
   };
+  // ---------- open expense claims: settle before removing an official ----------
+  // true when nothing is open (the caller removes as usual); otherwise shows the settlement step and returns false
+  async function settleGate(ids) {
+    const { data: cl } = await sb().from("expense_claims").select("id,assignment_id,amount,approved_amount,status").in("assignment_id", ids).in("status", ["submitted", "approved"]);
+    if (!(cl || []).length) return true;
+    const { data: st } = await sb().from("expense_settlements").select("assignment_id,cure_until,notice_sent_at,notice_count").in("assignment_id", ids).eq("status", "notice");
+    const usd = n => "$" + Number(n).toFixed(2), owed = c => Number(c.status === "approved" && c.approved_amount != null ? c.approved_amount : c.amount);
+    const who = [...new Set(cl.map(c => c.assignment_id))].map(x => { const a = desRows.find(d => d.id === x); return a ? asgName(a) : "Official"; }).join(" and ");
+    const total = cl.reduce((n, c) => n + owed(c), 0), wait = cl.filter(c => c.status === "submitted").length, unpaid = cl.length - wait;
+    const today = NRC.localDate(), notices = st || [];
+    const cure = notices.map(x => x.cure_until).sort().slice(-1)[0], sent = notices.map(x => x.notice_sent_at).sort()[0];
+    const allNoticed = [...new Set(cl.map(c => c.assignment_id))].every(x => notices.some(n => n.assignment_id === x));
+    const after = d => { const x = new Date(d + "T12:00:00"); x.setDate(x.getDate() + 1); return x.toISOString().slice(0, 10); };
+    const phase = !allNoticed ? "notice" : cure >= today ? "waiting" : "handover";
+    if (!$("#dlg-settle")) document.body.insertAdjacentHTML("beforeend", `<dialog id="dlg-settle" style="max-width:560px"><div class="body"><div style="display:flex;justify-content:space-between;align-items:center"><h3 style="margin:0">Open expense claims</h3><button class="btn sm neg" type="button" onclick="document.getElementById('dlg-settle').close()" data-tip="Closes without changing anything.">Close</button></div><div id="settle-body" style="margin-top:10px"></div><div id="settle-msg" class="notice hidden" style="margin-top:10px"></div><p id="settle-acts" style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"></p></div></dialog>`);
+    const summary = `<p class="small"><strong>${NRC.esc(who)}</strong> ${cl.length === 1 ? "has 1 open claim" : "have " + cl.length + " open claims"} on this event, <strong>${usd(total)}</strong>: ${[wait ? wait + " waiting for the organizer's decision" : "", unpaid ? unpaid + " approved and not paid" : ""].filter(Boolean).join(", ")}. The organizer owns these claims; the NRC cannot remove ${cl.length === 1 ? "this official" : "these officials"} while they are open.</p>`;
+    const body = {
+      notice: summary + `<p class="small">Send the organizer a settlement notice: the list of open claims and 15 days to decide and pay them on the hub, copied to the official${ids.length > 1 ? "s" : ""}. After the deadline you can remove ${ids.length > 1 ? "them" : "the official"}: the hub then emails the organizer a handover of anything still open (details, payout details, receipts) and the NRC declines any further responsibility.</p>`,
+      waiting: summary + `<p class="small">Settlement notice sent on ${NRC.fmtDate(String(sent).slice(0, 10))}. The organizer has until <strong>${NRC.fmtDate(cure)}</strong>. Removal is possible from ${NRC.fmtDate(after(cure))}, or as soon as every claim is decided and paid.</p>`,
+      handover: summary + `<p class="small">The deadline of ${NRC.fmtDate(cure)} has passed. <strong>Send handover and remove</strong> emails the organizer every open claim with its details, the officials' payout details and the receipts attached, copied to the official${ids.length > 1 ? "s" : ""} and the NRC, states that the NRC declines any further responsibility, then removes ${ids.length > 1 ? "them" : "the official"} from the event. The claims leave the hub.</p>`
+    }[phase];
+    const acts = {
+      notice: `<button class="btn secondary" type="button" id="settle-go" data-tip="Emails the organizer the open claims with a 15 day deadline, copied to the officials and the NRC.">Send settlement notice</button>`,
+      waiting: `<button class="btn secondary" type="button" id="settle-go" data-tip="Sends the same notice again. The deadline does not change.">Resend notice</button>`,
+      handover: `<button class="btn neg" type="button" id="settle-go" data-tip="Emails the organizer the handover with the receipts, then removes the officials from the event.">Send handover and remove</button>`
+    }[phase];
+    $("#settle-body").innerHTML = body; $("#settle-acts").innerHTML = acts; $("#settle-msg").classList.add("hidden");
+    $("#settle-go").onclick = async () => {
+      const btn = $("#settle-go"); btn.disabled = true;
+      const { data: s0 } = await sb().auth.getSession();
+      const res = await fetch("/api/settlement", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + (s0.session ? s0.session.access_token : "") }, body: JSON.stringify({ action: phase === "handover" ? "close" : "notice", tournament_id: currentTour.id, assignment_ids: ids }) }).catch(() => null);
+      const d = res ? await res.json().catch(() => ({})) : { error: "Network error" }; btn.disabled = false;
+      if (!res || !res.ok) { NRC.notice($("#settle-msg"), NRC.esc(d.error || "Could not complete."), "error"); return; }
+      $("#dlg-settle").close();
+      toast(phase === "handover" ? `Handover sent to ${d.handover ? d.handover.to : "the organizer"} with ${d.handover ? d.handover.receipts : 0} receipt(s); ${d.removed} official(s) removed.` : `Notice sent to ${d.to}; deadline ${NRC.fmtDate(d.cure_until)}.`, "ok");
+      renderDesignated(); renderTourAsg(); if (typeof renderInvites === "function") renderInvites();
+    };
+    $("#dlg-settle").showModal();
+    return false;
+  }
   window.removeDesignated = async function (id) {
     const a = desRows.find(x => x.id === id); if (!a) return;
+    const pairIds = a.guest_official_id ? desRows.filter(x => x.guest_official_id && (x.guest_officials.pair_key || x.guest_official_id) === (a.guest_officials.pair_key || a.guest_official_id)).map(x => x.id) : [id];
+    if (!(await settleGate(pairIds))) return;
     if (a.guest_official_id) {
       const k = a.guest_officials.pair_key || a.guest_official_id, both = desRows.filter(x => x.guest_official_id && (x.guest_officials.pair_key || x.guest_official_id) === k).map(asgName).join(" and ");
-      if (!confirm("Remove the organizer pair " + both + " from this tournament? Their bookings and expense claims on this event are deleted with it.")) return;
+      if (!confirm("Remove the organizer pair " + both + " from this tournament? Their bookings on this event are deleted with it.")) return;
       const { error } = await sb().rpc("remove_guest_pair", { p_tournament: currentTour.id, p_pair_key: k }); if (error) { alert(error.message); return; }
       renderDesignated(); renderTourAsg(); return;
     }
     if (!confirm("Remove " + refName(a.referee_id) + " from this tournament? Their invitation is marked declined so you can pick a replacement.")) return;
-    await sb().from("assignments").delete().eq("id", id);
+    const del = await sb().from("assignments").delete().eq("id", id); if (del.error) { alert(del.error.message.replace(/^OPEN_CLAIMS: /, "")); return; }
     await sb().from("assignment_requests").update({ status: "declined", response_note: "Removed by the NRC after designation" }).eq("tournament_id", currentTour.id).eq("referee_id", a.referee_id);
     renderDesignated(); renderInvites(); renderTourAsg();
   };
@@ -825,21 +869,9 @@
     const a = desRows.find(x => x.id === assignmentId); $("#dlg-travel-title").textContent = "Travel booking, " + (a ? asgName(a) : "");
     if (currentTravel) { ["kind", "status", "provider", "reference", "from_place", "to_place", "cost", "paid_by", "notes"].forEach(k => { if (f[k]) f[k].value = currentTravel[k] == null ? "" : currentTravel[k]; }); f.start_at.value = toLocal(currentTravel.start_at); f.end_at.value = toLocal(currentTravel.end_at); }
     $("#btn-travel-delete").classList.toggle("hidden", !currentTravel);
-    $("#btn-travel-claim").classList.toggle("hidden", !(currentTravel && currentTravel.paid_by === "referee" && currentTravel.status === "booked" && currentTravel.cost));
     $("#dlg-travel").showModal();
   };
   if (NRC.Flights) NRC.Flights.attach($("#form-travel"), { base: (f) => { const r = { assignment_id: f.assignment_id.value }; ["status", "paid_by", "notes"].forEach(k => r[k] = f[k].value.trim() || null); return r; }, onSaved: (n) => { $("#dlg-travel").close(); toast(n + " flight bookings saved.", "ok"); renderDesignated(); } });
-  // a booking the official paid becomes an approved claim, linked to the booking so it is never claimed twice
-  const CLAIM_KIND = { flight: "flight", hotel: "hotel", car: "car", train: "transport", other: "other" };
-  $("#btn-travel-claim").addEventListener("click", async () => {
-    const b = currentTravel; if (!b) return;
-    const { data: ex } = await sb().from("expense_claims").select("id,status,amount").eq("booking_id", b.id).maybeSingle();
-    if (ex) { alert(`This booking is already claimed ($${Number(ex.amount).toFixed(2)}, ${ex.status}). See the Expenses section.`); return; }
-    if (!confirm(`Create a claim of $${Number(b.cost).toFixed(2)} for this booking? It goes to the organizer, who approves and pays it.`)) return;
-    const { error } = await sb().from("expense_claims").insert({ assignment_id: b.assignment_id, booking_id: b.id, kind: CLAIM_KIND[b.kind] || "other", amount: b.cost, amount_original: b.cost, currency: b.currency || "USD", fx_rate: 1, fx_source: "Booking recorded on the hub, USD", purchase_date: (b.created_at || new Date().toISOString()).slice(0, 10), merchant: b.provider || null, description: [KIND[b.kind], b.provider, b.reference].filter(Boolean).join(" "), status: "submitted", reimbursed_by: "organizer", submitted_by: user.id, claimant_notified_status: "submitted" });
-    if (error) { alert(error.message); return; }
-    toast("Claim created.", "ok"); $("#dlg-travel").close(); renderMoney();
-  });
   $("#form-travel").addEventListener("submit", async (e) => {
     e.preventDefault(); const f = e.target; const row = { assignment_id: f.assignment_id.value };
     ["kind", "status", "provider", "reference", "from_place", "to_place", "paid_by", "notes"].forEach(k => row[k] = f[k].value.trim() || null);
@@ -871,7 +903,7 @@
         paid: sum(B, b => b.cost), unclaimed: sum(B.filter(b => !claimed.has(b.id)), b => b.cost), review: sum(C.filter(c => c.status === "submitted"), c => c.amount), due: sum(C.filter(c => c.status === "approved"), c => c.approved_amount ?? c.amount), done: sum(C.filter(c => c.status === "reimbursed"), c => c.approved_amount ?? c.amount) };
     }).filter(r => r.paid || r.review || r.due || r.done || r.guest).sort((x, y) => x.name.localeCompare(y.name));
     const tot = k => payeeRows.reduce((n, r) => n + r[k], 0);
-    $("#payees tbody").innerHTML = payeeRows.length ? payeeRows.map(r => `<tr><td><strong>${NRC.esc(r.name)}</strong>${r.guest ? ' <span class="pill">guest, ' + NRC.esc(r.federation) + "</span>" : ""}</td><td>${usd(r.paid)}</td><td>${r.unclaimed ? '<span class="pill amber" title="Open the booking on Designated and travel and use Create claim">$' + r.unclaimed.toFixed(2) + "</span>" : usd(0)}</td><td>${usd(r.review)}</td><td><strong>${usd(r.due)}</strong></td><td>${usd(r.done)}</td><td class="small">${NRC.esc(r.how)}</td></tr>`).join("") + `<tr><td><strong>Total</strong></td><td>${usd(tot("paid"))}</td><td>${usd(tot("unclaimed"))}</td><td>${usd(tot("review"))}</td><td><strong>${usd(tot("due"))}</strong></td><td>${usd(tot("done"))}</td><td></td></tr>` : '<tr><td colspan="7" class="muted">Nothing paid or claimed yet.</td></tr>';
+    $("#payees tbody").innerHTML = payeeRows.length ? payeeRows.map(r => `<tr><td><strong>${NRC.esc(r.name)}</strong>${r.guest ? ' <span class="pill">guest, ' + NRC.esc(r.federation) + "</span>" : ""}</td><td>${usd(r.paid)}</td><td>${r.unclaimed ? '<span class="pill amber" title="Booked travel the official paid and has not claimed yet. The official claims it from their page.">$' + r.unclaimed.toFixed(2) + "</span>" : usd(0)}</td><td>${usd(r.review)}</td><td><strong>${usd(r.due)}</strong></td><td>${usd(r.done)}</td><td class="small">${NRC.esc(r.how)}</td></tr>`).join("") + `<tr><td><strong>Total</strong></td><td>${usd(tot("paid"))}</td><td>${usd(tot("unclaimed"))}</td><td>${usd(tot("review"))}</td><td><strong>${usd(tot("due"))}</strong></td><td>${usd(tot("done"))}</td><td></td></tr>` : '<tr><td colspan="7" class="muted">Nothing paid or claimed yet.</td></tr>';
   }
   window.exportPayees = function () {
     if (!payeeRows.length) { alert("Nothing to export yet."); return; }
@@ -880,12 +912,6 @@
     const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }));
     a.download = `reimbursements_${currentTour.name.replace(/[^\w]+/g, "_")}_${currentTour.start_date}.csv`; a.click();
   };
-  window.openClaim = function () {
-    if (!moneyAsg.length) { alert("Nobody designated yet."); return; }
-    const officials = moneyAsg.slice().sort((x, y) => asgName(x).localeCompare(asgName(y))).map(a => ({ assignment_id: a.id, name: asgName(a) + (a.guest_official_id ? " (guest)" : "") }));
-    NRC.Exp.openClaim(officials[0].assignment_id, { admin: true, officials, onDone: (note) => { if (note) toast(note, "ok"); renderMoney(); } });
-  };
-  window.setClaim = async function (id, patch) { if (patch.status) { patch.reviewed_by = user.id; patch.reviewed_at = new Date().toISOString(); } const { error } = await sb().from("expense_claims").update(patch).eq("id", id); if (error) alert(error.message); else renderMoney(); };
   window.openReceipt = async function (path) { const { data, error } = await sb().storage.from("receipts").createSignedUrl(path, 300); if (error) { alert(error.message); return; } window.open(data.signedUrl, "_blank"); };
 
   // ---------- tournaments ----------
@@ -1250,7 +1276,7 @@
     const g = $("#asg-games").value; const { error } = await sb().from("assignments").upsert({ tournament_id: currentTour.id, referee_id: $("#asg-ref").value, role: "referee", games_officiated: g === "" ? null : parseInt(g, 10) }, { onConflict: "tournament_id,referee_id" });
     if (error) { alert(error.message); return; } $("#asg-games").value = ""; renderTourAsg(); loadAll();
   };
-  window.delAssignment = async function (id) { await sb().from("assignments").delete().eq("id", id); renderTourAsg(); };
+  window.delAssignment = async function (id) { if (!(await settleGate([id]))) return; const { error } = await sb().from("assignments").delete().eq("id", id); if (error) { alert(error.message.replace(/^OPEN_CLAIMS: /, "")); return; } renderTourAsg(); };
   // ---------- tournament window: autosave, notify on close, change log ----------
   let tourPublicChanges = 0, tourAgreedNote = "";
   const INTERNAL = ["sanction", "region", "club_id", "divisions", "staff_by", "date_status", "nrc_staffs", "source_url", "payment_email", "payment_requests_auto"];

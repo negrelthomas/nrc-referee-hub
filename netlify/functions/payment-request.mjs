@@ -2,7 +2,7 @@
 // the amount to pay each official and how to pay them, with a copy to the official, and a single use link to record
 // the payment without signing in.
 // POST /api/payment-request
-//   { action: "send", tournament_id, manual }   signed in organizer of the event or NRC admin. Sends one email per
+//   { action: "send", tournament_id, manual }   signed in organizer of the event only. Sends one email per
 //                                               official for every approved claim not yet requested. When the
 //                                               organizer chose to send requests by hand, only manual: true sends.
 //   { action: "view", token }                   no sign in: what the link covers, for the pay page
@@ -115,9 +115,8 @@ export default async (req) => {
     if (!who?.user) return json(401, { error: "Invalid session" });
     const t = await loadTour(sb, input.tournament_id);
     if (!t) return json(404, { error: "Event not found" });
-    const { data: prof } = await sb.from("profiles").select("role").eq("id", who.user.id).maybeSingle();
     const isOrg = t.organizer_user_id === who.user.id || (t.organizer_email && who.user.email && t.organizer_email.toLowerCase() === who.user.email.toLowerCase());
-    if (!isOrg && prof?.role !== "admin") return json(403, { error: "Not your event" });
+    if (!isOrg) return json(403, { error: "Only the organizer of the event sends payment requests." });
     if (!t.payment_requests_auto && !input.manual) return json(200, { skipped: true, sent: 0 });
     const out = await send(sb, t, base, who.user.id);
     return json(200, out);

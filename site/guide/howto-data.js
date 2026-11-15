@@ -934,13 +934,22 @@ window.HOWTO = {
    "video": null
   },
   {
+   "id": "exp-settle",
+   "theme": "expenses",
+   "roles": [
+    "admin"
+   ],
+   "q": "How do I remove an official who has open expense claims?",
+   "a": "<p>You cannot remove them while claims are waiting for the organizer or approved and not paid. <b>Remove</b> opens the settlement step: <b>Send settlement notice</b> gives the organizer 15 days to settle on the hub. After the deadline, <b>Send handover and remove</b> emails the organizer what is still open, with the receipts and payout details, declines any further NRC responsibility and removes the official.</p>"
+  },
+  {
    "id": "exp-admin",
    "theme": "expenses",
    "roles": [
     "admin"
    ],
    "q": "Where does the NRC follow expenses?",
-   "a": "<p>In the tournament window, <b>Expenses</b> shows exactly what the organizer sees, plus bookings by payer and reimbursement by official. A decision recorded by the NRC asks for confirmation and shows as made by the NRC for the organizer.</p>",
+   "a": "<p>In the tournament window, <b>Expenses</b> shows what the organizer sees, plus bookings by payer and reimbursement by official. It is view only: the organizer of the event approves, declines and pays every claim.</p>",
    "video": "a-expenses"
   },
   {
