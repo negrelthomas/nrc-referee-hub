@@ -50,6 +50,8 @@ supabase/
   availability_ranges.sql  availability on any dates (available, tentative, unavailable periods; answers per event held during the week); availability_detail and tournament_availability functions read by the staffing view, the admin tournament window and the invitation emails
   availability_overrides.sql  admin override of a referee's declared availability for one tournament, with reason, token and the referee's answer (also in schema.sql)
   organizers_travel.sql    organizer sign in (role organizer for emails that submitted a request), travel_managed_by, travel_bookings, organizer and staffing views
+  change_notices.sql       Dismiss button for event changes nobody was told about (dismissed flag on tournament_changes, admin update policy)
+  duplicates_v2.sql        duplicate check limited to upcoming events, overlapping divisions, and organizer emails not on NRC calendar entries
 netlify/functions/        daily-reminders.mjs (scheduled, 15:00 UTC), mailer.mjs (Gmail SMTP or Resend), send-invitations.mjs (invite, reminder, confirm, organizer emails), respond.mjs (accept, tentative or decline from the email link), tournament-status.mjs (organizer page data), club-message.mjs (NRC messages to club contacts, one email per contact with the club's figures, test mode to the admin), referee-message.mjs (NRC messages to selected referees from the roster, test mode to the admin), availability-override.mjs (admin override of declared availability, email to the referee, answer from override.html)
 netlify.toml, package.json
 tools/howto-videos/        local demo copy of the hub (real schema, invented data) that records the How to videos and guide screenshots; not deployed

@@ -648,7 +648,7 @@
     const refIds = sel.map(i => i.referee_id);
     const already = invites.filter(i => i.status === "confirmed").map(i => i.referee_id);
     const after = new Set([...already, ...refIds]); const need = currentTour.pairs_needed * 2; const issues = [];
-    if (after.size > need) issues.push(`${after.size} referees would be designated; the tournament needs ${need} (${currentTour.pairs_needed} pairs).`);
+    if (after.size > need) issues.push(`${after.size} referees would be designated; the tournament needs ${need} (${currentTour.pairs_needed} ${currentTour.pairs_needed === 1 ? "pair" : "pairs"}).`);
     refIds.forEach(rid => { const p = partnerOf(rid); if (p && !after.has(p)) issues.push(`${refName(rid)} forms a pair with ${refName(p)}, who is not in the designated set.`); });
     const declined = sel.filter(i => i.status === "declined").map(i => refName(i.referee_id));
     if (declined.length) issues.push(`Declined on the hub: ${declined.join("; ")}. Designate only if they told you they now accept.`);
@@ -1069,7 +1069,7 @@
     currentTour = tournaments.find(t => t.id === id); const f = $("#form-tour"); renderTourAsg.mountedFor = null;
     tourPublicChanges = 0; $("#tour-save-state").textContent = ""; NRC.$$("#form-tour .saved,#form-tour .err,#form-tour .saving").forEach(x => x.classList.remove("saved", "err", "saving"));
     $("#dlg-tour-title").textContent = currentTour.name;
-    $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}, ${[currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ")}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${currentTour.pairs_total ?? currentTour.pairs_needed} pairs required: ${currentTour.pairs_needed} staffed by the NRC${currentTour.pairs_organizer ? ", " + currentTour.pairs_organizer + " sourced by the organizer outside USATH" : ""}.`;
+    $("#dlg-tour-sub").textContent = `${NRC.fmtDate(currentTour.start_date)} to ${NRC.fmtDate(currentTour.end_date)}${[currentTour.venue_city, currentTour.venue_state].some(Boolean) ? ", " + [currentTour.venue_city, currentTour.venue_state].filter(Boolean).join(", ") : ""}${currentTour.nearest_airport_iata ? " (" + currentTour.nearest_airport_iata + ")" : ""}. ${(n => n + (n === 1 ? " pair" : " pairs"))(currentTour.pairs_total ?? currentTour.pairs_needed)} required: ${currentTour.pairs_needed} staffed by the NRC${currentTour.pairs_organizer ? ", " + currentTour.pairs_organizer + " sourced by the organizer outside USATH" : ""}.`;
     f.sanction.value = currentTour.sanction || "club"; f.region.value = currentTour.region || ""; f.date_status.value = currentTour.date_status || "confirmed"; f.source_url.value = currentTour.source_url || ""; f.nrc_staffs.checked = currentTour.nrc_staffs !== false;
     $("#tour-div").innerHTML = NRC.divisionPicker("divisions", currentTour.divisions);
     ["start_date", "end_date", "venue_name", "venue_city", "pairs_total", "pairs_organizer", "organizer_pairs_note", "travel_managed_by", "hotel_booked_by", "car_booked_by", "club_id", "staff_by", "flights_covered", "hotel_nights_covered", "food_stipend_per_day", "airport_transfers_covered", "airport_transfer_how", "hotel_to_venue_transport", "meals_provided", "hotel_rate_per_night", "payment_email"].forEach(k => { if (f[k]) f[k].value = currentTour[k] == null ? "" : String(currentTour[k]); });
@@ -1085,7 +1085,7 @@
     $("#dlg-tour-sub").textContent += currentTour.supervisor_needed ? " Supervisor requested" + (currentTour.supervisor_notes ? ": " + currentTour.supervisor_notes : "") + "." : "";
     $("#btn-organizer").textContent = currentTour.organizer_notified_at ? "Notify organizer again" : "Notify organizer";
     const T = currentTour;
-    $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")} <a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. `;
+    $("#dlg-tour-sub").innerHTML = NRC.esc($("#dlg-tour-sub").textContent) + `<br>Organizer: ${NRC.esc(T.organizer_name || "")}${T.organizer_name && T.organizer_email ? ", " : ""}<a href="mailto:${NRC.esc(T.organizer_email || "")}">${NRC.esc(T.organizer_email || "")}</a>. `;
     await Promise.all([renderInvites(), renderDesignated(), renderMoney()]); renderCandidates();
     // past or calendar only events open on what is left to do: officials, games, evaluations
     if (T.start_date <= today() || T.nrc_staffs === false) tourBlock("games", "officiated"); else tourBlock("staffing", T.pairs_needed && desRows.filter(a => a.role === "referee" && a.referee_id).length >= T.pairs_needed * 2 ? "designated" : "invites");
@@ -1186,7 +1186,7 @@
       const toConfirm = ids.map(id => invites.find(i => i.id === id).referee_id);
       const after = new Set([...already, ...toConfirm]);
       const need = currentTour.pairs_needed * 2; const issues = [];
-      if (after.size !== need) issues.push(`${after.size} referees would be designated; the tournament needs ${need} (${currentTour.pairs_needed} pairs).`);
+      if (after.size !== need) issues.push(`${after.size} referees would be designated; the tournament needs ${need} (${currentTour.pairs_needed} ${currentTour.pairs_needed === 1 ? "pair" : "pairs"}).`);
       toConfirm.forEach(rid => { const p = partnerOf(rid); if (p && !after.has(p)) issues.push(`${refName(rid)} forms a pair with ${refName(p)}, who is not in the designated set.`); });
       if (issues.length && !confirm("Check before designating:\n\n" + issues.join("\n") + "\n\nDesignate anyway?")) return;
     }

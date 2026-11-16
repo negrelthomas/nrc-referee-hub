@@ -1596,10 +1596,12 @@ select a.id as id_a, a.name as name_a, a.start_date as start_a, a.organizer_emai
 from public.tournaments a
 join public.tournaments b on a.id < b.id
 where public.is_admin() and a.status <> 'cancelled' and b.status <> 'cancelled'
+  and a.end_date >= current_date and b.end_date >= current_date
   and a.start_date <= b.end_date and a.end_date >= b.start_date
+  and (cardinality(a.divisions) = 0 or cardinality(b.divisions) = 0 or a.divisions && b.divisions)
   and (a.club_id = b.club_id
        or regexp_replace(lower(a.name), '[^a-z0-9]', '', 'g') = regexp_replace(lower(b.name), '[^a-z0-9]', '', 'g')
-       or lower(a.organizer_email) = lower(b.organizer_email));
+       or (lower(a.organizer_email) = lower(b.organizer_email) and not a.created_by_nrc and not b.created_by_nrc));
 grant select on public.tournament_duplicates to authenticated;
 
 -- 6. Overview of every tournament for the admin Staffing page
@@ -2574,3 +2576,11 @@ grant select on public.referee_rankings to authenticated;
 insert into public.evaluators (first_name, last_name, email, origin, status, founding, certified_on, certified_by)
 select 'Joshua', 'Forsthoefel', 'referee@handballusa.org', 'nrc', 'certified', true, current_date, 'NRC chair, founding evaluator'
 where not exists (select 1 from public.evaluators where lower(email) = 'referee@handballusa.org');
+
+-- ---------------------------------------------------------------
+-- 7. change notices (change_notices.sql, Oct 27, 2026): admins dismiss pending event changes without emailing anyone
+-- ---------------------------------------------------------------
+alter table public.tournament_changes add column if not exists dismissed boolean not null default false;
+drop policy if exists tc_admin_update on public.tournament_changes;
+create policy tc_admin_update on public.tournament_changes for update using (public.is_admin()) with check (public.is_admin());
+grant update (notified_at, dismissed) on public.tournament_changes to authenticated;
