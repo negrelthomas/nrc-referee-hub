@@ -10,6 +10,7 @@
 // Settings: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SITE_URL, GMAIL_USER, GMAIL_APP_PASSWORD, CONTACT_EMAIL.
 import { createClient } from "@supabase/supabase-js";
 import { sendMail, fmtDate } from "./mailer.mjs";
+import { knownFor, matchKnown, LABEL } from "./payout-known.mjs";
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -67,6 +68,11 @@ async function send(sb, t, base, by) {
     const ref = payRef(t.name, p.last_name);
     const snap = list.find(c => c.payee_snapshot && Object.keys(c.payee_snapshot).length)?.payee_snapshot || null;
     const how = payeeLine(snap);
+    const known = await knownFor(sb, p.email);
+    const checks = snap ? ["venmo", "paypal", "zelle"].filter(m => snap[m]).map(m => {
+      const src = matchKnown(known, m, snap[m]);
+      return src ? `${LABEL[m]} ${esc(snap[m])}: paid to before (${esc(src)}).` : `${LABEL[m]} ${esc(snap[m])}: <strong>new account</strong>, not paid to before. Please confirm it with ${esc(p.first_name || "the official")} before paying.`;
+    }) : [];
     const { data: link, error: le } = await sb.from("pay_links").insert({ tournament_id: t.id, assignment_id: aid, claim_ids: list.map(c => c.id), amount: total, sent_to: to }).select("token,expires_at").single();
     if (le) { out.failed++; continue; }
     const url = `${base}/pay.html?t=${link.token}`;
@@ -76,6 +82,7 @@ async function send(sb, t, base, by) {
     const html = `<p>Hello,</p>
 <p>${esc(t.organizer_name || "The organizer")} approved the expenses below for ${esc(name)}, who officiated at <strong>${esc(t.name)}</strong> (${esc(fmtDate(t.start_date))}). Please pay <strong>${usd(total)}</strong>.</p>
 <p>${how ? `Pay to: <strong>${esc(how)}</strong>.` : `${esc(p.first_name || name)} has no Venmo, PayPal or Zelle handle on the hub${snap && snap.notes ? ` (note: ${esc(snap.notes)})` : ""}. Please agree the payment details directly${copied ? ` with ${esc(p.first_name || "the official")}, who is copied on this email` : ""}.`} Reference for the payment memo: <strong>${esc(ref)}</strong>.</p>
+${checks.length ? `<p style="font-size:13px">${checks.join("<br>")}</p>` : ""}
 ${table}
 <p style="margin-top:18px"><a href="${url}" style="display:inline-block;background:#04234F;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none;font-weight:600">Record the payment</a></p>
 <p style="font-size:13px;color:#666">Once paid, use this button to record the date, the method and the transaction reference. No sign in is needed, the link works once and expires on ${esc(fmtDate(String(link.expires_at).slice(0, 10)))}. ${copied ? esc(p.first_name || "The official") + " is copied on this email and is told when the payment is recorded." : ""} The receipts are on the hub; ${esc(t.organizer_name || "the organizer")} can download them for your records.</p>

@@ -16,6 +16,7 @@
   // amount owed: the approved amount once a lower amount is approved, otherwise the amount claimed
   const due = c => Number(c.approved_amount != null && ["approved", "reimbursed"].includes(c.status) ? c.approved_amount : c.amount);
   const SHAREABLE = ["hotel", "car", "transport"];
+  const NAMES = { venmo: "Venmo", paypal: "PayPal", zelle: "Zelle" };
   const payee = p => { if (!p) return ""; const h = [p.venmo ? "Venmo " + p.venmo : null, p.paypal ? "PayPal " + p.paypal : null, p.zelle ? "Zelle " + p.zelle : null].filter(Boolean); return h.join(", "); };
   const payApi = async (body) => { const res = await fetch("/api/payment-request", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + await token() }, body: JSON.stringify(body) }); const d = await res.json().catch(() => ({})); return { ok: res.ok, d }; };
   const $ = s => document.querySelector(s);
@@ -189,6 +190,7 @@
           <label>PayPal email or phone</label><input name="paypal" maxlength="120">
           <label>Zelle email or US phone</label><input name="zelle" maxlength="120">
           <label>Preferred</label><select name="preferred"><option value="">No preference</option><option value="venmo">Venmo</option><option value="paypal">PayPal</option><option value="zelle">Zelle</option></select>
+          <div id="po-known" class="small hidden" style="margin-top:10px"></div>
           <div id="po-msg" class="notice hidden" style="margin-top:10px"></div>
           <p style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn pos" type="submit">Save</button><button class="btn neg" type="button" onclick="document.getElementById('dlg-payout').close()">Cancel</button></p>
         </form></div></dialog>`);
@@ -208,6 +210,18 @@
     const me = await NRC.currentUser();
     const { data } = await NRC.sb.from("payout_methods").select("*").eq("user_id", me.id).maybeSingle();
     if (data) ["venmo", "paypal", "zelle"].forEach(k => f[k].value = data[k] || ""), f.preferred.value = data.preferred || "";
+    // accounts a club already paid this person to (CalCup records, payments recorded on the hub)
+    const { data: kn } = await NRC.sb.from("payout_known").select("method,handle,source").order("added_at");
+    const kb = $("#po-known"), K = kn || [];
+    if (!data && K.length) {
+      K.forEach(k => { if (!f[k.method].value) f[k.method].value = k.handle; });
+      if (!f.preferred.value) f.preferred.value = K[0].method;
+      kb.innerHTML = `<strong>We have these details from a previous reimbursement:</strong> ${K.map(k => esc(NAMES[k.method] + " " + k.handle) + ` <span class="muted">(${esc(k.source)})</span>`).join("; ")}. Check them, change them if needed, then Save.`;
+      kb.classList.remove("hidden");
+    } else if (K.length) {
+      kb.innerHTML = `<span class="muted">Paid to before:</span> ${K.map(k => esc(NAMES[k.method] + " " + k.handle) + ` <span class="muted">(${esc(k.source)})</span>`).join("; ")}. Organizers are asked to confirm any other account with you before paying it.`;
+      kb.classList.remove("hidden");
+    } else kb.classList.add("hidden");
     $("#dlg-payout").showModal();
   }
 
@@ -258,7 +272,8 @@
     const FILTERS = [["all", "All", live.length], ["submitted", "To decide", wait.length], ["approved", "To pay", due_.length], ["reimbursed", "Paid", paid.length], ["rejected", "Declined", dec.length]];
     const shown = S.filter === "all" ? live : live.filter(c => c.status === S.filter);
     const officials = [...new Set(live.map(c => c.assignment_id))].sort((a, b) => name(a).localeCompare(name(b)));
-    const handle = aid => { const p = P[aid]; if (!p) return '<span class="muted">no handle on file</span>'; const h = payee(p); return (h ? esc(h) + (p.preferred ? ` <span class="muted">(prefers ${esc(p.preferred)})</span>` : "") : "") + (p.payment_notes ? (h ? "<br>" : "") + esc(p.payment_notes) : "") || '<span class="muted">no handle on file</span>'; };
+    const knownTag = p => { const k = p.known || {}; const hs = ["venmo", "paypal", "zelle"].filter(m => p[m]); if (!hs.length) return ""; return "<br>" + hs.map(m => k[m] ? `<span class="pill green" title="${esc(k[m])}">${esc(NAMES[m])} paid to before</span>` : `<span class="pill amber" title="Not paid to before through the hub or CalCup records: confirm it with the official before the first payment">${esc(NAMES[m])} new account</span>`).join(" "); };
+    const handle = aid => { const p = P[aid]; if (!p) return '<span class="muted">no handle on file</span>'; const h = payee(p); return (h ? esc(h) + (p.preferred ? ` <span class="muted">(prefers ${esc(p.preferred)})</span>` : "") + knownTag(p) : "") + (p.payment_notes ? (h ? "<br>" : "") + esc(p.payment_notes) : "") || '<span class="muted">no handle on file</span>'; };
     const T = (s) => tip(s, admin);
     const payTo = t.payment_email || t.organizer_email || "";
     const settleBox = S.settle.length ? `<div class="notice" style="margin:0 0 10px;background:#FFF4D6"><strong>To settle before the NRC removes ${S.settle.length === 1 ? "an official" : "officials"} from the event:</strong> ${S.settle.map(x => `${esc(x.official_name || name(x.assignment_id))}, by ${NRC.fmtDate(x.cure_until)}`).join("; ")}. ${admin ? "Notice sent to the organizer." : "Decide and pay these claims on the hub before the date. After it, anything still open is handed over to you to settle directly with the official, off the hub."}</div>` : "";

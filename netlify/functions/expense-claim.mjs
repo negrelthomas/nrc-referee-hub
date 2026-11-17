@@ -15,6 +15,7 @@
 // Gemini free tier: Google may use submitted receipts to improve its products. Switch the key to a paid project to stop that.
 import { createClient } from "@supabase/supabase-js";
 import { sendMail } from "./mailer.mjs";
+import { knownFor, matchKnown, LABEL } from "./payout-known.mjs";
 
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 const KINDS_CLAIMANT = ["flight", "hotel", "transport", "car"];
@@ -147,7 +148,15 @@ export default async (req) => {
     let res = { sent: false, error: "no email" };
     if (to && !/@demo\.nrc$/i.test(to)) {
       const when = new Date().toLocaleString("en-US", { timeZone: "America/Los_Angeles", dateStyle: "long", timeStyle: "short" });
-      res = await sendMail({ to, subject: "Your payment details on the NRC Referee Hub were changed", html: `<p>Hello,</p><p>The payment details on your NRC Referee Hub profile were changed on ${esc(when)} (Pacific time).</p><p>Before: ${esc(show(before))}<br>Now: ${esc(show(after))}</p><p>Organizers use these details to reimburse your expenses. Payments already requested keep the details on file when the claim was approved. If you did not make this change, sign in, correct the details and tell the NRC at ${esc(contact)} straight away.</p><p>National Referee Committee</p>` });
+      const known = await knownFor(sb, to);
+      const lines = ["venmo", "paypal", "zelle"].filter(m => after[m]).map(m => {
+        const src = matchKnown(known, m, after[m]);
+        if (src) return `${LABEL[m]} ${esc(after[m])}: already paid to (${esc(src)}).`;
+        if (before && (before[m] || null) === after[m]) return null;
+        return `${LABEL[m]} ${esc(after[m])}: new to us. Organizers are asked to confirm it with you before the first payment.`;
+      }).filter(Boolean);
+      const beforeTxt = before ? show(before) : known.length ? "nothing saved on the hub yet" : "nothing on file";
+      res = await sendMail({ to, subject: "Your payment details on the NRC Referee Hub were changed", html: `<p>Hello,</p><p>The payment details on your NRC Referee Hub profile were changed on ${esc(when)} (Pacific time).</p><p>Before: ${esc(beforeTxt)}<br>Now: ${esc(show(after))}</p>${lines.length ? `<p>${lines.join("<br>")}</p>` : ""}<p>Organizers use these details to reimburse your expenses. Payments already requested keep the details on file when the claim was approved. If you did not make this change, sign in, correct the details and tell the NRC at ${esc(contact)} straight away.</p><p>National Referee Committee</p>` });
       await sb.from("email_log").insert({ to_email: to, subject: "Your payment details on the NRC Referee Hub were changed", kind: "payout_changed", sent: res.sent, error: res.error });
     }
     await sb.from("payout_changes").insert({ user_id: uid, before: before || null, after, alert_sent_to: to || null, alert_sent: !!res.sent });

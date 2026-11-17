@@ -899,7 +899,7 @@ window.HOWTO = {
     "guest"
    ],
    "q": "How do I get paid?",
-   "a": "<p>Press <b>How I get paid</b> and give your Venmo username, PayPal or Zelle email or phone. Only the organizer who owes you sees it. No bank account or card numbers on the hub; agree a bank transfer directly with the organizer.</p>",
+   "a": "<p>Press <b>How I get paid</b> and give your Venmo username, PayPal or Zelle email or phone. Only the organizer who owes you sees it. No bank account or card numbers on the hub; agree a bank transfer directly with the organizer.</p><p>If a club already reimbursed you, the hub suggests that account the first time; check it and press <b>Save</b>.</p>",
    "video": "r-paid"
   },
   {
