@@ -180,6 +180,16 @@
   }
 
   // ---------- payout handles ----------
+  async function myPayout(userId) {
+    const id = userId || (await NRC.currentUser() || {}).id; if (!id) return null;
+    const { data } = await NRC.sb.from("payout_methods").select("venmo,paypal,zelle,preferred").eq("user_id", id).maybeSingle();
+    return data && (data.venmo || data.paypal || data.zelle) ? data : null;
+  }
+  // one line for the referee: what is on file, or a prompt to add it
+  function payoutLine(p) {
+    return p ? `Paid to <strong>${esc(payee(p))}</strong>${p.preferred ? ` <span class="muted">(preferred: ${esc(NAMES[p.preferred])})</span>` : ""}`
+      : `<strong>Not set yet.</strong> Add your Venmo, PayPal or Zelle so the organizer can reimburse you.`;
+  }
   async function openPayout() {
     if (!$("#dlg-payout")) {
       document.body.insertAdjacentHTML("beforeend", `<dialog id="dlg-payout" style="max-width:520px"><div class="body">
@@ -203,6 +213,7 @@
         const r = await api({ action: "payout", venmo: v("venmo"), paypal: v("paypal"), zelle: v("zelle"), preferred: f.preferred.value || null });
         if (!r.ok) { NRC.notice($("#po-msg"), esc(r.d.error || "Could not save."), "error"); return; }
         $("#dlg-payout").close();
+        document.dispatchEvent(new CustomEvent("nrc:payout-saved"));
         if (!r.d.unchanged) alert("Saved. A confirmation is on its way to your email, as for every change of payment details.");
       });
     }
@@ -234,8 +245,12 @@
     const { data: cl } = await NRC.sb.from("expense_claims").select("*").in("assignment_id", A.map(a => a.id)).order("created_at");
     const reload = () => mountClaimant(el, opts); _after = reload;
     window._xcDone = (note) => { reload(); if (note) NRC.notice(document.getElementById("xc-home-msg"), esc(note), "ok"); };
-    el.innerHTML = `<div class="card" style="margin-top:10px"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><h3 style="margin:0">Expenses</h3><button class="btn sm ghost" type="button" onclick="NRC.Exp.openPayout()" title="Your Venmo, PayPal or Zelle handle, shown to the organizer who reimburses you">How I get paid</button></div>
-      <p class="small muted" style="margin:6px 0 4px">One claim per receipt. The organizer of the event approves and pays.</p><div id="xc-home-msg" class="notice hidden"></div>
+    const po = await myPayout(opts.userId);
+    if (!el._poListen) { el._poListen = true; document.addEventListener("nrc:payout-saved", reload); }
+    el.innerHTML = `<div class="card" style="margin-top:10px"><h3 style="margin:0">Expenses</h3>
+      <p class="small muted" style="margin:6px 0 4px">One claim per receipt. The organizer of the event approves and pays.</p>
+      <div class="${po ? "" : "alert warn"}" style="margin:8px 0;${po ? "background:#F0F3F8;padding:10px 12px;border-radius:8px;" : ""}display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center"><div class="small"><strong>How I get paid:</strong> ${payoutLine(po)}</div><button class="btn sm ${po ? "secondary" : "pos"}" type="button" onclick="NRC.Exp.openPayout()" title="Your Venmo, PayPal or Zelle handle, shown only to the organizer who reimburses you">${po ? "Change" : "Add Venmo, PayPal or Zelle"}</button></div>
+      <div id="xc-home-msg" class="notice hidden"></div>
       ${A.map(a => { const C = (cl || []).filter(c => c.assignment_id === a.id); return `<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;align-items:center"><strong>${esc(a.tournaments.name)}</strong><button class="btn sm secondary" type="button" onclick="NRC.Exp.openClaim('${a.id}',{onDone:window._xcDone})" title="Attach a receipt; the hub reads it and fills in the claim">Submit an expense</button></div>${listHtml(C, { canDelete: true }) || '<p class="small muted" style="margin:4px 0 0">No claim yet.</p>'}</div>`; }).join("")}</div>`;
   }
 
@@ -554,6 +569,6 @@
   }
   function setFilter(k) { const S = S0(); S.filter = k; S.el._xfilter = k; renderPanel(S); }
 
-  NRC.Exp = { KIND, listHtml, del, openClaim, openPayout, mountClaimant, mountPanel, coverageLine,
+  NRC.Exp = { KIND, listHtml, del, openClaim, openPayout, myPayout, payoutLine, mountClaimant, mountPanel, coverageLine,
     _set: setStatus, _approve: approve, _sendRequests: sendRequests, _settings: settings, _payCsv: payCsv, _batchPay: batchPay, _bulkApprove: bulkApprove, _perDiems: perDiems, _pay: pay, _receipt: receipt, _zip: zip, _csv: csv, _filter: setFilter };
 })();

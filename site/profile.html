@@ -89,6 +89,9 @@
         <div><label>Airport 2 (optional)</label><input name="departure_airport_iata" maxlength="3" placeholder="OAK" style="text-transform:uppercase"></div>
         <div><label>Airport 3 (optional)</label><input name="airport_3_iata" maxlength="3" placeholder="SJC" style="text-transform:uppercase"></div>
       </div>
+      <label>How I get paid (expenses)</label>
+      <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 6px;background:#F0F3F8;padding:10px 12px;border-radius:8px"><div id="payout-summary" class="small">Loading.</div><button class="btn sm secondary" type="button" id="payout-btn" onclick="NRC.Exp.openPayout()">Add or change</button></div>
+      <div class="help" style="margin-bottom:12px">Venmo, PayPal or Zelle. Only the organizer who owes you a reimbursement sees it. No bank or card numbers.</div>
       <label>Availability notes</label><textarea name="availability_notes" placeholder="Weekends only, not available in March, can drive within 4 hours..."></textarea>
       <div class="row">
         <div><label>Certification level</label><input id="level-ro" readonly style="background:#F0F3F8"><div class="help">Set by the NRC.</div></div>
@@ -329,10 +332,10 @@ async function loadHome() {
       ${asg && asg.travel_notes ? '<p class="small"><strong>Travel notes:</strong> ' + NRC.esc(asg.travel_notes) + "</p>" : ""}
       ${asg ? `<div class="trip-actions"><button class="btn sm secondary" type="button" onclick="openMyBooking('${asg.id}')">Add a booking I made</button></div>` : ""}<p class="small" style="margin:10px 0 0"><a class="muted" href="mailto:referee@handballusa.org?subject=${encodeURIComponent("Cannot officiate: " + (T.name || ""))}&body=${encodeURIComponent("Hi,\n\nI am designated for " + (T.name || "") + " (" + T.start_date + ") and I have to withdraw because:\n\n")}">I can no longer officiate at this event</a></p></div>`;
   }
-  $("#home-next").innerHTML = (n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=assignments]').click();return false">Details</a></div>`
+  $("#home-next").innerHTML = (n ? `<div class="next"><div class="d">${new Date(n.start_date + "T00:00:00").getDate()}<small>${new Date(n.start_date + "T00:00:00").toLocaleDateString("en-US", { month: "short" })}</small></div><div><h3>${NRC.esc(n.name)}</h3><div class="m">${NRC.fmtDate(n.start_date)} to ${NRC.fmtDate(n.end_date)}, ${NRC.esc([n.venue_city, n.venue_state].filter(Boolean).join(", "))}${n.sanction ? ", " + SANCTION[n.sanction] : ""}</div></div><a class="btn yellow sm" href="#" onclick="document.querySelector('[data-tab=tournaments]').click();return false">Details</a></div>`
     : `<div class="alert info"><div><div class="t">No upcoming assignment</div><div class="small">When the NRC designates you for a tournament it appears here. Keep your availability current so you are considered.</div></div></div>`) + travelHtml;
   $("#home-next").insertAdjacentHTML("beforeend", '<div id="home-expenses"></div>');
-  NRC.Exp.mountClaimant(document.getElementById("home-expenses"), { refereeId: ref.id }).catch(() => {});
+  NRC.Exp.mountClaimant(document.getElementById("home-expenses"), { refereeId: ref.id, userId: user.id }).catch(() => {});
   // alerts
   const alerts = [];
   const { data: pend } = await NRC.sb.from("assignment_requests").select("id,status,tournaments(name,start_date)").eq("referee_id", ref.id).in("status", ["sent", "tentative"]).gte("tournaments.start_date", today);
@@ -381,6 +384,7 @@ async function loadHome() {
 }
 // profile completion: what the referee fills in, what the NRC records, tests to take
 async function renderCompletion(certified, asmt) {
+  lastCompletion = [certified, asmt];
   const today = NRC.localDate();
   const [{ count: wk0 }, { count: rg }, { data: phys }] = await Promise.all([
     NRC.sb.from("weekend_availability").select("weekend", { count: "exact", head: true }).eq("referee_id", ref.id).gte("weekend", today),
@@ -388,6 +392,11 @@ async function renderCompletion(certified, asmt) {
     NRC.sb.from("referee_tests").select("test_name,result,passed,tested_on,std_band,beep_level,beep_shuttle,beep_loops").eq("referee_id", ref.id).eq("kind", "physical").order("tested_on", { ascending: false }).limit(1)]);
   const wk = (wk0 || 0) + (rg || 0);
   const p = phys && phys[0];
+  const since = NRC.localDate(new Date(Date.now() - 120 * 864e5));
+  const [{ data: myEv }, po] = await Promise.all([
+    NRC.sb.from("assignments").select("id,tournaments!inner(end_date,status)").eq("referee_id", ref.id).gte("tournaments.end_date", since).neq("tournaments.status", "cancelled").limit(1),
+    NRC.Exp.myPayout(user.id)]);
+  renderPayoutSummary(po);
   const edit = { label: "Add", onclick: "document.querySelector('[data-tab=profile]').click()" };
   const valid = (d) => !!d && d >= today;
   const doc = (label, d) => ({ label, done: valid(d), kind: "nrc", detail: d ? (valid(d) ? "Valid to " + NRC.fmtDate(d) : "Expired " + NRC.fmtDate(d) + ". Renew it and send the proof to the NRC") : "Not on file. Send the proof to the NRC" });
@@ -403,10 +412,18 @@ async function renderCompletion(certified, asmt) {
   } else {
     items.push({ label: "Level 1 online course", done: !!ref.level1_theory_passed_on, kind: "you", detail: ref.level1_theory_passed_on ? "Theory passed on " + NRC.fmtDate(ref.level1_theory_passed_on) : "Six modules and a final test", action: { label: "Open", href: "training.html#program" } });
   }
+  if ((myEv || []).length) items.push({ label: "How the organizer pays you back", done: !!po, kind: "you", detail: po ? "" : "Venmo, PayPal or Zelle, for your expenses", action: { label: "Add", onclick: "NRC.Exp.openPayout()" } });
   items.push({ label: "Physical test passed", done: !!(p && p.passed), kind: "nrc", info: NRC.physicalInfo(), detail: p ? NRC.esc(NRC.physResult(p)) + ", " + NRC.fmtDate(p.tested_on) + (p.passed === false ? ", not passed" : "") : "Taken in person at a clinic" });
   items.push(doc("USATH membership", ref.usath_membership_valid_until), doc("SafeSport certificate", ref.safesport_valid_until), doc("Background check", ref.background_check_valid_until));
   $("#home-complete").innerHTML = NRC.completionHtml("Your profile", items);
 }
+function renderPayoutSummary(po) {
+  const el = $("#payout-summary"); if (!el) return;
+  el.innerHTML = NRC.Exp.payoutLine(po);
+  $("#payout-btn").textContent = po ? "Change" : "Add Venmo, PayPal or Zelle";
+}
+let lastCompletion = null;
+document.addEventListener("nrc:payout-saved", () => { if (lastCompletion) renderCompletion(...lastCompletion).catch(() => {}); });
 let WA = {}, MYA = [], EVS = [];
 async function loadMyAssignments() {
   const { data } = await NRC.sb.from("assignments").select("tournament_id,role,tournaments(name,start_date,end_date,status)").eq("referee_id", ref.id);
