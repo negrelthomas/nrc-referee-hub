@@ -41,7 +41,7 @@ SHOTS = [
     ("img/admin-designated.jpg", ADMIN, "laptop", "admin/index.html#tournaments", [("click", "td:has-text('Rocky Mountain Cup 2027')"), ("click", "#dlg-tour button:has-text('3. Designated')"), ("scroll", "#dlg-tour h3:has-text('USATH pairs'), #dlg-tour :text('USATH pairs')")], None, None),
     ("img/admin-programs.jpg", ADMIN, "laptop", "admin/index.html#programs", [], None, None),
     ("img/organizer-page-designated.jpg", ORG, "phone", "organizer.html", [("scroll", "h2:has-text('Rocky Mountain Cup 2027')")], None, 840),
-    ("img/organizer-page.jpg", ORG, "phone", "organizer.html", [("scroll", "h2:has-text('Pacific Coast Open 2027')")], None, 840),
+    ("img/organizer-page.jpg", ORG, "phone", "organizer.html", [("click", "summary:has-text('Rocky Mountain Cup 2027')"), ("scroll", "summary:has-text('Rocky Mountain Cup 2027')")], None, 840),
     ("img/organizer-request-form.jpg", None, "phone", "request-referees.html", [("scroll", "h3:has-text('Event')")], None, 840),
     ("img/organizer-token-page.jpg", None, "phone", "TOKEN", [], None, 840),
     ("img/referee-home-trip.jpg", J, "phone", "profile.html", [("scroll", "h3:has-text('Your trip')")], None, 840),

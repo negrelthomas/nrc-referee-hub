@@ -42,3 +42,8 @@ availability_ranges.sql
 expenses_v2.sql
 hub_2026_10_30.sql
 expenses_v3_payments.sql
+evaluator_name_2026_11_02.sql
+expenses_v4_organizer_only.sql
+duplicates_v2.sql
+expenses_v5_settlement.sql
+expenses_v6_known_payouts.sql

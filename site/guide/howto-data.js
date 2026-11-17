@@ -113,7 +113,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Ask to become a referee",
    "steps": "Become a referee, I want to be contacted, fill in the form, Send to the NRC.",
-   "dur": 37.6
+   "dur": 36.9
   },
   {
    "id": "v-try",
@@ -123,7 +123,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Take the 10 question test",
    "steps": "Start the 10 questions, answer, read why, see your result.",
-   "dur": 35.4
+   "dur": 35.2
   },
   {
    "id": "v-referees",
@@ -134,7 +134,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Browse the certified referees",
    "steps": "Referees page, search, open a card.",
-   "dur": 11.6
+   "dur": 11.4
   },
   {
    "id": "v-practice",
@@ -146,7 +146,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Practice the rules",
    "steps": "Training, Free quiz, pick a rule, Start the practice.",
-   "dur": 38.5
+   "dur": 36.3
   },
   {
    "id": "r-signin",
@@ -159,7 +159,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Sign in",
    "steps": "Your email, Send me a link, type the code from the email.",
-   "dur": 20.6
+   "dur": 20.3
   },
   {
    "id": "r-tour",
@@ -169,7 +169,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "First sign in: the welcome tour",
    "steps": "Five short screens, your details, Save and continue.",
-   "dur": 29.3
+   "dur": 31.2
   },
   {
    "id": "r-availability",
@@ -179,7 +179,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Declare when you can referee",
    "steps": "Tap weekends, add other dates, Save these dates.",
-   "dur": 37.2
+   "dur": 36.3
   },
   {
    "id": "r-invitation",
@@ -189,7 +189,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Answer an invitation",
    "steps": "Accept, Tentative or Decline on your home.",
-   "dur": 9.4
+   "dur": 9.3
   },
   {
    "id": "r-trip",
@@ -199,7 +199,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Your trip and your own bookings",
    "steps": "Trip card, Add a booking I made, Add to my calendar.",
-   "dur": 29.0
+   "dur": 33.9
   },
   {
    "id": "r-expense",
@@ -209,7 +209,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Submit an expense",
    "steps": "Submit an expense, attach the receipt, check the fields, submit.",
-   "dur": 17.7
+   "dur": 17.5
   },
   {
    "id": "r-paid",
@@ -220,7 +220,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Say how you get paid",
    "steps": "How I get paid, Venmo, PayPal or Zelle, Save.",
-   "dur": 15.8
+   "dur": 15.6
   },
   {
    "id": "r-profile",
@@ -230,7 +230,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Profile, photo and contact sharing",
    "steps": "Profile tab, photo, airports, contact sharing, Save profile.",
-   "dur": 24.0
+   "dur": 23.7
   },
   {
    "id": "r-history",
@@ -240,7 +240,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Tournaments, games and evaluations",
    "steps": "Tournaments, open an event, Games, Evaluations.",
-   "dur": 19.5
+   "dur": 19.4
   },
   {
    "id": "r-assessment",
@@ -250,7 +250,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Take the initial assessment",
    "steps": "My program, Start the assessment, answer, Next.",
-   "dur": 29.1
+   "dur": 28.6
   },
   {
    "id": "r-training",
@@ -260,7 +260,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Train with the learning path",
    "steps": "Pick a series, start a lesson, answer, read why.",
-   "dur": 37.1
+   "dur": 33.3
   },
   {
    "id": "r-candidate",
@@ -270,7 +270,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Follow the Level 1 course",
    "steps": "Study plan, study a module, module test, final test.",
-   "dur": 38.6
+   "dur": 36.3
   },
   {
    "id": "r-directory",
@@ -290,7 +290,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "First sign in as a guest referee",
    "steps": "Welcome form, phone, home airport, Save.",
-   "dur": 18.3
+   "dur": 18.1
   },
   {
    "id": "g-event",
@@ -300,7 +300,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Your event and your travel",
    "steps": "Event card, Add to my calendar, Add a booking I made.",
-   "dur": 27.9
+   "dur": 29.8
   },
   {
    "id": "g-expense",
@@ -310,7 +310,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Submit an expense paid in another currency",
    "steps": "Submit an expense, receipt in euros, converted to USD, submit.",
-   "dur": 17.5
+   "dur": 17.4
   },
   {
    "id": "g-training",
@@ -330,7 +330,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Request referees",
    "steps": "Event, club, divisions, dates, pairs, coverage, contact, Submit request.",
-   "dur": 59.6
+   "dur": 58.8
   },
   {
    "id": "o-follow",
@@ -339,8 +339,8 @@ window.HOWTO = {
    ],
    "layout": "phone",
    "title": "Follow your request",
-   "steps": "My tournaments, where it stands, designated officials.",
-   "dur": 13.2
+   "steps": "My tournaments, tap an event, where it stands, designated officials.",
+   "dur": 17.1
   },
   {
    "id": "o-pairs",
@@ -350,7 +350,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Name your pair from outside the US",
    "steps": "Name a pair, nation, both referees, how you pay them, Save.",
-   "dur": 41.0
+   "dur": 44.2
   },
   {
    "id": "o-booking",
@@ -360,7 +360,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Record a booking you made",
    "steps": "Add a booking we made, type, reference, cost, dates, Save.",
-   "dur": 26.4
+   "dur": 26.7
   },
   {
    "id": "o-expenses",
@@ -370,7 +370,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Approve and pay expenses",
    "steps": "Open reimbursements, Approve, Download receipts, Mark paid.",
-   "dur": 25.3
+   "dur": 25.1
   },
   {
    "id": "o-edit",
@@ -380,7 +380,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Edit, duplicate or cancel a request",
    "steps": "Edit the request, Duplicate as a new request, Cancel the event.",
-   "dur": 14.0
+   "dur": 13.9
   },
   {
    "id": "o-report",
@@ -390,7 +390,7 @@ window.HOWTO = {
    "layout": "phone",
    "title": "Send the report after the event",
    "steps": "Post event report, games, rating, Send the report.",
-   "dur": 18.5
+   "dur": 22.3
   },
   {
    "id": "a-dashboard",
@@ -399,8 +399,8 @@ window.HOWTO = {
    ],
    "layout": "laptop",
    "title": "The dashboard and the menu",
-   "steps": "Figures, the three menu sections, Laptop or Phone layout.",
-   "dur": 21.5
+   "steps": "Needs action this week, figures, the three menu sections, Laptop or Phone layout.",
+   "dur": 24.8
   },
   {
    "id": "a-roster",
@@ -410,7 +410,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Roster, emails and change history",
    "steps": "Filter, tick referees, Email selected, open a record.",
-   "dur": 29.1
+   "dur": 28.0
   },
   {
    "id": "a-test",
@@ -420,7 +420,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Record a physical test",
    "steps": "Open a record, Record physical test, standard, results, Save.",
-   "dur": 26.2
+   "dur": 25.2
   },
   {
    "id": "a-invite",
@@ -430,7 +430,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Find and invite referees",
    "steps": "Open the event, Find and invite, drafts, Send invitations.",
-   "dur": 34.6
+   "dur": 32.7
   },
   {
    "id": "a-designate",
@@ -440,7 +440,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Designate the pairs",
    "steps": "Answers, tick the accepted pair, Designate accepted, Notify organizer.",
-   "dur": 32.4
+   "dur": 29.6
   },
   {
    "id": "a-outside",
@@ -450,7 +450,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Designate a yes given outside the hub",
    "steps": "Answers, tick, Designate accepted outside the hub, how they accepted.",
-   "dur": 25.2
+   "dur": 24.0
   },
   {
    "id": "a-override",
@@ -460,7 +460,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Override a referee's availability",
    "steps": "Find and invite, Override, the reason, Send.",
-   "dur": 21.1
+   "dur": 20.5
   },
   {
    "id": "a-travel",
@@ -480,7 +480,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Follow the expenses of an event",
    "steps": "Expenses section: payers, claims, categories, officials.",
-   "dur": 16.2
+   "dur": 15.8
   },
   {
    "id": "a-addtour",
@@ -490,7 +490,7 @@ window.HOWTO = {
    "layout": "laptop",
    "title": "Add a tournament to the calendar",
    "steps": "Add tournament, dates, club, divisions, Save and open.",
-   "dur": 31.6
+   "dur": 30.2
   }
  ],
  "faq": [
@@ -899,7 +899,7 @@ window.HOWTO = {
     "guest"
    ],
    "q": "How do I get paid?",
-   "a": "<p>Press <b>How I get paid</b> and give your Venmo username, PayPal or Zelle email or phone. Only the organizer who owes you sees it. No bank account or card numbers on the hub; agree a bank transfer directly with the organizer.</p><p>If a club already reimbursed you, the hub suggests that account the first time; check it and press <b>Save</b>.</p>",
+   "a": "<p>Press <b>How I get paid</b> and give your Venmo username, PayPal or Zelle email or phone. Only the organizer who owes you sees it. No bank account or card numbers on the hub; agree a bank transfer directly with the organizer.</p>",
    "video": "r-paid"
   },
   {
@@ -934,22 +934,13 @@ window.HOWTO = {
    "video": null
   },
   {
-   "id": "exp-settle",
-   "theme": "expenses",
-   "roles": [
-    "admin"
-   ],
-   "q": "How do I remove an official who has open expense claims?",
-   "a": "<p>You cannot remove them while claims are waiting for the organizer or approved and not paid. <b>Remove</b> opens the settlement step: <b>Send settlement notice</b> gives the organizer 15 days to settle on the hub. After the deadline, <b>Send handover and remove</b> emails the organizer what is still open, with the receipts and payout details, declines any further NRC responsibility and removes the official.</p>"
-  },
-  {
    "id": "exp-admin",
    "theme": "expenses",
    "roles": [
     "admin"
    ],
    "q": "Where does the NRC follow expenses?",
-   "a": "<p>In the tournament window, <b>Expenses</b> shows what the organizer sees, plus bookings by payer and reimbursement by official. It is view only: the organizer of the event approves, declines and pays every claim.</p>",
+   "a": "<p>In the tournament window, <b>Expenses</b> shows exactly what the organizer sees, plus bookings by payer and reimbursement by official. A decision recorded by the NRC asks for confirmation and shows as made by the NRC for the organizer.</p>",
    "video": "a-expenses"
   },
   {
@@ -1034,7 +1025,7 @@ window.HOWTO = {
     "referee"
    ],
    "q": "What is the initial assessment?",
-   "a": "<p>Every certified referee takes 30 questions on the IHF rules at their level, 60 minutes in one sitting, within 7 days of their first sign in. It gives the NRC a first picture of everyone's rules knowledge. A reminder comes every week until it is done.</p>",
+   "a": "<p>Every certified referee takes 30 questions on the IHF rules at their level, 60 minutes in one sitting, within 7 days of their first sign in. It gives the NRC a first picture of everyone's rules knowledge. A reminder comes every 48 hours until it is done.</p>",
    "video": "r-assessment"
   },
   {
@@ -1196,7 +1187,7 @@ window.HOWTO = {
     "organizer"
    ],
    "q": "How do I follow my request?",
-   "a": "<p>Sign in: <b>My tournaments</b> shows one card per request with where it stands (received, reviewing, designated, completed), the referees designated against the pairs asked, and who books travel. Designated officials appear with where they travel from and their bookings. You also get an email the moment the NRC designates the team.</p>",
+   "a": "<p>Sign in: <b>My tournaments</b> shows one line per event (tap it to open) with where it stands (received, reviewing, designated, completed), the referees designated against the pairs asked, and who books travel. Designated officials appear with where they travel from and their bookings. You also get an email the moment the NRC designates the team.</p>",
    "video": "o-follow"
   },
   {
@@ -1450,7 +1441,7 @@ window.HOWTO = {
     "admin"
    ],
    "q": "What does the dashboard show?",
-   "a": "<p>What is due (Sport80 export, overdue programs, contact requests), then the key figures: active and certified referees, club coverage, contact requests, baselines and programs. Each figure opens the list behind it.</p>",
+   "a": "<p>What is due (Sport80 export, overdue programs, contact requests), then <b>Needs action this week</b> (late staffing, invitations unanswered for more than 7 days, unsent event updates, expiring documents), then the key figures: active and certified referees, club coverage, contact requests, baselines and programs. Each figure opens the list behind it.</p>",
    "video": "a-dashboard"
   },
   {

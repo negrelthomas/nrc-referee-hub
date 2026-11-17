@@ -96,7 +96,7 @@
     });
     refs.forEach(r => { r._games = (stats || []).filter(s => s.referee_id === r.id && s.season === yr).reduce((a, s) => a + s.games, 0);
       r._planned = r._games + r._sched.reduce((a, x) => a + x.n, 0); const e = (evals || []).find(e => e.referee_id === r.id); r._lastEval = e ? e.evaluated_on : null; });
-    fillSelects(); renderDashboard(); loadRankings(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); renderPlan(); loadTasks(); loadImportLog();
+    fillSelects(); renderDashboard(); loadRankings(); renderPoolRules(); renderRefs(); renderClubs(); renderTournaments(); renderActNow(); renderQuestions(); renderSessions(); renderInquiries(); renderPrograms(); renderStaffing(); renderPlan(); loadTasks(); loadImportLog();
     const [h, arg] = (location.hash || "").slice(1).split("/"); if (h === "club" && arg) renderClubPage(arg);
     if (h === "referee" && arg) openRefFromLink(arg);
   }
@@ -107,6 +107,33 @@
     $("#q-rule").innerHTML = '<option value="">All rules</option>' + rs; $("select[name=rule_number]").innerHTML = rs;
   }
 
+  // ---------- needs action this week: staffing deadlines, unanswered invitations, unsent updates, compliance ----------
+  async function renderActNow() {
+    const host = $("#act-now"); if (!host) return;
+    const now = today(), in7 = NRC.localDate(new Date(Date.now() + 7 * 864e5)), in30 = NRC.localDate(new Date(Date.now() + 30 * 864e5));
+    const tour = id => tournaments.find(t => t.id === id);
+    const open = id => `<button class="btn sm" type="button" onclick="openTour('${id}')" title="Open the event">Open</button>`;
+    const rows = [];
+    // 1 staffing deadline passed or within a week, pairs still missing
+    staffing.forEach(sx => { const t = tour(sx.id); if (!t || t.status === "cancelled" || t.end_date < now || t.nrc_staffs === false || !sx.staff_by || sx.staff_by > in7) return;
+      const st = tourStats[t.id] || {}, need = (t.pairs_needed || 0) * 2; if (!need || (st.referees || 0) >= need) return;
+      const late = sx.staff_by < now;
+      rows.push({ w: late ? 0 : 1, html: `<div class="task ${late ? "overdue" : ""}"><div style="flex:1"><div class="t">${NRC.esc(t.name)}: ${st.referees || 0} of ${need} referees designated</div><div class="small">${late ? "Staffing deadline passed on " : "Staff by "}${NRC.fmtDate(sx.staff_by)}. Event on ${NRC.fmtDate(t.start_date)}.</div></div>${open(t.id)}</div>` }); });
+    // 2 invitations unanswered for more than 7 days
+    const cut = new Date(Date.now() - 7 * 864e5).toISOString();
+    const { data: wait } = await sb().from("assignment_requests").select("tournament_id,status,sent_at").in("status", ["sent", "tentative"]).lt("sent_at", cut);
+    const byT = {}; (wait || []).forEach(w => { const t = tour(w.tournament_id); if (t && t.end_date >= now && t.status !== "cancelled") (byT[t.id] ||= []).push(w); });
+    Object.entries(byT).forEach(([id, l]) => rows.push({ w: 2, html: `<div class="task"><div style="flex:1"><div class="t">${NRC.esc(tour(id).name)}: ${NRC.plural(l.length, "invitation", "invitations")} unanswered for more than 7 days</div><div class="small">${l.filter(x => x.status === "tentative").length ? NRC.plural(l.filter(x => x.status === "tentative").length, "referee is", "referees are") + " still tentative. " : ""}Remind them or invite someone else.</div></div>${open(id)}</div>` }));
+    // 3 changes to an event that nobody was told about: one line for all events
+    const unsent = Object.keys(pendingCh).map(tour).filter(t => t && t.end_date >= now && t.status !== "cancelled").sort((a, b) => a.start_date.localeCompare(b.start_date));
+    if (unsent.length) rows.push({ w: 3, html: `<div class="task"><div style="flex:1"><div class="t">${NRC.plural(unsent.length, "event has", "events have")} an update not sent</div><div class="small">${unsent.map(t => NRC.esc(t.name)).join(", ")}. Send each update or dismiss it from the Tournaments list.</div></div><a class="btn sm ghost" href="#tournaments">Tournaments</a></div>` });
+    // 4 compliance expired or expiring within 30 days, active certified referees: one line, names listed
+    const docs = [["usath_membership_valid_until", "membership"], ["safesport_valid_until", "SafeSport"], ["background_check_valid_until", "background check"]];
+    const exp = refs.filter(r => r.active && r.cert_level !== "candidate").map(r => ({ r, hit: docs.filter(([k]) => r[k] && r[k] <= in30) })).filter(x => x.hit.length).sort((a, b) => a.r.last_name.localeCompare(b.r.last_name));
+    if (exp.length) rows.push({ w: 4, html: `<div class="task"><div style="flex:1"><div class="t">${NRC.plural(exp.length, "referee has", "referees have")} a document expired or expiring within 30 days</div><div class="small">${exp.map(({ r, hit }) => `<a href="#referee/${r.id}">${NRC.esc(r.last_name + ", " + r.first_name)}</a> (${hit.map(([k, l]) => l + (r[k] < now ? " expired " : " ") + NRC.fmtDate(r[k])).join(", ")})`).join("; ")}. Ask for the renewed proof before the next assignment.</div></div></div>` });
+    rows.sort((a, b) => a.w - b.w);
+    host.innerHTML = `<h2 style="margin:0 0 8px">Needs action this week</h2>` + (rows.length ? `<div style="display:grid;gap:8px">${rows.map(r => r.html).join("")}</div>` : '<div class="notice ok">Nothing waiting: staffing on time, invitations answered, updates sent, documents valid.</div>');
+  }
   // ---------- dashboard ----------
   function renderDashboard() {
     const active = refs.filter(r => r.active);
@@ -120,6 +147,7 @@
     $("#k-nobase").textContent = cert.filter(p => !p.baseline_at).length;
     $("#k-inprog").textContent = pstat.filter(p => p.program_status === "active" || p.program_status === "ready_for_retest").length;
     $("#k-overdue").textContent = pstat.filter(p => (p.program_status === "active" || p.program_status === "ready_for_retest") && p.due_on < today()).length;
+    NRC.$$("#pane-dashboard .stat.bad").forEach(s => s.classList.toggle("zero", s.querySelector(".n").textContent.trim() === "0"));
     $("#cov tbody").innerHTML = cov.slice().sort((a, b) => a.referee_count - b.referee_count || a.name.localeCompare(b.name)).map(c => `<tr><td><a href="#club/${c.id}"><strong>${NRC.esc(c.name)}</strong></a></td><td>${NRC.esc([c.city, c.state].filter(Boolean).join(", "))}</td><td>${c.referee_count}</td><td>${c.certified_count}</td><td>${c.has_certified_pair ? '<span class="pill green">Yes</span>' : '<span class="pill red">No</span>'}</td><td>${PROG[c.pair_program_status] || ""}</td></tr>`).join("");
     const t = today();
     const bad = active.filter(r => [r.usath_membership_valid_until, r.safesport_valid_until, r.background_check_valid_until].some(d => !d || d < t));
@@ -197,7 +225,7 @@
   window.sendRefMessage = async function (test) {
     const f = $("#form-refmsg");
     if (!f.subject.value.trim() || !f.body.value.trim()) { alert("Subject and message are required."); return; }
-    if (!test && !confirm(`Send this message now to ${refSel.size} referee(s)? Each receives their own email.`)) return;
+    if (!test && !confirm(`Send this message now to ${NRC.plural(refSel.size, "referee", "referees")}? Each receives their own email.`)) return;
     const { data: sess } = await sb().auth.getSession();
     const res = await fetch("/api/referee-message", { method: "POST", headers: { "content-type": "application/json", Authorization: "Bearer " + sess.session.access_token }, body: JSON.stringify({ referee_ids: [...refSel], subject: f.subject.value, body: f.body.value, test: !!test }) });
     const d = await res.json().catch(() => ({}));
@@ -506,27 +534,27 @@
     const out = [];
     const prospects = act.filter(x => x.s.prospects.length);
     const orphanInq = inquiries.filter(i => ["new", "contacted"].includes(i.status) && !inqClub(i));
-    if (prospects.length) out.push({ title: "Introduce new prospects to their club", why: `${prospects.reduce((a, x) => a + x.s.prospects.length, 0)} open contact request(s) name a club. Ask each club to back its candidates (practice time, a partner, membership).`, clubs: ids(prospects), template: "prospect" });
-    if (orphanInq.length) out.push({ title: "Answer contact requests with no club", why: `${orphanInq.length} prospect(s) have no club. Point them to the nearest club or a clinic.`, href: "#inquiries" });
+    if (prospects.length) out.push({ title: "Introduce new prospects to their club", why: `${NRC.plural(prospects.reduce((a, x) => a + x.s.prospects.length, 0), "open contact request names", "open contact requests name")} a club. Ask each club to back its candidates (practice time, a partner, membership).`, clubs: ids(prospects), template: "prospect" });
+    if (orphanInq.length) out.push({ title: "Answer contact requests with no club", why: `${NRC.plural(orphanInq.length, "prospect has", "prospects have")} no club. Point them to the nearest club or a clinic.`, href: "#inquiries" });
     const hosts = act.filter(x => x.s.upcoming.length && x.s.certified.length < 2);
-    if (hosts.length) out.push({ title: "Train local referees at clubs hosting a tournament", why: `${hosts.length} club(s) requested referees for an upcoming event without a local pair. Propose a Level 1 course with the practical at their event.`, clubs: ids(hosts), template: "host" });
+    if (hosts.length) out.push({ title: "Train local referees at clubs hosting a tournament", why: `${NRC.plural(hosts.length, "club", "clubs")} requested referees for an upcoming event without a local pair. Propose a Level 1 course with the practical at their event.`, clubs: ids(hosts), template: "host" });
     const one = act.filter(x => x.s.certified.length === 1 && !x.s.pair);
-    if (one.length) out.push({ title: "Find a partner for clubs with one certified referee", why: `${one.length} club(s) are one referee away from a pair.`, clubs: ids(one), template: "pair_partner" });
+    if (one.length) out.push({ title: "Find a partner for clubs with one certified referee", why: `${NRC.plural(one.length, "club is", "clubs are")} one referee away from a pair.`, clubs: ids(one), template: "pair_partner" });
     const two = act.filter(x => x.s.certified.length >= 2 && !x.s.pair);
-    if (two.length) out.push({ title: "Record pairs where two certified referees already exist", why: `${two.length} club(s) have two or more certified referees but no pair on record. Confirm they work together and record the pair.`, clubs: ids(two) });
+    if (two.length) out.push({ title: "Record pairs where two certified referees already exist", why: `${NRC.plural(two.length, "club has", "clubs have")} two or more certified referees but no pair on record. Confirm they work together and record the pair.`, clubs: ids(two) });
     const cand = refs.filter(r => r.active && r.cert_level === "candidate" && !r.level1_theory_passed_on);
-    if (cand.length) out.push({ title: "Move candidates through the Level 1 course", why: `${cand.length} candidate(s) have not passed the Level 1 theory. Check progress and schedule the practical for those who passed.`, href: "#programs" });
+    if (cand.length) out.push({ title: "Move candidates through the Level 1 course", why: `${NRC.plural(cand.length, "candidate has", "candidates have")} not passed the Level 1 theory. Check progress and schedule the practical for those who passed.`, href: "#programs" });
     const noneAdult = act.filter(x => !x.s.refs.length && !x.c.club_type.startsWith("collegiate"));
-    if (noneAdult.length) out.push({ title: "Ask clubs with no referee to nominate two members", why: `${noneAdult.length} club(s) have no referee on the roster.`, clubs: ids(noneAdult), template: "nominate" });
+    if (noneAdult.length) out.push({ title: "Ask clubs with no referee to nominate two members", why: `${NRC.plural(noneAdult.length, "adult club has", "adult clubs have")} no referee on the roster.`, clubs: ids(noneAdult), template: "nominate" });
     const noneCollege = act.filter(x => !x.s.refs.length && x.c.club_type.startsWith("collegiate"));
-    if (noneCollege.length) out.push({ title: "Recruit student referees in collegiate programs", why: `${noneCollege.length} collegiate program(s) have no referee on the roster.`, clubs: ids(noneCollege), template: "college" });
+    if (noneCollege.length) out.push({ title: "Recruit student referees in collegiate programs", why: `${NRC.plural(noneCollege.length, "collegiate program has", "collegiate programs have")} no referee on the roster.`, clubs: ids(noneCollege), template: "college" });
     const byState = {}; act.forEach(x => { if (x.c.state) (byState[x.c.state] = byState[x.c.state] || []).push(x); });
     const regions = Object.entries(byState).filter(([, l]) => l.length >= 2 && !l.some(x => x.s.pair)).sort((a, b) => b[1].length - a[1].length);
     if (regions.length) out.push({ title: "Propose regional clinics where several clubs share a state", why: `${regions.map(([st, l]) => st + " (" + l.length + ")").join(", ")}: clubs with no certified pair in the state. One clinic per state covers them all; each club receives its own state in the message.`, clubs: regions.flatMap(([, l]) => ids(l)), template: "clinic" });
     const noContact = act.filter(x => !x.s.emails.length);
-    if (noContact.length) out.push({ title: "Find a contact for clubs with none on file", why: `${noContact.length} club(s) cannot be messaged from the hub.`, clubs: ids(noContact), href: "#clubs" });
+    if (noContact.length) out.push({ title: "Find a contact for clubs with none on file", why: `${NRC.plural(noContact.length, "club", "clubs")} cannot be messaged from the hub.`, clubs: ids(noContact), href: "#clubs" });
     const mentors = act.filter(x => x.s.pair);
-    if (mentors.length) out.push({ title: "Ask clubs with a certified pair to mentor nearby clubs", why: `${mentors.length} club(s) have a certified pair.`, clubs: ids(mentors), template: "mentor" });
+    if (mentors.length) out.push({ title: "Ask clubs with a certified pair to mentor nearby clubs", why: `${NRC.plural(mentors.length, "club has", "clubs have")} a certified pair.`, clubs: ids(mentors), template: "mentor" });
     return out;
   }
   function clubActions(c, s) {
@@ -949,7 +977,7 @@
     }).sort((a, b) => ["past", "todo", "all"].includes(tourFilter) ? b.start_date.localeCompare(a.start_date) : a.start_date.localeCompare(b.start_date));
     const STAT = { submitted: "amber", reviewing: "amber", staffed: "green", completed: "", cancelled: "red" };
     $("#tour tbody").innerHTML = list.map(t => { const st = tourStats[t.id] || {}, need = t.pairs_needed * 2, past = t.start_date <= now;
-      return `<tr class="clickable t-${t.sanction === "usath" ? "usath" : t.sanction === "international" ? "intl" : "club"}" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${pendingCh[t.id] && t.end_date >= now && t.status !== "cancelled" ? `<div style="margin-top:4px;display:flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="pill amber" title="Details officials or the organizer see were changed and nobody was told">Update not sent</span><button class="btn sm" type="button" title="Email the change to the designated and invited referees, the organizer and the NRC" onclick="event.stopPropagation();sendPending('${t.id}')">Send</button><button class="btn sm ghost" type="button" title="Keep the change without emailing anyone; the change log records it as not sent" onclick="event.stopPropagation();dismissPending('${t.id}')">Dismiss</button></div>` : ""}${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div style="margin-top:4px">' + NRC.divisionPills(t.divisions) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}${st.guests ? '<div class="small muted">+' + st.guests + " guest" + (st.guests > 1 ? "s" : "") + "</div>" : ""}${(() => { const sx = staffing.find(x => x.id === t.id); if (!sx || t.end_date < now || bucket(t) === "full") return ""; const left = sx.staff_by ? Math.round((new Date(sx.staff_by + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5) : null; return `<div class="small muted" style="margin-top:4px;white-space:nowrap">${sx.staff_by ? "staff by " + NRC.fmtDate(sx.staff_by) + (left < 0 ? ' <span style="color:var(--red)">' + (-left) + " days late</span>" : "") : ""}${sx.contacted ? "<br>" + sx.contacted + " invited, " + sx.accepted + " yes, " + sx.waiting + " waiting" : ""}</div>`; })()}</td><td><select class="tour-status s-${t.status}" onclick="event.stopPropagation()" onchange="this.className='tour-status s-'+this.value;setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option value="${x}" ${x === t.status ? "selected" : ""}>${x[0].toUpperCase() + x.slice(1)}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="7">No tournament in this view.</td></tr>';
+      return `<tr class="clickable t-${t.sanction === "usath" ? "usath" : t.sanction === "international" ? "intl" : "club"}" tabindex="0" data-id="${t.id}"><td><strong>${NRC.esc(t.name)}</strong>${pendingCh[t.id] && t.end_date >= now && t.status !== "cancelled" ? `<div class="row-flag"><span class="pill amber" title="Details officials or the organizer see were changed and nobody was told">Update not sent</span><button class="ico-btn pos" type="button" aria-label="Send the update" title="Send: email the change to the designated and invited referees, the organizer and the NRC" onclick="event.stopPropagation();sendPending('${t.id}')">${NRC.ICON.send}</button><button class="ico-btn" type="button" aria-label="Dismiss the update" title="Dismiss: keep the change without emailing anyone; the change log records it as not sent" onclick="event.stopPropagation();dismissPending('${t.id}')">${NRC.ICON.x}</button></div>` : ""}${t.club_id ? '<div class="small muted">' + NRC.esc(clubName(t.club_id)) + "</div>" : ""}${t.divisions && t.divisions.length ? '<div class="small muted">' + NRC.esc(NRC.divisionText(t.divisions)) + "</div>" : ""}</td><td>${NRC.sanctionPill(t.sanction)}${NRC.datePill(t)}${t.nrc_staffs === false ? '<div class="small muted" style="margin-top:4px">calendar only</div>' : ""}</td><td class="small" style="white-space:nowrap">${NRC.fmtDate(t.start_date)}<br><span class="muted">to ${NRC.fmtDate(t.end_date)}</span></td><td class="small">${NRC.esc([t.venue_city, t.venue_state].filter(Boolean).join(", ") || t.region || "")}</td><td class="small">${organizerCell(t, t.end_date < now)}</td><td>${t.nrc_staffs === false && !st.officials ? '<span class="muted">-</span>' : `<span class="pill ${st.referees >= need ? "green" : past ? "red" : "amber"}">${st.referees || 0}/${need}</span>`}${st.officials > st.referees ? '<div class="small muted">+' + (st.officials - st.referees) + " other</div>" : ""}${st.guests ? '<div class="small muted">+' + st.guests + " guest" + (st.guests > 1 ? "s" : "") + "</div>" : ""}${(() => { const sx = staffing.find(x => x.id === t.id); if (!sx || t.end_date < now || bucket(t) === "full") return ""; const left = sx.staff_by ? Math.round((new Date(sx.staff_by + "T12:00:00") - new Date(now + "T12:00:00")) / 864e5) : null; return `<div class="small muted" style="margin-top:4px;white-space:nowrap">${sx.staff_by ? "staff by " + NRC.fmtDate(sx.staff_by) + (left < 0 ? ' <span style="color:var(--red)">' + (-left) + " days late</span>" : "") : ""}${sx.contacted ? "<br>" + sx.contacted + " invited, " + sx.accepted + " yes, " + sx.waiting + " waiting" : ""}</div>`; })()}</td><td><select class="tour-status s-${t.status}" onclick="event.stopPropagation()" onchange="this.className='tour-status s-'+this.value;setTourStatus('${t.id}',this.value)" style="min-width:110px">${["submitted", "reviewing", "staffed", "completed", "cancelled"].map(x => `<option value="${x}" ${x === t.status ? "selected" : ""}>${x[0].toUpperCase() + x.slice(1)}</option>`).join("")}</select></td></tr>`; }).join("") || '<tr><td colspan="7">No tournament in this view.</td></tr>';
   }
   // ---------- organizer outreach ----------
   // Events the NRC placed on the calendar carry a tentative organizer contact: the one saved on the event, otherwise the
@@ -963,11 +991,11 @@
     return { email: "", name: "", note: t.outreach_note || (club ? `No email on file for ${club.name}` : "No host club linked to the event") };
   }
   function organizerCell(t, past) {
-    if (!t.created_by_nrc) return `<span class="pill green">Request in</span><div>${NRC.esc(t.organizer_name || "")}</div><div class="muted">${NRC.esc(t.organizer_email || "")}</div><button class="btn sm ghost" disabled title="The organizer placed the request" style="margin-top:6px">Reach out</button>`;
+    if (!t.created_by_nrc) return `<div><span class="pill green" title="The organizer placed the request">Request in</span> ${NRC.esc(t.organizer_name || "")}</div><div class="muted">${NRC.esc(t.organizer_email || "")}</div>`;
     const o = outreachFor(t);
     const sent = t.outreach_sent_at ? `<div class="muted">Invited ${NRC.fmtDate(t.outreach_sent_at.slice(0, 10))}</div>` : "";
     const who = o.email ? `<div title="${NRC.esc(o.note)}">${NRC.esc(o.email)}</div><div class="muted">tentative</div>` : `<div class="muted" title="${NRC.esc(o.note)}">No contact</div>`;
-    return who + sent + (past ? "" : `<button class="btn sm ghost" style="margin-top:6px" onclick="openOutreach('${t.id}')">${t.outreach_sent_at ? "Remind" : "Reach out"}</button>`);
+    return `<div class="row-flag">${past ? "" : `<button class="ico-btn" type="button" aria-label="${t.outreach_sent_at ? "Remind" : "Reach out"}" title="${t.outreach_sent_at ? "Remind the organizer to place the request" : "Reach out: invite the organizer to place the request"}" onclick="event.stopPropagation();openOutreach('${t.id}')">${NRC.ICON.mail}</button>`}<div>${who}</div></div>` + sent;
   }
   let outreachTour = null;
   window.openOutreach = function (id) {

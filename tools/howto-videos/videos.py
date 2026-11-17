@@ -67,13 +67,13 @@ async def r_availability():
     async with Rec("r-availability", J, start="profile.html") as r:
         await r.scroll_to("h3:has-text('When I can referee')", 0.12)
         await r.cap("Tap a weekend to change it", 900)
-        b = "button:has-text('Nov 14')"
-        await r.tap(b, "One tap: available", wait=900)
-        await r.tap("button:has-text('Nov 21')", wait=700)
-        await r.tap("button:has-text('Nov 21')", "Tap again: tentative", wait=900)
-        await r.tap("button:has-text('Nov 28')", wait=500)
-        await r.tap("button:has-text('Nov 28')", wait=500)
-        await r.tap("button:has-text('Nov 28')", "Once more: unavailable", wait=1000)
+        w = lambda i: r.page.locator("#weekends button").nth(i)
+        await r.tap(w(0), "One tap: available", wait=900)
+        await r.tap(w(1), wait=700)
+        await r.tap(w(1), "Tap again: tentative", wait=900)
+        await r.tap(w(2), wait=500)
+        await r.tap(w(2), wait=500)
+        await r.tap(w(2), "Once more: unavailable", wait=1000)
         r.mark()
         await r.cap("Each tap saves", 1000)
         await r.scroll_to("h3:has-text('Other dates')", 0.15)
@@ -98,6 +98,8 @@ async def r_trip():
         await r.type("dialog[open] input[name=provider]", "Hertz DEN", delay=45)
         await r.type("dialog[open] input[name=reference]", "H48820", delay=45)
         await r.type("dialog[open] input[name=cost]", "112", delay=60)
+        await r.date("dialog[open] input[name=start_at]", "2027-01-22T18:00")
+        await r.date("dialog[open] input[name=end_at]", "2027-01-24T12:00")
         await r.tap("dialog[open] button:has-text('Save')", "Save", wait=1300)
         await r.scroll_to("button:has-text('Add to my calendar')", 0.3)
         await r.tap("button:has-text('Add to my calendar')", "Add to my calendar: one file, every booking", wait=1600)
@@ -122,7 +124,7 @@ async def r_expense():
 async def r_paid():
     async with Rec("r-paid", J, start="profile.html") as r:
         await r.scroll_to("h3:has-text('Expenses')", 0.1)
-        await r.tap("button:has-text('How I get paid')", "How I get paid", wait=900)
+        await r.tap("button:has-text('Add Venmo, PayPal or Zelle')", "How I get paid: add Venmo, PayPal or Zelle", wait=900)
         await r.type("dialog[open] input[name=venmo]", "@jordan-ellis", "Venmo, PayPal or Zelle", delay=50)
         await r.select("dialog[open] select[name=preferred]", "venmo")
         r.mark()
@@ -362,13 +364,14 @@ async def o_request():
 @video
 async def o_follow():
     async with Rec("o-follow", ORG, start="organizer.html") as r:
-        await r.cap("My tournaments: one card per request", 1400)
-        await r.scroll_to("h2:has-text('Pacific Coast Open 2027')", 0.08)
+        await r.cap("My tournaments: one line per event, the next one open", 1600)
+        await r.scroll_to("summary:has-text('Pacific Coast Open 2027')", 0.08)
+        await r.tap("summary:has-text('Pacific Coast Open 2027')", "Tap an event to open it", wait=900)
         await r.cap("Where it stands: received, reviewing, designated", 1800)
         await r.glide(300, 1100)
         await r.cap("Referees designated, pairs from USATH and yours", 1800)
         r.mark()
-        await r.scroll_to("h2:has-text('Rocky Mountain Cup 2027')", 0.08)
+        await r.scroll_to("summary:has-text('Rocky Mountain Cup 2027')", 0.08)
         await r.cap("Once designated: names, where they fly from, bookings", 1700)
         await r.glide(520, 1400)
         await r.cap("You also get an email with the list", 1700)
@@ -378,6 +381,7 @@ async def o_pairs():
     sql("delete from assignments where guest_official_id is not null; delete from guest_officials;")
     async with Rec("o-pairs", ORG, start="organizer.html") as r:
         await r.cap("Bringing a pair from outside the US? It is your pair", 1500)
+        await r.tap("summary:has-text('Pacific Coast Open 2027')", "Open the event", wait=900)
         b = r.page.locator("button:has-text('Name a pair'), button:has-text('Name an organizer pair')").first
         await r.tap(b, "Press Name a pair", wait=1000)
         await r.select("dialog[open] select >> nth=0", contains="Germany", cap="Nation and federation")
@@ -413,16 +417,16 @@ async def o_booking():
 async def o_expenses():
     async with Rec("o-expenses", ORG, start="organizer.html") as r:
         await r.cap("You approve and pay the expenses of your event", 1500)
-        await r.scroll_to("button:has-text('Open reimbursements') >> nth=1", 0.3)
-        await r.tap("button:has-text('Open reimbursements') >> nth=1", "Open reimbursements", wait=1300)
+        await r.scroll_to("details[open] button:has-text('Open reimbursements')", 0.3)
+        await r.tap("details[open] button:has-text('Open reimbursements')", "Open reimbursements", wait=1300)
         await r.cap("Totals, by category, by official, every receipt", 1800)
         r.mark()
         await r.glide(420, 1300)
         await r.glide(380, 1300)
         await r.tap("button:has-text('Approve all within the agreement')", "Approve all within the agreement", wait=1500)
         await r.cap("Others one by one; a decline needs a reason", 1600)
-        dl = r.page.locator("button:has-text('Download receipts')").first
-        await r.tap(dl, "Download receipts: one zip with a summary", wait=1600)
+        dl = r.page.locator("button:has-text('Receipts (')").first
+        await r.tap(dl, "Receipts: one zip with a summary", wait=1600)
         mp = r.page.locator("button:has-text('Mark paid')").first
         if await mp.count():
             await r.tap(mp, "Mark paid once you paid them", wait=1300)
@@ -443,7 +447,8 @@ async def o_edit():
 @video
 async def o_report():
     async with Rec("o-report", ORG, start="organizer.html") as r:
-        await r.scroll_to("h2:has-text('Desert Classic 2026')", 0.08)
+        await r.scroll_to("summary:has-text('Desert Classic 2026')", 0.08)
+        await r.tap("summary:has-text('Desert Classic 2026')", "Past events: tap to open", wait=900)
         await r.tap("button:has-text('Post event report')", "After the event: the two minute report", wait=1100)
         await r.type("input[name=games_played]", "12", delay=80)
         await r.select("select[name=referee_rating]", "5", cap="How the referees did")
@@ -461,6 +466,8 @@ async def open_tour(r, name, cap=None):
 async def a_dashboard():
     async with Rec("a-dashboard", ADMIN, start="admin/index.html", **A) as r:
         await r.cap("The dashboard: what is due, then the key figures", 1600)
+        await r.point("#act-now"); await r.wait(400)
+        await r.cap("Needs action this week: late staffing, unanswered invitations, unsent updates, documents", 2200)
         r.mark()
         await r.point("#pane-dashboard .stat >> nth=0"); await r.wait(500)
         await r.cap("Each figure opens the list behind it", 1400)

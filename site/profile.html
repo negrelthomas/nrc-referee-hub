@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/styles.css">
-<style>.weekends{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}.weekends button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 6px;font:inherit;font-size:13px;cursor:pointer;line-height:1.25;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:58px}.weekends button:disabled{cursor:default;opacity:1;color:var(--ink)}.weekends .wk-d{font-weight:700}.weekends .wk-ev{display:block;font-size:11.5px;font-weight:600;padding:1px 0 1px 6px;border-left:3px solid #8796A8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}.weekends .wk-ev.s-usath{border-color:var(--red)}.weekends .wk-ev.s-intl{border-color:#7B3FA0}.weekends .wk-ev.s-club{border-color:var(--navy-2)}.weekends .wk-st{font-size:11.5px;color:var(--muted)}.weekends .wk-month{grid-column:1/-1;font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase;margin:8px 0 0;padding-left:8px;border-left:5px solid var(--mc)}.weekends .wk-month:first-child{margin-top:0}.weekends button{border-top:4px solid var(--mc)}.weekends button:not(.available):not(.tentative):not(.unavailable){background:color-mix(in srgb,var(--mc) 9%,#fff)}.weekends button.available{background:#E3F6E8;border-color:#2E9E5B;color:#17532D}.weekends button.tentative{background:#FFF4D6;border-color:#D99A00;color:#6B4C00}.weekends button.unavailable{background:#FBE3E6;border-color:#C8102E;color:#7A0A1C}</style>
+<style>.weekends{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}.weekends button{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 6px;font:inherit;font-size:13px;cursor:pointer;line-height:1.25;text-align:left;display:flex;flex-direction:column;gap:3px;min-height:58px}.weekends button:disabled{cursor:default;opacity:1;color:var(--ink)}.weekends .wk-d{font-weight:700}.weekends .wk-ev{display:block;font-size:11.5px;font-weight:600;padding:1px 0 1px 6px;border-left:3px solid #8796A8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--ink)}.weekends .wk-ev.s-usath{border-color:var(--red)}.weekends .wk-ev.s-intl{border-color:#7B3FA0}.weekends .wk-ev.s-club{border-color:var(--navy-2)}.weekends .wk-st{font-size:11.5px;color:var(--muted)}.weekends .wk-month{grid-column:1/-1;font-family:var(--display);font-weight:700;font-size:15px;letter-spacing:.3px;text-transform:uppercase;margin:8px 0 0;padding-left:8px;border-left:5px solid var(--mc)}.weekends .wk-month:first-child{margin-top:0}.weekends button{border-top:1px solid var(--line)}.weekends button:not(.available):not(.tentative):not(.unavailable){background:#fff}.weekends button.available{background:#E3F6E8;border-color:#2E9E5B;color:#17532D}.weekends button.tentative{background:#FFF4D6;border-color:#D99A00;color:#6B4C00}.weekends button.unavailable{background:#FBE3E6;border-color:#C8102E;color:#7A0A1C}</style>
 </head>
 <body data-page="profile.html">
 <a class="skip" href="#main">Skip to content</a>
@@ -38,9 +38,9 @@
   </div>
 
   <div id="tab-home">
+    <div id="home-alerts" style="display:grid;gap:10px;margin-bottom:14px"></div>
     <div id="home-next"></div>
     <div id="home-complete" style="margin-top:14px"></div>
-    <div id="home-alerts" style="display:grid;gap:10px;margin-top:14px"></div>
     <div class="grid c2" style="margin-top:14px">
       <div class="card"><h3>When I can referee</h3><ul class="small muted" style="padding-left:18px;margin:6px 0 10px"><li>Tap a weekend to cycle: available, tentative, unavailable. A weekend covers Friday to Sunday</li><li>Events during the week are listed below the weekends: answer for each one, or add any dates under Other dates</li><li>Mark unavailable only the dates you cannot referee at all</li><li>Weekends of tournaments you are designated for show as <strong>Assigned</strong>: leave them, the NRC already counts on you</li></ul>
         <div id="weekends" class="weekends"></div>
@@ -371,9 +371,8 @@ async function loadHome() {
   else if (certified && pr && pr.status === "active") alerts.unshift(`<div class="alert ${pr.due_on < today ? "" : "info"}"><div><div class="t">${pr.due_on < today ? "Program overdue" : "Program in progress"}</div><div class="small">${pr.weak_rules.length} rules to clear, due ${NRC.fmtDate(pr.due_on)}.</div></div><a class="btn sm" href="training.html#program">Continue</a></div>`);
   else if (certified && pr && pr.status === "ready_for_retest") alerts.unshift(`<div class="alert warn"><div><div class="t">Modules done, re-test open</div><div class="small">Clear the hurdle to close your program.</div></div><a class="btn sm" href="training.html#program">Re-test</a></div>`);
   else if (!certified && ref.level1_theory_passed_on) alerts.unshift(`<div class="alert ok"><div><div class="t">Level 1 theory passed on ${NRC.fmtDate(ref.level1_theory_passed_on)}</div><div class="small">Next step: the practical part (signals, whistle, physical test) at a clinic. The NRC contacts you and awards Level 1 after it. Keep practising on the Training page meanwhile.</div></div><a class="btn sm secondary" href="training.html">Training</a></div>`);
-  else if (!certified) alerts.unshift(`<div class="alert info"><div><div class="t">Level 1 online course</div><div class="small">Six modules, then the final test. Pass it and "theory passed" is recorded here; the NRC awards Level 1 after the practical part.</div></div><a class="btn sm" href="training.html#program">Open</a></div>`);
   if (!certified) { const w = document.querySelector("#weekends").closest(".card"); if (w) w.innerHTML = `<h3>Availability</h3><p class="small muted">Availability opens once you are certified; the NRC staffs tournaments with certified referees only.</p>`; }
-  $("#home-alerts").innerHTML = alerts.join("");
+  $("#home-alerts").innerHTML = alerts.join(""); $("#home-alerts").style.display = alerts.length ? "grid" : "none";
   renderCompletion(certified, asmt && asmt[0]);
   loadAvail();
   // training nudge
@@ -441,7 +440,7 @@ async function loadWeekends(readOnly) {
   const EV = ev || []; EVS = EV;
   const host = $("#weekends"); host.innerHTML = "";
   const iso = (x) => NRC.localDate(x);
-  const MC = ["#1E5AB8", "#0F6E56", "#7B3FA0", "#D97A00", "#0B7A8F", "#B5179E", "#5C6B00", "#C8102E", "#3A4A5C", "#E0A100", "#04234F", "#9E0B23"];
+  const MC = Array(12).fill("#04234F");
   let d = saturday(new Date()), lastMonth = -1;
   for (let i = 0; i < 26; i++) {
     const key = iso(d); const st = WA[key] || "";

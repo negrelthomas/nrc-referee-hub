@@ -43,6 +43,9 @@
   NRC.DIV_GENDERS = [["M", "Men"], ["W", "Women"], ["X", "Mixed"]];
   NRC.divisionLabel = (code) => { const [a, g] = String(code).split("-"); return a + " " + ({ M: "Men", W: "Women", X: "Mixed" }[g] || g || ""); };
   NRC.divisionPills = (arr) => (arr || []).slice().sort((x, y) => NRC.DIV_AGES.indexOf(x.split("-")[0]) - NRC.DIV_AGES.indexOf(y.split("-")[0]) || x.localeCompare(y)).map(c => `<span class="pill">${NRC.esc(NRC.divisionLabel(c))}</span>`).join(" ");
+  NRC.divisionText = (arr) => (arr || []).slice().sort((x, y) => NRC.DIV_AGES.indexOf(x.split("-")[0]) - NRC.DIV_AGES.indexOf(y.split("-")[0]) || x.localeCompare(y)).map(NRC.divisionLabel).join(", ");
+  const svg = (d) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  NRC.ICON = { send: svg('<path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/>'), x: svg('<path d="M18 6 6 18M6 6l12 12"/>'), mail: svg('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/>') };
   // ---------- event type (colour coded) and date status ----------
   NRC.SANCTION = { usath: "USATH", regional: "Regional", club: "Club", international: "International" };
   // Who books each part of the trip: flights (travel_managed_by), hotel, rental car
@@ -197,6 +200,8 @@
   NRC.notice = (el, msg, kind) => { if (!el) return; el.className = "notice " + (kind || ""); el.innerHTML = msg; el.classList.remove("hidden"); const r = el.getBoundingClientRect(); if (r.top < 70 || r.bottom > window.innerHeight) el.scrollIntoView({ behavior: "smooth", block: "center" }); };
   NRC.shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
+  NRC.plural = (n, one, many) => n + " " + (n === 1 ? one : many);
+
   // ---------- nav ----------
   NRC.renderNav = function (active) {
     const host = document.getElementById("site-nav");
@@ -225,6 +230,7 @@
         if (u.role === "referee" || u.role === "admin") a.insertAdjacentHTML("beforebegin", `<a href="directory.html" class="${active === "directory.html" ? "active" : ""}">Directory</a>`);
         a.insertAdjacentHTML("afterend", `<a href="#" class="nav-out" onclick="NRC.signOut();return false">Sign out</a>`);
         NRC.renderFeedback();
+        a.insertAdjacentHTML("afterend", `<a href="#" class="nav-fb" onclick="document.getElementById('fb-btn').click();return false">Give feedback</a>`);
       }
     });
   };

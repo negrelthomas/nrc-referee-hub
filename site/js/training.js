@@ -245,13 +245,14 @@
     const sl = $("#secs"), out = $("#secs-out");
     if (sl) { try { const v = parseInt(localStorage.getItem(SKEY), 10); if (v >= 10 && v <= 30) sl.value = v; } catch (e) { } out.textContent = sl.value + " s"; sl.oninput = () => out.textContent = sl.value + " s"; }
     user = await NRC.currentUser();
-    if (!user) { const b = $("#signin-banner"); b.classList.remove("hidden"); b.style.display = "flex"; }
+    // visitors: only what works signed out (program, progress and leaderboard need an account)
+    if (!user) { const b = $("#signin-banner"); b.classList.remove("hidden"); b.style.display = "flex"; ["program", "progress", "board"].forEach(k => { const t = document.querySelector('.tabs [data-tab="' + k + '"]'); if (t) t.remove(); }); }
     ALL = await NRC.loadQuestions();
     buildFilters(); updatePoolCount();
     let m = "practice"; try { m = localStorage.getItem("nrc_quiz_mode") || "practice"; } catch (e) { }
     setMode(m === "timed" ? "timed" : "practice");
     if (NRC.Path) await NRC.Path.init(user, ALL);
     const h = location.hash.slice(1);
-    showTab(["board", "practice", "cards", "progress", "program", "build"].includes(h) ? h : "path");
+    showTab((user ? ["board", "practice", "cards", "progress", "program", "build"] : ["practice", "cards", "build"]).includes(h) ? h : "path");
   });
 })();

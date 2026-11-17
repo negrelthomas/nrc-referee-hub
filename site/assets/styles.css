@@ -350,7 +350,8 @@ dialog .body{padding:22px}
 /* Give feedback button (prototype; every page) */
 .fb-btn{position:fixed;right:16px;bottom:16px;z-index:50;display:inline-flex;align-items:center;gap:6px;background:var(--navy);color:#fff;border:2px solid rgba(255,255,255,.85);border-radius:999px;padding:8px 14px;font:inherit;font-weight:600;font-size:13px;box-shadow:0 8px 20px -8px rgba(4,35,79,.6);cursor:pointer;opacity:.92}
 .fb-btn:hover{filter:brightness(.95)}
-@media(max-width:640px){.fb-btn{padding:10px;bottom:12px;right:12px}.fb-btn span{display:none}}
+.menu .nav-fb{display:none}
+@media(max-width:640px){.fb-btn{display:none}.menu .nav-fb{display:block}}
 /* Welcome tour (first sign in) */
 .tour{display:grid;gap:12px}
 .tour .steps-dots{display:flex;gap:6px;justify-content:center}
@@ -1023,7 +1024,7 @@ form h3::before{content:"";display:inline-block;width:6px;height:15px;margin-rig
 .table-wrap{border-color:rgba(4,35,79,.12);box-shadow:var(--shadow)}
 
 /* Tabs: active tab sits on a light navy tint */
-.tabs button:hover{color:var(--navy)}
+.tabs button:not(.active):hover{color:var(--navy)}
 .tabs button.active{background-image:linear-gradient(180deg,rgba(4,35,79,0),rgba(4,35,79,.07))}
 
 /* Notices: a stronger left edge in their status colour */
@@ -1042,3 +1043,23 @@ form h3::before{content:"";display:inline-block;width:6px;height:15px;margin-rig
   clip-path:polygon(0 14px,100% 0,100% calc(100% - 14px),0 100%)}
 html,body{overflow-x:clip}
 @media print{.wrap > section::after,body::before{display:none!important}}
+
+/* review 2026-11-16 */
+.stat.bad.zero,.admin-layout .stat.bad.zero{border-left-color:var(--navy)}
+.stat.bad.zero .n{color:var(--navy)}
+.wrap:has(> section > .admin-layout){max-width:1440px}
+@media(max-width:640px){#plan .task,#cp-actions .task{flex-wrap:wrap}#plan .task>div:nth-child(2),#cp-actions .task>div:first-child{flex:1 1 230px!important}#plan .task>.btn{margin-left:40px}}
+/* organizer: one summary line per event, details on tap */
+.ev-card>summary{list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:10px 16px;flex-wrap:wrap;position:relative;padding-right:28px}
+.ev-card>summary::-webkit-details-marker{display:none}
+.ev-card>summary::after{content:"";position:absolute;right:4px;top:50%;width:9px;height:9px;border-right:2px solid var(--navy);border-bottom:2px solid var(--navy);transform:translateY(-70%) rotate(45deg);transition:transform .15s}
+.ev-card[open]>summary::after{transform:translateY(-30%) rotate(-135deg)}
+.ev-title h2{margin:0 0 2px}
+.ev-flags{display:flex;gap:6px;flex-wrap:wrap}
+.ev-card[open]>summary{margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--line)}
+/* admin tournaments: compact rows, actions as icon buttons with a hover label */
+.row-flag{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:4px}
+.ico-btn{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:#fff;color:var(--navy);cursor:pointer;padding:0;flex:none}
+.ico-btn:hover{background:#EAF0F9}
+.ico-btn.pos{background:var(--navy);border-color:var(--navy);color:#fff}
+#tour td{padding-top:9px;padding-bottom:9px}
